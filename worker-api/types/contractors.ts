@@ -1,3 +1,9 @@
+export type KsefIdentifiable = {
+    nip?: string
+    pesel?: string
+    regon?: string
+};
+
 export type AppContractorUpdate = Partial<Omit<AppContractor, "id">>;
 
 export type AppContractor = {

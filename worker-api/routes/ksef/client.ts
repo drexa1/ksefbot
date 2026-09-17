@@ -1,16 +1,16 @@
 import {Env} from "../../worker";
 import pRetry, {AbortError} from "p-retry";
+import {AppUser} from "../../types/users";
+import {AppContractor, KsefIdentifiable} from "../../types/contractors";
 import {
     InvoiceEncryptionData,
     KsefAuthenticationStatus,
     KsefContextIdentifier,
-    KsefIdentifiable,
     KsefInvoiceQueryResult
 } from "../../types/ksef";
 import * as asn1js from "asn1js";
 import * as pkijs from "pkijs";
 import {invoiceFromXml} from "../db/invoices";
-import {AppUser} from "../../types/users";
 
 class KsefClientBase {
     token?: string;
@@ -84,13 +84,13 @@ class KsefClientBase {
         return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
     }
 
-    private async startKsefAuthentication(env: Env, user: KsefIdentifiable, challenge: string, encryptedToken: string, publicKeyId: string): Promise<{ referenceNumber: string, authenticationToken: string }> {
+    private async startKsefAuthentication(env: Env, user: AppUser, challenge: string, encryptedToken: string, publicKeyId: string): Promise<{ referenceNumber: string, authenticationToken: string }> {
         const response = await fetch(`${env.KSEF_URL}/auth/ksef-token`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 challenge,
-                contextIdentifier: this.ksefContextIdentifier(user),
+                contextIdentifier: this.contextIdentifier(user),
                 encryptedToken,
                 publicKeyId
             })
@@ -103,11 +103,10 @@ class KsefClientBase {
         return { referenceNumber: data.referenceNumber, authenticationToken: data.authenticationToken.token};
     }
 
-    private ksefContextIdentifier(user: KsefIdentifiable): KsefContextIdentifier {
-        if (user.nip)
-            return { type: "Nip", value: user.nip };
-        if (user.pesel)
-            return { type: "InternalId", value: user.pesel };
+    private contextIdentifier(user: AppUser): KsefContextIdentifier {
+        if (user.id) return { type: "Nip", value: user.id };
+        // REVIEW: NIP/Regon/Pesel are contractor data, no longer application user fields
+        // if (user.pesel) return { type: "InternalId", value: user.pesel };
         throw new Error("Unsupported tax identifier");
     }
 

@@ -1,9 +1,3 @@
-export type KsefIdentifiable = {
-    nip?: string
-    pesel?: string
-    regon?: string
-};
-
 export interface KsefContextIdentifier {
     type: "Nip" | "InternalId" | "NipVatUe" | "PeppolId"
     value: string
