@@ -5,7 +5,7 @@ echo "Recreating local database..."
 npm run db:dev:recreate
 
 echo "Starting worker..."
-npm run worker:dev:run > worker.log 2>&1 &
+npm run worker-api:dev:run > worker.log 2>&1 &
 WORKER_PID=$!
 
 cleanup() {

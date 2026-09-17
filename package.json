@@ -25,7 +25,7 @@
 
         "api:tests:wait": "wait-on http://localhost:3001 && npm run api:tests:bruno",
         "api:tests:bruno": "cd tests/api && bru run -r --env dev --sandbox dev",
-        "api:dev:tests": "npm run db:dev:recreate && concurrently -k npm:worker:dev:run npm:api:tests:wait",
+        "api:dev:tests": "npm run db:dev:recreate && concurrently -k npm:worker-api:dev:run npm:api:tests:wait",
         "api:ci:tests": "bash .github/scripts/api-tests-ci.sh",
 
         "client:dev:build": "vite build --mode development",
