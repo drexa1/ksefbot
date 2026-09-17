@@ -10,7 +10,7 @@ on:
       - 'public/**'
       - 'src/**'
       - 'tests/**'
-      - 'worker-api/**'
+      - '../../worker-ksef/**'
       - '.gitignore'
       - 'BACKLOG.md'
       - 'index.html'

@@ -33,9 +33,9 @@
         "client:dev:test": "vitest",
         "client:prod:build": "vite build --mode production",
 
-        "worker-ksef:dev:run": "npm run client:dev:build && wrangler dev --config wrangler.worker-ksef.toml --local --port 3001 --inspector-port 9999",
-        "worker-ksef:prod:deploy": "npm run client:prod:build && wrangler deploy --config wrangler.worker-ksef.toml",
-        "worker-ksef:prod:logs": "wrangler tail ksefbot",
+        "worker-api:dev:run": "npm run client:dev:build && wrangler dev --config wrangler.worker-ksef.toml --local --port 3001 --inspector-port 9999",
+        "worker-api:prod:deploy": "npm run client:prod:build && wrangler deploy --config wrangler.worker-ksef.toml",
+        "worker-api:prod:logs": "wrangler tail ksefbot",
 
         "worker-whatsapp:dev:run": "wrangler dev --config wrangler.worker-whatsapp.toml --local --port 3002 --inspector-port 9999",
         "worker-whatsapp:prod:deploy": "wrangler deploy --config wrangler.worker-whatsapp.toml"

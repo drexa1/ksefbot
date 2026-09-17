@@ -17,7 +17,7 @@
     "include": [
       "src/**/*",
       "tests/**/*",
-        "worker-api/**/*"
+      "worker-api/**/*"
     ],
   "exclude": ["node_modules"]
 }
