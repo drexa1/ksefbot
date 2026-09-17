@@ -1,7 +1,6 @@
 export interface Env {
-    WHATSAPP_VERIFY_TOKEN: string;
-    WHATSAPP_ACCESS_TOKEN: string;
-    WHATSAPP_PHONE_NUMBER_ID: string;
+    WHATSAPP_ACCESS_TOKEN: string
+    WHATSAPP_VERIFY_TOKEN: string
 }
 
 export default {
