@@ -19,7 +19,7 @@ on:
       - 'README.md'
       - 'tsconfig.json'
       - 'vite.config.js'
-      - 'wrangler.worker-api.toml'
+      - '../../wrangler.worker-ksef.toml'
   workflow_dispatch:
 
 env:
