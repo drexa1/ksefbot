@@ -37,7 +37,8 @@
         "worker-api:prod:deploy": "npm run client:prod:build && wrangler deploy --config wrangler.worker-ksef.toml",
         "worker-api:prod:logs": "wrangler tail ksefbot",
 
-        "worker-whatsapp:prod:deploy": "wrangler deploy --config wrangler.worker-whatsapp.toml"
+        "worker-whatsapp:prod:deploy": "wrangler deploy --config wrangler.worker-whatsapp.toml",
+        "worker-whatsapp:prod:logs": "wrangler tail ksefbot-whatsapp"
     },
     "dependencies": {
         "@sentry/cli": "latest",
