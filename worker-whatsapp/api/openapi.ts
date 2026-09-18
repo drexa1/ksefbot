@@ -15,13 +15,54 @@ export const getOpenApiSpec = () => ({
         }
     },
     tags: [
-        { name: "Test" }
+        { name: "Health" },
+        { name: "Auth" },
+        { name: "Whatsapp" }
     ],
     paths: {
+        "/health": {
+            get: {
+                summary: "Health check",
+                tags: ["Health"],
+                responses: {
+                    "200": { description: "OK" }
+                }
+            }
+        },
+        "/whoami": {
+            get: {
+                summary: "Get current authenticated user",
+                tags: ["Auth"],
+                security: [{ ApiKeyAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "Current user info",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        user: {
+                                            type: "object",
+                                            properties: {
+                                                name: { type: "string" },
+                                                email: { type: "string" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { description: "Unauthorized" },
+                    "500": { description: "Failed to decode JWT" }
+                }
+            }
+        },
         "/whatsapp/test": {
             post: {
                 summary: "Send a test WhatsApp message",
-                tags: ["WhatsApp"],
+                tags: ["Whatsapp"],
                 security: [{ ApiKeyAuth: [] }],
                 requestBody: {
                     required: true,
