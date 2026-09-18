@@ -1,7 +1,7 @@
 export const getOpenApiSpec = () => ({
     openapi: "3.0.0",
     info: {
-        title: "ksefbot-whatsapp",
+        title: "ksefbot-whatsapp-api",
         version: "1.0.0"
     },
     components: {
