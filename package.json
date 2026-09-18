@@ -37,7 +37,6 @@
         "worker-api:prod:deploy": "npm run client:prod:build && wrangler deploy --config wrangler.worker-ksef.toml",
         "worker-api:prod:logs": "wrangler tail ksefbot",
 
-        "worker-whatsapp:dev:run": "wrangler dev --config wrangler.worker-whatsapp.toml --local --port 3002 --inspector-port 9999",
         "worker-whatsapp:prod:deploy": "wrangler deploy --config wrangler.worker-whatsapp.toml"
     },
     "dependencies": {

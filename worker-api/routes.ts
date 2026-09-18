@@ -43,10 +43,11 @@ const withErrorHandling = (routes: Routes): Routes => {
 };
 
 export const routes: Record<string, Routes> =  {
-    //🔓 Don't use redirection for root, we serve the static assets
-    "/openapi.json":        { GET: async () => Response.json(getOpenApiSpec()) },
+    //🔓 Not requiring authentication
+    // Don't use redirection for root, we serve the static assets
     "/swagger":             { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
     "/docs":                { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
+    "/openapi.json":        { GET: async () => Response.json(getOpenApiSpec()) },
     "/health":              { GET: healthGET },
     //🔒 Requiring authentication
     "/whoami":               withErrorHandling({ GET: whoamiGET }),

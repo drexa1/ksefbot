@@ -4,6 +4,8 @@ compatibility_date = "2026-01-01"
 
 [vars]
 ENVIRONMENT = "cloudflare"
+META_API_VERSION = "v25.0"
+WHATSAPP_PHONE_ID = "1316073114919570"
 
 [observability.logs]
 enabled = true
