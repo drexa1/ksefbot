@@ -3,7 +3,7 @@ import {getOpenApiSpec, swaggerHtml} from "./api/openapi";
 import {scalarHtml} from "./api/scalar";
 import {corsHeaders} from "./auth";
 import {AuthError} from "./types/auth";
-import {verificationHandler, receiveMessage, testMessage, } from "./routes/whatsapp";
+import {verificationHandler, messageHandler, test, } from "./routes/whatsapp";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
@@ -33,6 +33,6 @@ export const routes: Record<string, Routes> =  {
     "/docs":              { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
     "/openapi.json":      { GET: async () => Response.json(getOpenApiSpec()) },
     //🔒 Requiring authentication
-    "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: receiveMessage }),
-    "/whatsapp/test":     withErrorHandling({ POST: testMessage })
+    "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
+    "/whatsapp/test":     withErrorHandling({ POST: test })
 };

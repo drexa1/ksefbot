@@ -10,7 +10,14 @@ export async function verificationHandler(request: Request, env: Env): Promise<R
     return new Response("Forbidden", { status: 403 });
 }
 
-export async function testMessage(request: Request, env: Env): Promise<Response> {
+export async function messageHandler(request: Request, env: Env): Promise<Response> {
+    const body = await request.json();
+    console.log("Webhook:", JSON.stringify(body, null, 2));
+    // TODO: process incoming messages here
+    return new Response("OK");
+}
+
+export async function test(request: Request, env: Env): Promise<Response> {
     const body = await request.json() as { to?: string, message?: string };
     if (!body.to || !body.message)
         return Response.json({ error: "'to' and 'message' are required" }, { status: 400 });
@@ -30,11 +37,4 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
     if (!response.ok)
         return Response.json({ error: "WhatsApp API error", details: result }, { status: response.status });
     return Response.json(result);
-}
-
-export async function receiveMessage(request: Request, env: Env): Promise<Response> {
-    const body = await request.json();
-    console.log("Webhook:", JSON.stringify(body, null, 2));
-    // TODO: process incoming messages here
-    return new Response("OK");
 }
