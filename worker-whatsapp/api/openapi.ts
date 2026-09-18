@@ -61,7 +61,7 @@ export const swaggerHtml = `
     <!DOCTYPE html>
     <html lang="en">
         <head>
-            <title>ksefbot-whatsapp-api]</title>
+            <title>ksefbot-whatsapp-api</title>
             <link rel="icon" type="image/png" href="https://static.vecteezy.com/system/resources/previews/016/716/480/non_2x/whatsapp-icon-free-png.png"/>
             <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css"/>
         </head>
