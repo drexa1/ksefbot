@@ -2,18 +2,12 @@ import {Env} from "./worker";
 import {getOpenApiSpec, swaggerHtml} from "./api/openapi";
 import {scalarHtml} from "./api/scalar";
 import {corsHeaders} from "./auth";
+import {AuthError} from "./types/auth";
 import {verificationHandler, receiveMessage, testMessage, } from "./routes/whatsapp";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
 export type Route = (req: Request, env: Env) => Promise<Response>;
-
-class AuthError extends Error {
-    constructor(message: string, public status = 404, public details?: unknown) {
-        super(message);
-        this.name = "AuthError";
-    }
-}
 
 const withErrorHandling = (routes: Routes): Routes => {
     const routesWithAuth: Routes = {};

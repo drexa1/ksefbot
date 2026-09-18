@@ -34,21 +34,3 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
             return false;
     }
 }
-
-/**
- * Get the Cloudflare trusted client user.
- */
-export async function whoami(req: Request): Promise<Response> {
-    //🛡️ CF Zero Trust logged user?
-    const jwt = req.headers.get("Cf-Access-Jwt-Assertion");
-    //💻 Zero Trust specific access policy, or public access
-    const userId = jwt ? decodeJWT(jwt).email : undefined;
-    return Response.json({ userId, ...(jwt ? { origin: "Cf-Access-Jwt" } : {}) });
-}
-
-function decodeJWT(jwt: string): { name: string, email: string } {
-    const payloadBase64 = jwt.split(".")[1];
-    const payloadJson = atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/"));
-    const payload = JSON.parse(payloadJson);
-    return { name: payload.name, email: payload.email };
-}
