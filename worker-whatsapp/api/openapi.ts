@@ -1,7 +1,7 @@
 export const getOpenApiSpec = () => ({
     openapi: "3.0.0",
     info: {
-        title: "Whatsapp API",
+        title: "ksefbot-whatsapp",
         version: "1.0.0"
     },
     components: {
@@ -72,7 +72,7 @@ export const swaggerHtml = `
 				SwaggerUIBundle({
 					url: "/openapi.json",
 					dom_id: "#swagger-ui",
-					docExpansion: "none"
+					// docExpansion: "none"
 				});
 			</script>
 		</body>
