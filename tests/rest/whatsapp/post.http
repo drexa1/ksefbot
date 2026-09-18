@@ -7,7 +7,7 @@ POST {{baseUrl}}/whatsapp/webhooks
 Content-Type: application/json
 
 {
-    "test": "hello"
+    "message": "test handler"
 }
 
 ### Send WhatsApp message
@@ -17,5 +17,5 @@ X-API-Key: {{apiKey}}
 
 {
     "to": "48518121343",
-    "message": "test"
+    "message": "test sendout"
 }

@@ -2,5 +2,10 @@
 @baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
 @verifyToken = PY7U4bXyM26dzumfr9Jep8jdYRFgd5hz
 
+@metaUrl = https://graph.facebook.com
+@apiVersion = v26.0
+@accessToken = EAATxCmjtvowBSn9a2liZC5uXKSIqVzyYdWMLeNLXeRUGinbaop4NAwEuFQCkwpU3vX66xYMzTaZAXLQdYayJCSmLuD93xBMHfyYqZCrcxbNxNlZC5jTDG9g0IuAWWFeU0StbRXwZBA9mHkI51uHKNB74c2fm0ZBnZB3wZAuaWKvyEQB0pmPqN6rm2Ny4fISIPG1m2wZDZD
+@wabaId = 1814174903356359
+
 ### WhatsApp webhook verification
-GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=123456
+GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=12345

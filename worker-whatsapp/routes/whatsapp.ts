@@ -10,31 +10,32 @@ export async function verificationHandler(request: Request, env: Env): Promise<R
     return new Response("Forbidden", { status: 403 });
 }
 
-export async function messageHandler(request: Request, env: Env): Promise<Response> {
-    const body = await request.json();
-    console.log("Webhook:", JSON.stringify(body, null, 2));
-    // TODO: process incoming messages here
-    return new Response("OK");
-}
-
-export async function test(request: Request, env: Env): Promise<Response> {
+export async function testSendout(request: Request, env: Env): Promise<Response> {
     const body = await request.json() as { to?: string, message?: string };
     if (!body.to || !body.message)
         return Response.json({ error: "'to' and 'message' are required" }, { status: 400 });
-    const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-                messaging_product: "whatsapp",
-                recipient_type: "individual",
-                to: body.to,
-                type: "text",
-                text: { preview_url: false, body: body.message }
-            })
-        }
-    );
+    const url = `https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`;
+    const payload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: body.to,
+        type: "text",
+        text: { preview_url: false, body: body.message }
+    };
+    console.log("Whatsapp request:", JSON.stringify({ url, phoneId: env.WHATSAPP_PHONE_ID, payload }));
+    const response = await fetch(url, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
     const result = await response.json();
-    if (!response.ok)
-        return Response.json({ error: "WhatsApp API error", details: result }, { status: response.status });
-    return Response.json(result);
+    console.log("Whatsapp response:", JSON.stringify({ status: response.status, result }));
+    return Response.json(result, { status: response.status });
+}
+
+export async function messageHandler(request: Request): Promise<Response> {
+    const body = await request.json();
+    console.log("Webhook:", body);
+    // TODO: process incoming messages here
+    return new Response("OK");
 }
