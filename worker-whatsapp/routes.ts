@@ -36,6 +36,3 @@ export const routes: Record<string, Routes> =  {
     "/whatsapp/test":     withErrorHandling({ GET: testMessage }),
     "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: receiveMessage })
 };
-
-
-
