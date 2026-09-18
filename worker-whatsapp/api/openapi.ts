@@ -61,7 +61,7 @@ export const swaggerHtml = `
     <!DOCTYPE html>
     <html lang="en">
         <head>
-            <title>API docs</title>
+            <title>KSeF Bot: Whatsapp API docs</title>
             <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/5/5e/WhatsApp_icon.png"/>
             <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css"/>
         </head>
