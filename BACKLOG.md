@@ -54,7 +54,8 @@
 - [x] Retrieve contractor details programmatically REST tests  
 - [X] Retrieve contractor details programmatically bruno tests  
 - [x] Lowercase name and address from gov mappers  
-- [x] Insert onboard data script
+- [x] Insert onboard data script  
+- [x] WhatsApp bot  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  
 - [ ] CLI: adapt sales/purchase invoices summary  
@@ -76,8 +77,7 @@
 - [ ] Invoice generator frontend: invoice additional data  
 - [ ] Encrypt KSeF/Baking keys  
 - [ ] Invoice generator frontend: help hints  
-- [ ] Invoice generator frontend: import logic
-- [ ] WhatsApp bot  
+- [ ] Invoice generator frontend: import logic  
 - [ ] Create user frontend  
 - [ ] Bank client PoC  
 - [ ] Scheduling
