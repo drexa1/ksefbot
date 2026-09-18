@@ -8,4 +8,4 @@
 @wabaId = 1814174903356359
 
 ### WhatsApp webhook verification
-GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=12345
+GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=123456
