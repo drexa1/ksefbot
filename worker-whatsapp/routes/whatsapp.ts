@@ -1,6 +1,6 @@
 import {Env} from "../worker";
 
-export async function verificationHandler(request: Request, env: Env,): Promise<Response> {
+export async function verificationHandler(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
@@ -34,9 +34,7 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
 
 export async function receiveMessage(request: Request, env: Env): Promise<Response> {
     const body = await request.json();
-    const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-    console.log("From:", message?.from);
-    console.log("Message:", message?.text?.body);
+    console.log("WHATSAPP WEBHOOK:", JSON.stringify(body, null, 2));
     // TODO: process incoming messages here
     return new Response("OK");
 }

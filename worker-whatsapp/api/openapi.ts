@@ -20,7 +20,7 @@ export const getOpenApiSpec = () => ({
     paths: {
         "/whatsapp/test": {
             post: {
-                summary: "Send a test WhatsApp message",
+                summary: "Send a test message",
                 tags: ["Whatsapp"],
                 security: [{ ApiKeyAuth: [] }],
                 requestBody: {
@@ -40,7 +40,7 @@ export const getOpenApiSpec = () => ({
                                     message: {
                                         type: "string",
                                         description: "Message to send.",
-                                        example: "Hello!"
+                                        example: "Hello 👋"
                                     }
                                 }
                             }
@@ -48,8 +48,8 @@ export const getOpenApiSpec = () => ({
                     }
                 },
                 responses: {
-                    "200": { description: "WhatsApp message sent successfully." },
-                    "400": { description: "Both 'to' and 'message' are required." },
+                    "200": { description: "Whatsapp message sent successfully." },
+                    "400": { description: "Missing or invalid message parameters." },
                     "401": { description: "Unauthorized." }
                 }
             }
