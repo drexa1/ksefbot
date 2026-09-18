@@ -56,6 +56,8 @@
 - [x] Lowercase name and address from gov mappers  
 - [x] Insert onboard data script  
 - [x] WhatsApp bot  
+- [x] WhatsApp bot REST tests  
+- [ ] WhatsApp bot bruno tests  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  
 - [ ] CLI: adapt sales/purchase invoices summary  
