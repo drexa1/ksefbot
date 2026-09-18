@@ -1,7 +1,7 @@
 export const getOpenApiSpec = () => ({
     openapi: "3.0.0",
     info: {
-        title: "ksefbot-api",
+        title: "ksefbot [API]",
         version: "1.0.0"
     },
     components: {
@@ -884,7 +884,7 @@ export const swaggerHtml = `
     <!DOCTYPE html>
     <html lang="en">
         <head>
-            <title>KSeF Bot: API docs</title>
+            <title>ksefbot [API]</title>
             <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css"/>
         </head>
         <body>

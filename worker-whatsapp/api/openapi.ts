@@ -1,7 +1,7 @@
 export const getOpenApiSpec = () => ({
     openapi: "3.0.0",
     info: {
-        title: "ksefbot-whatsapp-api",
+        title: "ksefbot [whatsapp API]",
         version: "1.0.0"
     },
     components: {
@@ -61,8 +61,8 @@ export const swaggerHtml = `
     <!DOCTYPE html>
     <html lang="en">
         <head>
-            <title>KSeF Bot: Whatsapp API docs</title>
-            <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/5/5e/WhatsApp_icon.png"/>
+            <title>ksefbot [whatsapp API]</title>
+            <link rel="icon" type="image/png" href="https://static.vecteezy.com/system/resources/previews/016/716/480/non_2x/whatsapp-icon-free-png.png"/>
             <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css"/>
         </head>
         <body>
