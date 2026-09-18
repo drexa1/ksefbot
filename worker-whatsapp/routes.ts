@@ -33,6 +33,6 @@ export const routes: Record<string, Routes> =  {
     "/docs":              { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
     "/openapi.json":      { GET: async () => Response.json(getOpenApiSpec()) },
     //🔒 Requiring authentication
-    "/whatsapp/test":     withErrorHandling({ GET: testMessage }),
-    "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: receiveMessage })
+    "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: receiveMessage }),
+    "/whatsapp/test":     withErrorHandling({ POST: testMessage })
 };
