@@ -34,7 +34,7 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
 
 export async function receiveMessage(request: Request, env: Env): Promise<Response> {
     const body = await request.json();
-    console.log("WHATSAPP WEBHOOK:", JSON.stringify(body, null, 2));
+    console.log("Webhook:", JSON.stringify(body, null, 2));
     // TODO: process incoming messages here
     return new Response("OK");
 }
