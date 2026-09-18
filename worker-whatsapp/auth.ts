@@ -25,10 +25,8 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
         case "/openapi.json":
         case "/swagger":
         case "/docs":
-        case "/health":
             return true;
         //🔒 Protected routes
-        case "/whoami":
         case "/whatsapp/test":
             return req.headers.get("X-API-Key") === env.API_KEY;
         // Default
@@ -40,7 +38,7 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
 /**
  * Get the Cloudflare trusted client user.
  */
-export async function whoami(req: Request, env: Env): Promise<Response> {
+export async function whoami(req: Request): Promise<Response> {
     //🛡️ CF Zero Trust logged user?
     const jwt = req.headers.get("Cf-Access-Jwt-Assertion");
     //💻 Zero Trust specific access policy, or public access

@@ -1,8 +1,7 @@
 import {Env} from "./worker";
 import {getOpenApiSpec, swaggerHtml} from "./api/openapi";
 import {scalarHtml} from "./api/scalar";
-import {corsHeaders, whoami as whoamiGET} from "./auth";
-import {get as healthGET} from "./routes/health";
+import {corsHeaders} from "./auth";
 import {verificationHandler, receiveMessage, testMessage, } from "./routes/whatsapp";
 
 export type Routes = Partial<Record<Method, Route>>;
@@ -39,9 +38,7 @@ export const routes: Record<string, Routes> =  {
     "/swagger":           { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
     "/docs":              { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
     "/openapi.json":      { GET: async () => Response.json(getOpenApiSpec()) },
-    "/health":            { GET: healthGET },
     //🔒 Requiring authentication
-    "/whoami":            withErrorHandling({ GET: whoamiGET }),
     "/whatsapp/test":     withErrorHandling({ GET: testMessage }),
     "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: receiveMessage })
 };
