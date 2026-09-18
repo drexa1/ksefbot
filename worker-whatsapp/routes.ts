@@ -32,7 +32,8 @@ export const routes: Record<string, Routes> =  {
     "/swagger":           { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
     "/docs":              { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
     "/openapi.json":      { GET: async () => Response.json(getOpenApiSpec()) },
-    //🔒 Requiring authentication
+    "/privacy":           { GET: async (_request, env) => env.KSEFBOT_ASSETS.fetch(new Request(`${env.KSEFBOT_URL}/privacy`)) },
     "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
+    //🔒 Requiring authentication
     "/whatsapp/test":     withErrorHandling({ POST: test })
 };

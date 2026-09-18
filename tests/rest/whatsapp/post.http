@@ -1,0 +1,21 @@
+#@no-redirect
+@baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
+@apiKey = 55oUrQjUlwlZYCS30WGfpMMZCiQkfKpt
+
+### Test WhatsApp webhook
+POST {{baseUrl}}/whatsapp/webhooks
+Content-Type: application/json
+
+{
+    "test": "hello"
+}
+
+### Send WhatsApp message
+POST {{baseUrl}}/whatsapp/test
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "to": "48518121343",
+    "message": "test"
+}

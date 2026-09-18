@@ -7,6 +7,8 @@ export interface Env {
     WHATSAPP_ACCESS_TOKEN: string
     META_API_VERSION: string
     WHATSAPP_PHONE_ID: string
+    KSEFBOT_URL: string;
+    KSEFBOT_ASSETS: Fetcher;
 }
 
 // noinspection JSUnusedGlobalSymbols

@@ -25,6 +25,7 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
         case "/openapi.json":
         case "/swagger":
         case "/docs":
+        case "/whatsapp/webhooks":
             return true;
         //🔒 Protected routes
         case "/whatsapp/test":

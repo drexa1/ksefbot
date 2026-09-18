@@ -5,7 +5,8 @@ compatibility_date = "2026-01-01"
 [vars]
 ENVIRONMENT = "cloudflare"
 META_API_VERSION = "v26.0"
-WHATSAPP_PHONE_ID = "1316073114919570"
+WHATSAPP_PHONE_ID = "1212895211918077"
+KSEFBOT_URL = "https://ksefbot.druizbarbero.workers.dev"
 
 [observability.logs]
 enabled = true
@@ -13,6 +14,10 @@ invocation_logs = true
 
 [observability.traces]
 enabled = true
+
+[[services]]
+binding = "KSEFBOT_ASSETS"
+service = "ksefbot"
 
 [[d1_databases]]
 binding = "D1"

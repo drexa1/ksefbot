@@ -1,0 +1,6 @@
+#@no-redirect
+@baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
+@verifyToken = PY7U4bXyM26dzumfr9Jep8jdYRFgd5hz
+
+### WhatsApp webhook verification
+GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=123456
