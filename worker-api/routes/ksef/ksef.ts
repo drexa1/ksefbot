@@ -1,14 +1,12 @@
 import {Env} from "../../worker";
-import {Client} from "./client";
-import {D1Driver, Repository} from "../../repository/d1";
 import {getAuthUser} from "../../auth";
-import {AppUser} from "../../types/users";
-import {AppInvoice} from "../../types/invoices";
+import {service} from "../../services/services";
 
-let repo: Repository;
-const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
+export async function fetchKsefInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from: Date, to: Date) {
+    return await service.ksef.fetchInvoices(env, appUser, subjectType, from, to);
+}
 
-export async function getKsefInvoices(req: Request, env: Env, subjectType: "Subject1" | "Subject2"): Promise<Response> {
+export async function getInvoicesFor(req: Request, env: Env, subjectType: "Subject1" | "Subject2"): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
     const fromParam = url.searchParams.get("from")!;
@@ -30,31 +28,5 @@ export async function getKsefInvoices(req: Request, env: Env, subjectType: "Subj
         if (String(error).includes("Too Many Requests"))
             return Response.json({ success: false, error: "The limit of 20 requests per hour has been exceeded." }, { status: 429 });
         throw error;
-    }
-}
-
-export async function fetchKsefInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from: Date, to: Date) {
-    const client = new Client(env);
-    const invoices = await client.queryPurchaseInvoices(env, appUser, subjectType, from, to);
-    await saveInvoices(env, invoices);
-    // Return the JSON formatted
-    return invoices.map(row => JSON.parse(row.jsonData));
-}
-
-async function saveInvoices(env: Env, invoices: Awaited<AppInvoice & { ownerId: string }>[]) {
-    // Cache in app
-    const saved = [];
-    const existing = [];
-    for (const invoice of invoices) {
-        try {
-            await getRepo(env).save<AppInvoice>("invoices", invoice);
-            saved.push(invoice);
-        } catch (error) {
-            if (String(error).includes("UNIQUE constraint failed")) {
-                console.warn("Invoice already existed in the app:", invoice.id);
-                existing.push(invoice.id);
-            } else
-                throw error;
-        }
     }
 }

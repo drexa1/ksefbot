@@ -1,8 +1,8 @@
-import {Env} from "../../worker";
-import {dtoFromAliases} from "../../dto/avro";
+import {Env} from "../worker";
+import {dtoFromAliases} from "../dto/avro";
 import {encodeToken} from "./krs-apikey";
-import {titleCase} from "./contractors";
-import {KsefContractor} from "../../types/gov";
+import {titleCase} from "../routes/ksef/contractors";
+import {KsefContractor} from "../types/gov";
 
 // noinspection JSUnusedGlobalSymbols
 export async function contractors(req: Request, env: Env): Promise<Response> {

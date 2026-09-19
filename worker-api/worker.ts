@@ -1,6 +1,8 @@
+import {WorkerEntrypoint} from "cloudflare:workers";
 import {D1Database} from "@cloudflare/workers-types"
-import {Method, routes} from "./routes";
+import {Method, routes} from "./routes/routes";
 import {auth, withCors, corsHeaders} from "./auth";
+import {initServices, service} from "./services/services";
 
 export interface Env {
     ENVIRONMENT: "dev" | "cloudflare"
@@ -35,6 +37,7 @@ export interface Env {
 // noinspection JSUnusedGlobalSymbols
 export default {
     async fetch(req: Request, env: Env): Promise<Response> {
+        initServices(env);
         if (req.method === "OPTIONS")
             return new Response(null, { status: 204, headers: corsHeaders });
         if (!await auth(req, env))
@@ -48,3 +51,23 @@ export default {
         return withCors(response);
     }
 };
+
+// noinspection JSUnusedGlobalSymbols
+export class WorkerRPC extends WorkerEntrypoint<Env> {
+    constructor(ctx: ExecutionContext, env: Env) {
+        super(ctx, env);
+        initServices(env);
+    }
+    get users() {
+        return service.users;
+    }
+    get contractors() {
+        return service.contractors;
+    }
+    get invoices() {
+        return service.invoices;
+    }
+    get taxes() {
+        return service.taxes;
+    }
+}

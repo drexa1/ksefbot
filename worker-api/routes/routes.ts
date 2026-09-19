@@ -1,25 +1,25 @@
-import {Env} from "./worker";
-import {swaggerHtml, getOpenApiSpec} from "./api/openapi";
-import {scalarHtml} from "./api/scalar";
-import {get as healthGET} from "./routes/health/health";
-import {corsHeaders, whoami as whoamiGET} from "./auth";
+import {Env} from "../worker";
+import {swaggerHtml, getOpenApiSpec} from "../api/openapi";
+import {scalarHtml} from "../api/scalar";
+import {get as healthGET} from "./health/health";
+import {corsHeaders, whoami as whoamiGET} from "../auth";
 import {
     get as salesGET,
     post as salesPOST,
     sessions as sessionsGET,
     invoiceStatus as invoiceStatusGET,
     downloadReceipt as receiptGET
-} from "./routes/ksef/sales";
-import {get as purchaseGET} from "./routes/ksef/purchases";
-import {contractors as govContractorsGET} from "./routes/gov/contractors";
-import {contractors as ceidgGET} from "./routes/gov/ceidg";
-import {contractors as krsGET} from "./routes/gov/krs";
-import {contractors as vatLbGET} from "./routes/gov/vat-lb";
-import {get as usersGET, post as usersPOST, put as usersPUT, del as usersDELETE} from "./routes/db/users";
-import {get as contractorsGET, post as contractorsPOST, put as contractorsPUT, del as contractorsDELETE} from "./routes/db/contractors";
-import {get as invoicesGET, post as invoicesPOST, put as invoicesPUT, del as invoicesDELETE} from "./routes/db/invoices";
-import {get as taxesGET, simulate as simulateGET, post as taxesPOST, put as taxesPUT, del as taxesDELETE, } from "./routes/db/taxes";
-import {AuthError} from "./types/auth";
+} from "./ksef/sales";
+import {get as purchaseGET} from "./ksef/purchases";
+import {contractors as govContractorsGET} from "./ksef/contractors";
+import {contractors as ceidgGET} from "../clients/ceidg";
+import {contractors as krsGET} from "../clients/krs";
+import {contractors as vatLbGET} from "../clients/vat-lb";
+import {get as usersGET, post as usersPOST, put as usersPUT, del as usersDELETE} from "./app/users";
+import {get as contractorsGET, post as contractorsPOST, put as contractorsPUT, del as contractorsDELETE} from "./app/contractors";
+import {get as invoicesGET, post as invoicesPOST, put as invoicesPUT, del as invoicesDELETE} from "./app/invoices";
+import {get as taxesGET, simulate as simulateGET, post as taxesPOST, put as taxesPUT, del as taxesDELETE, } from "./app/taxes";
+import {AuthError} from "../types/auth";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
