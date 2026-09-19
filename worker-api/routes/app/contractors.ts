@@ -1,5 +1,5 @@
 import {Env} from "../../worker";
-import {corsHeaders, getAuthUser} from "../../auth";
+import {getAuthUser} from "../../auth";
 import {service} from "../../services/services";
 import {AppContractor} from "../../types/contractors";
 
@@ -7,6 +7,7 @@ export async function get(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
     const searchParams = Object.fromEntries(url.searchParams.entries());
+    // Allow to fetch only owned contractors (except for superadmin)
     const filters = appUser.tier === 0 ? searchParams : { ...searchParams, ownerId: appUser.id };
     const rows = await service.contractors.get(filters);
     return rows.length === 0

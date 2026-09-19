@@ -11,7 +11,7 @@ export async function get(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const filters = Object.fromEntries(url.searchParams.entries());
     const rows = await service.users.get(filters);
-    return !rows || rows.length === 0
+    return rows.length === 0
         ? Response.json({success: false, error: "No users found", filters: filters}, {status: 404})
         : Response.json(rows, {status: 200});
 }
@@ -54,5 +54,5 @@ export async function del(req: Request, env: Env): Promise<Response> {
     const result = await service.users.delete(filters);
     return result.changes === 0
         ? Response.json({success: false, error: "No users found", filters}, {status: 404})
-        : Response.json({success: result.success, changes: result.changes, ...filters}, {status: 200});
+        : Response.json({success: result.success, changes: result.changes, id: result.id ?? filters.id}, {status: 200});
 }

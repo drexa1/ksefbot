@@ -9,6 +9,7 @@ export class ContractorsService {
     }
 
     async create(payload: AppContractor, ownerId: string): Promise<{ success: true; id: string; status: number }> {
+        // Never allow client to control id, ownership, or creation/update timestamps
         const { id, createdAt, updatedAt, ...payloadData } = payload;
         const record = { ...payloadData, id: crypto.randomUUID(), ownerId, updatedAt: new Date().toISOString() };
         await this.repo.save<AppContractor>("contractors", record);
@@ -16,6 +17,7 @@ export class ContractorsService {
     }
 
     async update(payload: AppContractor & { ownerId?: string }, ownerId: string): Promise<{ success: boolean; changes: number; id: string; status: number }> {
+        // Never allow client to change id, ownership, or creation/update timestamp
         const { id, ownerId: payloadOwnerId, createdAt, updatedAt, ...updatePayload } = payload;
         const result = await this.repo.update<AppContractorUpdate>("contractors", {
             ...updatePayload,
