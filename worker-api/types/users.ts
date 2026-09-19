@@ -3,9 +3,9 @@ export type AppUserUpdate = Partial<Omit<AppUser, "id">>;
 export type AppUser = {
     // Identification data
     id: string
+    phone: string
     email: string
     googleSubject: string
-    phone: string
     companyLogo?: Uint8Array
     // Contractor data
     contractorId: string

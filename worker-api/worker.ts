@@ -35,7 +35,8 @@ export interface Env {
 // noinspection JSUnusedGlobalSymbols
 export default {
     async fetch(req: Request, env: Env): Promise<Response> {
-        if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+        if (req.method === "OPTIONS")
+            return new Response(null, { status: 204, headers: corsHeaders });
         if (!await auth(req, env))
             return new Response("Unauthorized", { status: 401, headers: corsHeaders });
         const url = new URL(req.url);
