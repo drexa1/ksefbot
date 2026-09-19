@@ -10,10 +10,10 @@ export async function get(req: Request, env: Env): Promise<Response> {
         return new Response("Unauthorized", {status: 401, headers: corsHeaders});
     const url = new URL(req.url);
     const filters = Object.fromEntries(url.searchParams.entries());
-    const users = await service.users.get(filters);
-    return !users
-        ? Response.json({success: false, error: "User not found", filters}, {status: 404})
-        : Response.json(users, {status: 200});
+    const rows = await service.users.get(filters);
+    return !rows || rows.length === 0
+        ? Response.json({success: false, error: "No users found", filters: filters}, {status: 404})
+        : Response.json(rows, {status: 200});
 }
 
 /**
@@ -39,9 +39,9 @@ export async function put(req: Request, env: Env): Promise<Response> {
         return new Response("Unauthorized", {status: 401, headers: corsHeaders});
     const payload = await req.json() as AppUser;
     const result = await service.users.update(payload);
-    if (result.changes === 0)
-        return Response.json({success: false, error: "User not found", id: result.id}, {status: 404});
-    return Response.json({success: true, changes: result.changes, id: result.id}, {status: result.success ? 200 : 400});
+    return result.changes === 0
+        ? Response.json({success: false, error: "No users found", id: result.id}, {status: 404})
+        : Response.json({success: true, changes: result.changes, id: result.id}, {status: result.success ? 200 : 400});
 }
 
 export async function del(req: Request, env: Env): Promise<Response> {
@@ -52,7 +52,7 @@ export async function del(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const filters = Object.fromEntries(url.searchParams.entries());
     const result = await service.users.delete(filters);
-    if (result.changes === 0)
-        return Response.json({success: false, error: "Users not found", filters}, {status: 404});
-    return Response.json({success: result.success, changes: result.changes, ...filters}, {status: 200});
+    return result.changes === 0
+        ? Response.json({success: false, error: "No users found", filters}, {status: 404})
+        : Response.json({success: result.success, changes: result.changes, ...filters}, {status: 200});
 }

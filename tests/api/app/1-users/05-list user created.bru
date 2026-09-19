@@ -8,6 +8,6 @@ headers {
 tests {
     test("List the recently created user", function() {
         console.info(res.body);
-        expect(res.body.id).to.equal(bru.getCollectionVar("userId"));
+        expect(res.body[0].id).to.equal(bru.getCollectionVar("userId"));
     })
 }

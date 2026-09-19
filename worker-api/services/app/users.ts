@@ -4,11 +4,7 @@ import {AppUser, AppUserUpdate} from "../../types/users";
 export class UsersService {
     constructor(private readonly repo: Repository) {}
 
-    async get(filters: Record<string, any> = {}): Promise<AppUser | AppUser[]> {
-        if (!Object.keys(filters).length)
-            return this.repo.getAll<AppUser>("users");
-        if (Object.keys(filters).length === 1)
-            return await this.repo.get<AppUser>("users", filters);
+    async get(filters: Record<string, any>): Promise<AppUser[]> {
         return this.repo.getAll<AppUser>("users", filters);
     }
 

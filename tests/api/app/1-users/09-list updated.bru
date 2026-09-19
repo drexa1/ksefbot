@@ -8,6 +8,6 @@ headers {
 tests {
     test("List a recently updated user should show the edition", function() {
         console.info(res.body);
-        expect(res.body.bankName).to.equal("edited");
+        expect(res.body[0].bankName).to.equal("edited");
     })
 }

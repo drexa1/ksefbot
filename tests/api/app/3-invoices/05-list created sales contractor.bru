@@ -8,6 +8,6 @@ headers {
 tests {
     test("List the recently created buyer contractor", function() {
         console.info(res.body);
-        expect(res.body.nip).to.equal(bru.getCollectionVar("salesInvoiceCustomerId"));
+        expect(res.body[0].nip).to.equal(bru.getCollectionVar("salesInvoiceCustomerId"));
     })
 }

@@ -6,7 +6,7 @@ headers {
     X-API-Key: {{apiKey}}
 }
 tests {
-    test("List all contractors should return empty array", function() {
-        expect(res.body).to.be.an("array").that.is.empty;
+    test("List all contractors should fail", function() {
+        expect(res.status).to.equal(404);
     })
 }

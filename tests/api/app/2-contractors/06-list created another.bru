@@ -8,6 +8,6 @@ headers {
 tests {
     test("List the recently created contractor2", function() {
         console.info(res.body);
-        expect(res.body.id).to.equal(bru.getCollectionVar("contractor2Id"));
+        expect(res.body[0].id).to.equal(bru.getCollectionVar("contractor2Id"));
     })
 }

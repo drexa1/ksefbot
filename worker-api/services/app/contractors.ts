@@ -4,15 +4,14 @@ import {AppContractor, AppContractorUpdate} from "../../types/contractors";
 export class ContractorsService {
     constructor(private readonly repo: Repository) {}
 
-    async get(filters: Record<string, any> = {}, ownerId?: string, isSuperAdmin = false): Promise<AppContractor[]> {
-        const scopedFilters = isSuperAdmin || !ownerId ? filters : { ...filters, ownerId };
-        return await this.repo.getAll<AppContractor>("contractors", scopedFilters);
+    async get(filters: Record<string, any>): Promise<AppContractor[]> {
+        return await this.repo.getAll<AppContractor>("contractors", filters);
     }
 
     async create(payload: AppContractor, ownerId: string): Promise<{ success: true; id: string; status: number }> {
         const { id, createdAt, updatedAt, ...payloadData } = payload;
         const record = { ...payloadData, id: crypto.randomUUID(), ownerId, updatedAt: new Date().toISOString() };
-        await this.repo.save<AppContractor>("contractors", record as AppContractor);
+        await this.repo.save<AppContractor>("contractors", record);
         return { success: true, id: record.id, status: 201 };
     }
 
@@ -25,9 +24,8 @@ export class ContractorsService {
         return { success: result.success, changes: result.changes, id, status: result.changes === 0 ? 404 : 200 };
     }
 
-    async delete(filters: Record<string, any> = {}, ownerId?: string, isSuperAdmin = false): Promise<{ success: boolean; changes: number; filters: Record<string, any>; status: number }> {
-        const scopedFilters = isSuperAdmin || !ownerId ? filters : { ...filters, ownerId };
-        const result = await this.repo.delete("contractors", scopedFilters);
-        return { success: result.success, changes: result.changes, filters: scopedFilters, status: result.changes === 0 ? 404 : 200 };
+    async delete(filters: Record<string, any>): Promise<{ success: boolean; changes: number; filters: Record<string, any>; status: number }> {
+        const result = await this.repo.delete("contractors", filters);
+        return { success: result.success, changes: result.changes, filters, status: result.changes === 0 ? 404 : 200 };
     }
 }
