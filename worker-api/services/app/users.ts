@@ -25,7 +25,7 @@ export class UsersService {
         return {success: result.success, changes: result.changes, id};
     }
 
-    async delete(filters: Record<string, any> = {}): Promise<{success: boolean; changes: number; filters: Record<string, any>}> {
+    async delete(filters: Record<string, any> = {}): Promise<{success: boolean, changes: number, filters: Record<string, any>}> {
         const result = await this.repo.delete("users", filters);
         return {success: result.success, changes: result.changes, filters};
     }
