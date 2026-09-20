@@ -23,9 +23,7 @@ export async function contractors(req: Request, env: Env): Promise<Response> {
  * Search by Tax Identification Number in the Central Register on Business Activity.
  */
 export async function lookupCEIDG(nip: string, env: Env): Promise<KsefContractor> {
-    const ceidgLookup = await fetch(`${env.CEIDG_URL}/firmy?nip=${nip}`, { headers: {
-        Accept: "application/json", Authorization: `Bearer ${env.CEIDG_API_KEY}`
-    }});
+    const ceidgLookup = await fetch(`${env.CEIDG_URL}/firmy?nip=${nip}`, { headers: { Accept: "application/json", Authorization: env.CEIDG_API_KEY }});
     if (!ceidgLookup.ok)
         throw new Error(`CEIDG NIP lookup failed: ${ceidgLookup.status}`);
     if (ceidgLookup.status === 204)
@@ -34,9 +32,7 @@ export async function lookupCEIDG(nip: string, env: Env): Promise<KsefContractor
     const company = lookupResult["firmy"]?.[0];
     if (!company)
         throw new Error(`No CEIDG entry found for NIP ${nip}`);
-    const ceidgDetails = await fetch(`${env.CEIDG_URL}/firma/${company.id}`, { headers: {
-        Accept: "application/json", Authorization: `Bearer ${env.CEIDG_API_KEY}`
-    }});
+    const ceidgDetails = await fetch(`${env.CEIDG_URL}/firma/${company.id}`, { headers: { Accept: "application/json", Authorization: env.CEIDG_API_KEY }});
     if (!ceidgDetails.ok)
         throw new Error(`CEIDG details lookup failed: ${ceidgDetails.status}`);
     const detailsResult = await ceidgDetails.json();
@@ -60,3 +56,4 @@ function mapCEIDG(result: any, schema: any): KsefContractor {
         active: company?.status === "ACTIVE"
     };
 }
+
