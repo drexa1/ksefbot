@@ -5,7 +5,7 @@ export async function saveImage(message: WhatsappMessage, env: Env) {
     try {
         const image = await downloadImage(message, env);
         const fileExtension = message.image!.mime_type.split("/")[1];
-        const key = `whatsapp/${message.from}/${message.image!.id}.${fileExtension}`;
+        const key = `images/${message.from}/${message.image!.id}.${fileExtension}`;
         await env.R2.put(key, await image.arrayBuffer());
         console.info(`Saved image from ${message.from} message to R2 ${key}`);
     } catch (error) {
