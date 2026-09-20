@@ -36,7 +36,7 @@ jobs:
           CONFIRM: ${{ inputs.confirm }}
         run: |
           if [ "$CONFIRM" = "true" ]; then
-            echo "Deleting all"
+            echo "⚠️ Deleting all"
             prefix=""
           elif [ -n "$PHONE" ]; then
             echo "Deleting for user $PHONE"
