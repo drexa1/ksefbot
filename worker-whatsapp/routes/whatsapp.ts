@@ -38,8 +38,6 @@ export async function testSendout(request: Request, env: Env): Promise<Response>
     return Response.json(result, { status: response.status });
 }
 
-
-
 export async function messageHandler(request: Request, env: Env): Promise<Response> {
     const incomingMessage = await request.json() as IncomingMessage;
     const message = incomingMessage.entry[0].changes[0].value.messages?.[0];
