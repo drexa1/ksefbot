@@ -1,4 +1,4 @@
-name: Clear ksefbot-whatsapp KV
+name: Clear Cloudflare messages KV
 
 on:
   workflow_dispatch:
