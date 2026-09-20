@@ -23,7 +23,7 @@ export async function getInvoices(req: Request, env: Env, subjectType: "Subject1
         const result = await fetchInvoices(env, appUser, subjectType, from, to);
         return Response.json({
             success: result.length > 0,
-            ...(result.length === 0 && { count: result.length }),
+            ...(result.length > 0 && { count: result.length }),
             result,
             ...(result.length === 0 && { error: "No invoices found for the specified date range." })
         }, { status: 200 });
