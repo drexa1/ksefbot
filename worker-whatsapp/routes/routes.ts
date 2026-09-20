@@ -1,9 +1,9 @@
-import {Env} from "./worker";
-import {getOpenApiSpec, swaggerHtml} from "./api/openapi";
-import {scalarHtml} from "./api/scalar";
-import {corsHeaders} from "./auth";
-import {AuthError} from "./types/auth";
-import {verificationHandler, messageHandler, testSendout } from "./routes/whatsapp";
+import {Env} from "../worker";
+import {getOpenApiSpec, swaggerHtml} from "../api/openapi";
+import {scalarHtml} from "../api/scalar";
+import {corsHeaders} from "../auth";
+import {AuthError} from "../types/auth";
+import {verificationHandler, messageHandler, testSendout } from "./whatsapp";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";

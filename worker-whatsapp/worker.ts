@@ -1,6 +1,6 @@
 import {KVNamespace, R2Bucket, Fetcher} from "@cloudflare/workers-types"
 import {auth, withCors, corsHeaders} from "./auth";
-import {Method, routes} from "./routes";
+import {Method, routes} from "./routes/routes";
 
 export interface Env {
     KV: KVNamespace
