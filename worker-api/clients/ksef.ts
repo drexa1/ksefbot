@@ -1,16 +1,16 @@
-import {Env} from "../worker";
+import {Env} from "../../worker";
 import pRetry, {AbortError} from "p-retry";
-import {AppUser} from "../types/users";
-import {AppContractor, KsefIdentifiable} from "../types/contractors";
+import {AppUser} from "../../types/users";
+import {AppContractor, KsefIdentifiable} from "../../types/contractors";
 import {
     InvoiceEncryptionData,
     KsefAuthenticationStatus,
     KsefContextIdentifier,
     KsefInvoiceQueryResult
-} from "../types/ksef";
+} from "../../types/ksef";
 import * as asn1js from "asn1js";
 import * as pkijs from "pkijs";
-import {invoiceFromXml} from "../routes/app/invoices";
+import {invoiceFromXml} from "../app/invoices";
 
 class KsefClientBase {
     token?: string;
@@ -288,7 +288,7 @@ class KsefClientBase {
     }
 }
 
-export class KsefClient extends KsefClientBase {
+export class Client extends KsefClientBase {
 
     async queryPurchaseInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from?: Date, to?: Date) {
         // Authentication
