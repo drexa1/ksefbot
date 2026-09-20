@@ -1,4 +1,4 @@
-name: Recreate Cloudflare database
+name: Recreate Cloudflare D1
 
 on:
   workflow_dispatch:
