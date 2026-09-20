@@ -8,6 +8,6 @@ headers {
 tests {
     test("List a recently updated tax record should show the edition", function() {
         console.info(res.body);
-        expect(res.body.notes).to.equal("edited");
+        expect(res.body[0].notes).to.equal("edited");
     })
 }

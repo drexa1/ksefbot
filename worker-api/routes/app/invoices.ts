@@ -19,13 +19,10 @@ export async function get(req: Request, env: Env): Promise<Response> {
     for (const [key, value] of url.searchParams.entries()) {
         filters[key] = value;
     }
-    const rows = Object.keys(filters).length
-        ? await getRepo(env).get<AppInvoice>("invoices", filters)
-        : await getRepo(env).getAll<AppInvoice>("invoices");
-    if (!rows)
-        return Response.json({ success: false, error: "Invoice not found", filters }, { status: 404 });
-    const result = Array.isArray(rows) ? rows.map(row => JSON.parse(row.jsonData)) : JSON.parse(rows.jsonData);
-    return Response.json(result, { status: 200 });
+    const rows = await getRepo(env).getAll<AppInvoice>("invoices", filters);
+    return rows.length === 0
+        ? Response.json({ success: false, error: "No invoice found", filters }, { status: 404 })
+        : Response.json(rows.map(row => JSON.parse(row.jsonData)), { status: 200 });
 }
 
 export async function post(req: Request, env: Env): Promise<Response> {
@@ -61,9 +58,9 @@ export async function del(req: Request, env: Env): Promise<Response> {
     }
     if (appUser.tier !== 0) filters.ownerId = appUser.id;
     const result = await getRepo(env).delete("invoices", filters);
-    if (result.changes === 0)
-        return Response.json({ success: false, error: "Invoice not found", filters }, { status: 404 });
-    return Response.json({ success: result.success, changes: result.changes, ...filters }, { status: 200 });
+    return result.changes === 0
+        ? Response.json({ success: false, error: "No invoice found", filters }, { status: 404 })
+        : Response.json({ success: result.success, changes: result.changes, ...filters }, { status: 200 });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

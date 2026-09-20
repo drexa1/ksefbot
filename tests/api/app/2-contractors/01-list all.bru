@@ -6,7 +6,8 @@ headers {
     X-API-Key: {{apiKey}}
 }
 tests {
-    test("List all contractors should fail", function() {
+    test("List all contractors should find nothing", function() {
         expect(res.status).to.equal(404);
+        expect(res.body).to.have.property("error", "No contractor found");
     })
 }

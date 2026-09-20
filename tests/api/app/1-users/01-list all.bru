@@ -6,7 +6,7 @@ headers {
     X-API-Key: {{apiKey}}
 }
 tests {
-    test("List all users at the end should at least return an admin user", function() {
+    test("List all users at the end should at least find an admin user", function() {
         expect(res.body.every(u => u.tier === 0)).to.be.true;
     })
 }

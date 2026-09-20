@@ -8,6 +8,6 @@ headers {
 tests {
     test("List all contractors created should have been cleaned up", function() {
         expect(res.status).to.equal(404);
-        expect(res.body).to.have.property("error", "Contractor not found");
+        expect(res.body).to.have.property("error", "No contractor found");
     })
 }

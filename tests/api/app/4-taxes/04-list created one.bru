@@ -9,7 +9,7 @@ tests {
     test("List the recently created tax record", function() {
         console.info(res.body);
         // Assert that call to real method to download purchases invoices is not being hit during testing
-        expect(res.body.purchasesSummary).to.be.an("array").that.is.empty;
-        expect(res.body.totalCleanRevenue).to.be.a("number");
+        expect(res.body[0].purchasesSummary).to.be.an("array").that.is.empty;
+        expect(res.body[0].totalCleanRevenue).to.be.a("number");
     })
 }

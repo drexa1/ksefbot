@@ -7,9 +7,9 @@ headers {
 }
 tests {
     test("List the recently created purchases invoice", function() {
-        expect(res.body.InvoiceBody.InvoiceNumber).to.equal(bru.getCollectionVar("purchaseInvoiceId"));
+        expect(res.body[0].InvoiceBody.InvoiceNumber).to.equal(bru.getCollectionVar("purchaseInvoiceId"));
     })
 }
 script:post-response {
-     bru.setCollectionVar("purchaseInvoiceContractorId", res.body.Seller.IdentificationData.NIP);
+     bru.setCollectionVar("purchaseInvoiceContractorId", res.body[0].Seller.IdentificationData.NIP);
 }
