@@ -39,9 +39,14 @@ export async function testSendout(request: Request, env: Env): Promise<Response>
 
 export async function messageHandler(request: Request, env: Env): Promise<Response> {
     const incomingMessage = await request.json() as IncomingMessage;
-    const saveResult = await kv.binding(env.KV).save("test", incomingMessage);
-    console.info("Message received:", incomingMessage);
-    console.info("KV:", saveResult);
-    // TODO: process incoming messages here
+    const fromNumber = incomingMessage.entry[0].changes[0].value.messages?.[0]?.from;
+    const timestamp = incomingMessage.entry[0].changes[0].value.messages?.[0]?.timestamp;
+    console.info(`Message received from ${fromNumber}`, incomingMessage);
+    await kv.binding(env.KV).save(`in::${fromNumber}::${timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
+    // TODO: flow router
+    // If new
+        // 1. Language choice
+        // 2. Onboarding flow
+    // existing user
     return new Response("OK");
 }
