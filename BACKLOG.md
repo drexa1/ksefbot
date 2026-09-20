@@ -57,9 +57,9 @@
 - [x] Insert onboard data script  
 - [x] Whatsapp worker  
 - [x] Whatsapp worker REST tests  
-- [ ] Reinsert contractors on PROD  
-- [ ] Manual check of the invoice page after refactor  
-- [ ] KV for Whatsapp worker  
+- [x] Reinsert contractors on PROD  
+- [x] Manual check of the invoice page after refactor  
+- [x] KV for Whatsapp worker  
 - [ ] Method to check if whatsapp user is new  
 - [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow  
