@@ -1,7 +1,7 @@
 import {Env} from "../../worker";
-import {lookupCEIDG} from "../../clients/contractor/ceidg";
-import {lookupVATLB} from "../../clients/contractor/vat-lb";
-import {lookupKRS} from "../../clients/contractor/krs";
+import {lookupCEIDG} from "../../clients/contractors/ceidg";
+import {lookupVATLB} from "../../clients/contractors/vat-lb";
+import {lookupKRS} from "../../clients/contractors/krs";
 import {KsefContractor} from "../../types/gov";
 
 /**
