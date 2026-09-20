@@ -1,14 +1,16 @@
+import {KVNamespace, R2Bucket, Fetcher} from "@cloudflare/workers-types"
 import {auth, withCors, corsHeaders} from "./auth";
 import {Method, routes} from "./routes";
 
 export interface Env {
+    KV: KVNamespace
+    R2: R2Bucket
+    KSEFBOT: Fetcher
     API_KEY: string
     WHATSAPP_VERIFY_TOKEN: string
     WHATSAPP_ACCESS_TOKEN: string
     META_API_VERSION: string
     WHATSAPP_PHONE_ID: string
-    KV: any
-    KSEFBOT: { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> }
 }
 
 // noinspection JSUnusedGlobalSymbols

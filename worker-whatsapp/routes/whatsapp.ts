@@ -1,6 +1,7 @@
 import {Env} from "../worker";
 import {CloudflareKV} from "../repository/kv";
 import {IncomingMessage} from "../types/whatsapp";
+import {saveImage} from "../clients/whatsapp";
 
 const kv = new CloudflareKV();
 
@@ -37,16 +38,20 @@ export async function testSendout(request: Request, env: Env): Promise<Response>
     return Response.json(result, { status: response.status });
 }
 
+
+
 export async function messageHandler(request: Request, env: Env): Promise<Response> {
     const incomingMessage = await request.json() as IncomingMessage;
-    const fromNumber = incomingMessage.entry[0].changes[0].value.messages?.[0]?.from;
-    const timestamp = incomingMessage.entry[0].changes[0].value.messages?.[0]?.timestamp;
-    console.info(`Message received from ${fromNumber}`, incomingMessage);
-    await kv.binding(env.KV).save(`in::${fromNumber}::${timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
-    // TODO: flow router
+    const message = incomingMessage.entry[0].changes[0].value.messages?.[0];
+    console.info(`Message received from ${message?.from}`, incomingMessage);
+    await kv.binding(env.KV).save(`in::${message?.from}::${message?.timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
+    // If the message contains an image, save it in the user folder
+    if (message?.image)
+        await saveImage(message, env);
     // If new
         // 1. Language choice
         // 2. Onboarding flow
-    // existing user
-    return new Response("OK");
+    // Existing user
+    const text = message?.text?.body;
+    return Response.json("OK", { status: 200 });
 }
