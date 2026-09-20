@@ -2,6 +2,10 @@ name: Clear Cloudflare messages KV
 
 on:
   workflow_dispatch:
+    # Phone provided + checkbox unchecked → delete that phone's messages
+    # Phone provided + checkbox checked → delete that phone's messages
+    # Phone empty + checkbox checked → delete everything
+    # Phone empty + checkbox unchecked → stop without deleting anything
     inputs:
       phone:
         description: 'User to clear messages. Empty to clear all messages.'
@@ -25,7 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - name: Clear ksefbot-whatsapp KV
         env:
@@ -34,14 +37,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "$CONFIRM" != "true" ]; then
-            echo "Confirmation checkbox must be checked."
+          if [ -n "$PHONE" ]; then
+            prefix="in::${PHONE}::"
+          elif [ "$CONFIRM" = "true" ]; then
+            prefix=""
+          else
+            echo "Phone is empty and 'Delete all' is not checked."
             exit 1
           fi
 
-          if [ -n "$PHONE" ]; then
-            prefix="in::${PHONE}::"
-          else
             prefix=""
           fi
 
