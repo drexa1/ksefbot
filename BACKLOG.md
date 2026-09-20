@@ -60,6 +60,7 @@
 - [x] Reinsert contractors on PROD  
 - [x] Manual check of the invoice page after refactor  
 - [x] KV for Whatsapp worker  
+- [ ] Method to clear all messages in KV  
 - [ ] Method to check if whatsapp user is new  
 - [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow  

@@ -44,8 +44,7 @@ export async function messageHandler(request: Request, env: Env): Promise<Respon
     console.info(`Message received from ${message?.from}`, incomingMessage);
     await kv.binding(env.KV).save(`in::${message?.from}::${message?.timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
     // If the message contains an image, save it in the user folder
-    if (message?.image)
-        await saveImage(message, env);
+    if (message?.image) await saveImage(message, env);
     // If new
         // 1. Language choice
         // 2. Onboarding flow

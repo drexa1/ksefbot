@@ -29,5 +29,5 @@ binding="KV"
 id="6eef7c9dcdbb420ca0d747a243156bc3"
 
 [[r2_buckets]]
-binding = "r2"
+binding = "R2"
 bucket_name = "ksef-whatsapp"
