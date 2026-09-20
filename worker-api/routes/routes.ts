@@ -9,8 +9,8 @@ import {
     sessions as sessionsGET,
     invoiceStatus as invoiceStatusGET,
     downloadReceipt as receiptGET
-} from "./ksef/sales";
-import {get as purchaseGET} from "./ksef/purchases";
+} from "./ksef/ksef-sales";
+import {get as purchaseGET} from "./ksef/ksef-purchases";
 import {contractors as govContractorsGET} from "../clients/contractors";
 import {contractors as ceidgGET} from "../clients/contractors/ceidg";
 import {contractors as krsGET} from "../clients/contractors/krs";
