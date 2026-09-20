@@ -55,9 +55,13 @@
 - [X] Retrieve contractor details programmatically bruno tests  
 - [x] Lowercase name and address from gov mappers  
 - [x] Insert onboard data script  
-- [x] WhatsApp bot  
-- [x] WhatsApp bot REST tests  
-- [ ] WhatsApp bot bruno tests  
+- [x] Whatsapp worker  
+- [x] Whatsapp worker REST tests  
+- [ ] Reinsert contractors on PROD  
+- [ ] Manual check of the invoice page after refactor  
+- [ ] KV for Whatsapp worker  
+- [ ] Method to check if whatsapp user is new  
+- [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  
 - [ ] CLI: adapt sales/purchase invoices summary  
