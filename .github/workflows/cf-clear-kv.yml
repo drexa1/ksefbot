@@ -35,8 +35,6 @@ jobs:
           PHONE: ${{ inputs.phone }}
           CONFIRM: ${{ inputs.confirm }}
         run: |
-          set -euo pipefail
-
           if [ -n "$PHONE" ]; then
             prefix="in::${PHONE}::"
           elif [ "$CONFIRM" = "true" ]; then
