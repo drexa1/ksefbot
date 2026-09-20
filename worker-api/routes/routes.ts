@@ -11,7 +11,7 @@ import {
     downloadReceipt as receiptGET
 } from "./ksef/sales";
 import {get as purchaseGET} from "./ksef/purchases";
-import {contractors as govContractorsGET} from "./ksef/contractors";
+import {contractors as govContractorsGET} from "../clients/contractors";
 import {contractors as ceidgGET} from "../clients/contractors/ceidg";
 import {contractors as krsGET} from "../clients/contractors/krs";
 import {contractors as vatLbGET} from "../clients/contractors/vat-lb";

@@ -1,8 +1,8 @@
-import {Env} from "../../worker";
-import {lookupCEIDG} from "../../clients/contractors/ceidg";
-import {lookupVATLB} from "../../clients/contractors/vat-lb";
-import {lookupKRS} from "../../clients/contractors/krs";
-import {KsefContractor} from "../../types/gov";
+import {Env} from "../worker";
+import {lookupCEIDG} from "./contractors/ceidg";
+import {lookupVATLB} from "./contractors/vat-lb";
+import {lookupKRS} from "./contractors/krs";
+import {KsefContractor} from "../types/gov";
 
 /**
  * In which order to query the different gov.pl endpoints for contractor information.
