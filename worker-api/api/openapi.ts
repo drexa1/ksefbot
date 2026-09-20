@@ -341,7 +341,7 @@ export const getOpenApiSpec = () => ({
         { name: "App users" },
         { name: "App invoices" },
         { name: "App contractors" },
-        { name: "App taxes records" },
+        { name: "App tax records" },
     ],
     paths: {
         "/health": {
