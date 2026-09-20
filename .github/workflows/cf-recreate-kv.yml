@@ -15,9 +15,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Verify Cloudflare credentials
+      - name: Test KV access
         run: |
-          curl -fsS "https://api.cloudflare.com/client/v4/user/tokens/verify" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq
+          curl -i \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
       - name: Clear ksefbot-whatsapp KV
         run: |
           set -euo pipefail
