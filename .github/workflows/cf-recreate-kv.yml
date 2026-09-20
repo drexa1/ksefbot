@@ -15,6 +15,9 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Verify Cloudflare credentials
+        run: |
+          curl -fsS "https://api.cloudflare.com/client/v4/user/tokens/verify" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq
       - name: Clear ksefbot-whatsapp KV
         run: |
           set -euo pipefail
