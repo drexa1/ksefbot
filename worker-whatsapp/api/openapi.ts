@@ -35,7 +35,7 @@ export const getOpenApiSpec = () => ({
                                     to: {
                                         type: "string",
                                         description: "Recipient WhatsApp phone number.",
-                                        example: "48518121343"
+                                        example: "+48518121343"
                                     },
                                     message: {
                                         type: "string",
