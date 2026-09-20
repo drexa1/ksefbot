@@ -2,27 +2,27 @@ export type AppUserUpdate = Partial<Omit<AppUser, "id">>;
 
 export type AppUser = {
     // Identification data
-    id: string
-    phone: string
-    email: string
-    googleSubject: string
-    companyLogo?: Uint8Array
+    id: string;
+    phone: string;
+    email: string;
+    googleSubject: string;
+    companyLogo?: Uint8Array;
     // Contractor data
-    contractorId: string
+    contractorId: string;
     // Application
-    tier: number
-    apiKey?: string
+    tier: number;
+    apiKey?: string;
     // KSeF integration
-    ksefApiToken?: string
+    ksefApiToken?: string;
     // Invoicing defaults
-    defaultItemName?: string,
-    defaultHourlyRate?: number,
-    settlementType: "monthly" | "quarterly"
+    defaultItemName?: string;
+    defaultHourlyRate?: number;
+    settlementType: "monthly" | "quarterly";
     // Banking integration
-    bankName?: string
-    bankAccountNumber?: string
-    bankApiToken?: string
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankApiToken?: string;
     // DBA
-    createdAt?: string
-    updatedAt?: string
+    createdAt?: string;
+    updatedAt?: string;
 };

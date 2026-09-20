@@ -1,28 +1,28 @@
 export type KsefIdentifiable = {
-    nip?: string
-    pesel?: string
-    regon?: string
+    nip?: string;
+    pesel?: string;
+    regon?: string;
 };
 
 export type AppContractorUpdate = Partial<Omit<AppContractor, "id">>;
 
 export type AppContractor = {
-    id: string
+    id: string;
     // Customer data
-    name: string
-    nip?: string
-    pesel?: string
-    regon?: string
-    internalIdentifier?: string
+    name: string;
+    nip?: string;
+    pesel?: string;
+    regon?: string;
+    internalIdentifier?: string;
     // Address
-    countryCode: string
-    addressL1: string
-    addressL2?: string
+    countryCode: string;
+    addressL1: string;
+    addressL2?: string;
     // Customer metadata
-    localGovernmentUnit?: number
-    vatGroup?: number
-    notes?: string
+    localGovernmentUnit?: number;
+    vatGroup?: number;
+    notes?: string;
     // DBA
-    createdAt?: string
-    updatedAt?: string
+    createdAt?: string;
+    updatedAt?: string;
 };

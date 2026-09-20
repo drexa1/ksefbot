@@ -1,13 +1,13 @@
 export type AppInvoice = {
-    id: string
+    id: string;
     // Parties
-    type: "sales" | "purchase"
-    customerId?: string
+    type: "sales" | "purchase";
+    customerId?: string;
     // Raw data
-    rawXml: string
-    jsonData: string
-    notes?: string
+    rawXml: string;
+    jsonData: string;
+    notes?: string;
     // DBA
-    createdAt?: string
-    updatedAt?: string
+    createdAt?: string;
+    updatedAt?: string;
 };

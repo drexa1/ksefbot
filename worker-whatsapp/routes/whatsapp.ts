@@ -1,5 +1,6 @@
 import {Env} from "../worker";
 import {CloudflareKV} from "../repository/kv";
+import {IncomingMessage} from "../types/whatsapp";
 
 const kv = new CloudflareKV();
 
@@ -37,9 +38,9 @@ export async function testSendout(request: Request, env: Env): Promise<Response>
 }
 
 export async function messageHandler(request: Request, env: Env): Promise<Response> {
-    const body = await request.json();
-    const saveResult = await kv.binding(env.KV).save("test", body);
-    console.info("Message received:", body);
+    const incomingMessage = await request.json() as IncomingMessage;
+    const saveResult = await kv.binding(env.KV).save("test", incomingMessage);
+    console.info("Message received:", incomingMessage);
     console.info("KV:", saveResult);
     // TODO: process incoming messages here
     return new Response("OK");
