@@ -36,8 +36,10 @@ jobs:
           CONFIRM: ${{ inputs.confirm }}
         run: |
           if [ "$CONFIRM" = "true" ]; then
+            echo "Deleting all"
             prefix=""
           elif [ -n "$PHONE" ]; then
+            echo "Deleting for user $PHONE"
             prefix="in::${PHONE}::"
           else
             echo "Phone is empty and 'Delete all' is not checked."
@@ -51,8 +53,7 @@ jobs:
               url="$url?prefix=$(printf '%s' "$prefix" | jq -sRr @uri)"
             fi
 
-            response=$(curl -fsS "$url" \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+            response=$(curl -fsS "$url" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
 
             keys=$(echo "$response" | jq '[.result[] | .name]')
             count=$(echo "$keys" | jq 'length')
@@ -66,4 +67,5 @@ jobs:
               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
               -H "Content-Type: application/json" \
               --data "$keys"
+
           done
