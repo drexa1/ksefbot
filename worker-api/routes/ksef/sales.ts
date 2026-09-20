@@ -1,8 +1,8 @@
 import {Env} from "../../worker";
 import {getInvoices} from "./ksef";
 import {getAuthUser} from "../../auth";
-import {Client} from "./client";
 import { XMLParser } from "fast-xml-parser";
+import {KsefClient} from "../../clients/ksef";
 
 /**
  * Invoices where the user is the issuer.
@@ -19,8 +19,8 @@ export async function post(req: Request, env: Env): Promise<Response> {
     try {
         const invoiceBytes = new Uint8Array(await file.arrayBuffer());
         console.info("⚖️ Input file:", { size: invoiceBytes.length });
-        const client = new Client(env);
-        const result = await client.postInvoice(appUser, invoiceBytes);
+        const ksefClient = new KsefClient(env);
+        const result = await ksefClient.postInvoice(appUser, invoiceBytes);
         return Response.json({ success: true, result }, { status: 200 });
     } catch (error) {
         if (String(error).includes("Too Many Requests"))
@@ -33,9 +33,9 @@ export async function sessions(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
     const sessionReferenceNumber = url.searchParams.get("sessionReferenceNumber");
-    const client = new Client(env);
-    await client.authenticate(appUser);
-    const sessionStatus = await client.getSessionStatus(sessionReferenceNumber ?? undefined);
+    const ksefClient = new KsefClient(env);
+    await ksefClient.authenticate(appUser);
+    const sessionStatus = await ksefClient.getSessionStatus(sessionReferenceNumber ?? undefined);
     return Response.json(sessionStatus);
 }
 
@@ -46,9 +46,9 @@ export async function invoiceStatus(req: Request, env: Env): Promise<Response> {
     const invoiceReferenceNumber = url.searchParams.get("invoiceReferenceNumber");
     if (!sessionReferenceNumber || !invoiceReferenceNumber)
         return Response.json({ error: "Missing reference numbers" }, { status: 400 });
-    const client = new Client(env);
-    await client.authenticate(appUser);
-    const result = await client.getInvoiceStatus(sessionReferenceNumber, invoiceReferenceNumber);
+    const ksefClient = new KsefClient(env);
+    await ksefClient.authenticate(appUser);
+    const result = await ksefClient.getInvoiceStatus(sessionReferenceNumber, invoiceReferenceNumber);
     return Response.json(result);
 }
 
@@ -64,9 +64,9 @@ export async function downloadReceipt(req: Request, env: Env): Promise<Response>
     const format = url.searchParams.get("format") ?? "xml";
     if (!sessionReferenceNumber || !invoiceReferenceNumber)
         return new Response("Missing parameters", { status: 400 });
-    const client = new Client(env);
-    await client.authenticate(appUser);
-    const result = await client.getInvoiceStatus(sessionReferenceNumber, invoiceReferenceNumber);
+    const ksefClient = new KsefClient(env);
+    await ksefClient.authenticate(appUser);
+    const result = await ksefClient.getInvoiceStatus(sessionReferenceNumber, invoiceReferenceNumber);
     const upoResponse = await fetch(result.upoDownloadUrl);
     if (!upoResponse.ok)
         return new Response(`KSeF UPO download failed: ${upoResponse.status}`, { status: 502 });

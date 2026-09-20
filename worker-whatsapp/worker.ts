@@ -7,6 +7,7 @@ export interface Env {
     WHATSAPP_ACCESS_TOKEN: string
     META_API_VERSION: string
     WHATSAPP_PHONE_ID: string
+    KV: any
     KSEFBOT: { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> }
 }
 

@@ -23,3 +23,7 @@ binding = "D1"
 database_name = "ksef-bot"
 database_id = "101428e1-3e1c-479b-a71b-374c1ee24412"
 remote = true
+
+[[kv_namespaces]]
+binding="KV"
+id="6eef7c9dcdbb420ca0d747a243156bc3"

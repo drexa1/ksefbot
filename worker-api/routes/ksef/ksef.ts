@@ -1,9 +1,9 @@
 import {Env} from "../../worker";
-import {Client} from "./client";
 import {D1Driver, Repository} from "../../repository/d1";
 import {getAuthUser} from "../../auth";
 import {AppUser} from "../../types/users";
 import {AppInvoice} from "../../types/invoices";
+import {KsefClient} from "../../clients/ksef";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
@@ -34,8 +34,8 @@ export async function getInvoices(req: Request, env: Env, subjectType: "Subject1
 }
 
 export async function fetchInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from: Date, to: Date) {
-    const client = new Client(env);
-    const invoices = await client.queryPurchaseInvoices(env, appUser, subjectType, from, to);
+    const ksefClient = new KsefClient(env);
+    const invoices = await ksefClient.queryPurchaseInvoices(env, appUser, subjectType, from, to);
     await saveInvoices(env, invoices);
     // Return the JSON formatted
     return invoices.map(row => JSON.parse(row.jsonData));

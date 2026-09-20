@@ -1,4 +1,9 @@
 import {Env} from "../worker";
+import {CloudflareKV} from "../repository/kv";
+import {CloudflareWorkersModule} from "@cloudflare/workers-types";
+import env = CloudflareWorkersModule.env;
+
+const kv = new CloudflareKV();
 
 export async function verificationHandler(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -33,8 +38,9 @@ export async function testSendout(request: Request, env: Env): Promise<Response>
     return Response.json(result, { status: response.status });
 }
 
-export async function messageHandler(request: Request): Promise<Response> {
+export async function messageHandler(request: Request, env: Env): Promise<Response> {
     const body = await request.json();
+    const saveResult = await kv.binding(env.KV).save("test", body);
     console.log("Webhook:", body);
     // TODO: process incoming messages here
     return new Response("OK");
