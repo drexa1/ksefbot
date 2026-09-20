@@ -2,6 +2,12 @@ name: Clear Cloudflare messages KV
 
 on:
   workflow_dispatch:
+    inputs:
+      phone:
+        description: 'Phone number to clear. Empty to clear all messages.'
+        default: '48518121343'
+        required: false
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -16,25 +22,52 @@ jobs:
       contents: read
     steps:
       - name: Clear ksefbot-whatsapp KV
+        env:
+          PHONE: ${{ inputs.phone }}
         run: |
           set -euo pipefail
+
           cursor=""
+
+          if [ -n "$PHONE" ]; then
+            echo "Clearing messages for phone: $PHONE"
+            prefix="in::${PHONE}::"
+          else
+            echo "Clearing all KV keys"
+            prefix=""
+          fi
+
           while true; do
-            if [ -n "$cursor" ]; then
-              response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys?cursor=$cursor" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
-            else
-              response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+            url="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys"
+
+            params=()
+
+            if [ -n "$prefix" ]; then
+              params+=("prefix=$(printf '%s' "$prefix" | jq -sRr @uri)")
             fi
+
+            if [ -n "$cursor" ]; then
+              params+=("cursor=$(printf '%s' "$cursor" | jq -sRr @uri)")
+            fi
+
+            if [ "${#params[@]}" -gt 0 ]; then
+              url="$url?$(IFS='&'; echo "${params[*]}")"
+            fi
+
+            response=$(curl -fsS "$url" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
             keys=$(echo "$response" | jq '[.result[] | .name]')
             count=$(echo "$keys" | jq 'length')
+
             if [ "$count" -eq 0 ]; then
               break
             fi
+
             echo "Deleting $count KV keys..."
             curl -fsS -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/bulk/delete" \
               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
               -H "Content-Type: application/json" \
               --data "$keys"
+
             cursor=$(echo "$response" | jq -r '.result_info.cursor // empty')
             if [ -z "$cursor" ]; then
               break
