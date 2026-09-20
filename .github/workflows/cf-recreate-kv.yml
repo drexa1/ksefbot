@@ -10,7 +10,7 @@ env:
   KV_NAMESPACE: KSEFBOT_WHATSAPP
 
 jobs:
-  recreate:
+  clear:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -21,9 +21,9 @@ jobs:
           cursor=""
           while true; do
             if [ -n "$cursor" ]; then
-              response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys?cursor=$cursor" -H "Authorization: Bearer $CF_API_TOKEN")
+              response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys?cursor=$cursor" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
             else
-              response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys" -H "Authorization: Bearer $CF_API_TOKEN")
+              response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
             fi
             keys=$(echo "$response" | jq '[.result[] | .name]')
             count=$(echo "$keys" | jq 'length')
@@ -31,8 +31,8 @@ jobs:
               break
             fi
             echo "Deleting $count KV keys..."
-            curl -fsS -X POST "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/bulk/delete" \
-              -H "Authorization: Bearer $CF_API_TOKEN" \
+            curl -fsS -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/bulk/delete" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
               -H "Content-Type: application/json" \
               --data "$keys"
             cursor=$(echo "$response" | jq -r '.result_info.cursor // empty')
