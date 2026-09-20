@@ -29,12 +29,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - name: Clear ksefbot-whatsapp KV
         env:
           PHONE: ${{ inputs.phone }}
           CONFIRM: ${{ inputs.confirm }}
         run: |
+          set -euo pipefail
+
           if [ -n "$PHONE" ]; then
             prefix="in::${PHONE}::"
           elif [ "$CONFIRM" = "true" ]; then
@@ -44,9 +47,6 @@ jobs:
             exit 1
           fi
 
-            prefix=""
-          fi
-
           while true; do
             url="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/keys"
 
@@ -54,7 +54,8 @@ jobs:
               url="$url?prefix=$(printf '%s' "$prefix" | jq -sRr @uri)"
             fi
 
-            response=$(curl -fsS "$url" -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+            response=$(curl -fsS "$url" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
 
             keys=$(echo "$response" | jq '[.result[] | .name]')
             count=$(echo "$keys" | jq 'length')
@@ -63,9 +64,9 @@ jobs:
               break
             fi
 
-            curl -fsS -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/bulk/delete" \
+            curl -fsS -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE/bulk/delete" \
               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
               -H "Content-Type: application/json" \
               --data "$keys"
-
           done
