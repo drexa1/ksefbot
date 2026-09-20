@@ -1,6 +1,5 @@
 import {Env} from "../worker";
 import {dtoFromAliases} from "../dto/avro";
-import {titleCase} from "../routes/ksef/contractors";
 import {KsefContractor} from "../types/gov";
 
 // noinspection JSUnusedGlobalSymbols
@@ -47,4 +46,8 @@ function mapVATLB(result: any, schema: any): KsefContractor {
         addressLine: titleCase(addressLine),
         active: subject?.status === "ACTIVE"
     };
+}
+
+function titleCase(value: string): string {
+    return value.trim().toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, separator, char) => separator + char.toUpperCase());
 }

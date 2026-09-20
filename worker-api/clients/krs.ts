@@ -1,7 +1,6 @@
 import {Env} from "../worker";
 import {dtoFromAliases} from "../dto/avro";
 import {encodeToken} from "./krs-apikey";
-import {titleCase} from "../routes/ksef/contractors";
 import {KsefContractor} from "../types/gov";
 
 // noinspection JSUnusedGlobalSymbols
@@ -76,4 +75,8 @@ function mapKRS(result: any, schema: any): KsefContractor {
         addressLine: titleCase(addressLine),
         active: header?.positionStatus === 1
     };
+}
+
+function titleCase(value: string): string {
+    return value.trim().toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, separator, char) => separator + char.toUpperCase());
 }

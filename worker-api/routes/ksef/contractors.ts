@@ -5,7 +5,7 @@ import {lookupKRS} from "../../clients/krs";
 import {KsefContractor} from "../../types/gov";
 
 /**
- * In which order to query the different gov.pl endpoints for contractor information
+ * In which order to query the different gov.pl endpoints for contractor information.
  * For the current user: assume is a JDG and if not try as KRS company
  * For a customer contractor: assume is a KRS company and if not try with JDG's
  * If nothing works, try to find the look for the details as VAT payer.
@@ -49,8 +49,4 @@ async function lookupContractorSource(source: KsefContractor["source"], nip: str
         case "VAT-LB":
             return lookupVATLB(nip, env);
     }
-}
-
-export function titleCase(value: string): string {
-    return value.trim().toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, separator, char) => separator + char.toUpperCase());
 }
