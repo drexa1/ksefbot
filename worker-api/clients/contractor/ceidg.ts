@@ -1,6 +1,6 @@
-import {Env} from "../worker";
-import {dtoFromAliases} from "../dto/avro";
-import {KsefContractor} from "../types/gov";
+import {Env} from "../../worker";
+import {dtoFromAliases} from "../../dto/avro";
+import {KsefContractor} from "../../types/gov";
 
 // noinspection JSUnusedGlobalSymbols
 export async function contractors(req: Request, env: Env): Promise<Response> {

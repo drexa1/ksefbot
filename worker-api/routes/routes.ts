@@ -12,9 +12,9 @@ import {
 } from "./ksef/sales";
 import {get as purchaseGET} from "./ksef/purchases";
 import {contractors as govContractorsGET} from "./ksef/contractors";
-import {contractors as ceidgGET} from "../clients/ceidg";
-import {contractors as krsGET} from "../clients/krs";
-import {contractors as vatLbGET} from "../clients/vat-lb";
+import {contractors as ceidgGET} from "../clients/contractor/ceidg";
+import {contractors as krsGET} from "../clients/contractor/krs";
+import {contractors as vatLbGET} from "../clients/contractor/vat-lb";
 import {get as usersGET, post as usersPOST, put as usersPUT, del as usersDELETE} from "./app/users";
 import {get as contractorsGET, post as contractorsPOST, put as contractorsPUT, del as contractorsDELETE} from "./app/contractors";
 import {get as invoicesGET, post as invoicesPOST, put as invoicesPUT, del as invoicesDELETE} from "./app/invoices";
