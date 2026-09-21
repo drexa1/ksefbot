@@ -61,7 +61,7 @@
 - [x] Manual check of the invoice page after refactor  
 - [x] KV for Whatsapp worker  
 - [x] Method to clear all messages in KV  
-- [ ] Method to check if whatsapp user is new  
+- [x] Method to check if whatsapp user is new  
 - [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  

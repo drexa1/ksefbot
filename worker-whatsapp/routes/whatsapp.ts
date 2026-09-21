@@ -45,10 +45,18 @@ export async function messageHandler(request: Request, env: Env): Promise<Respon
     await kv.binding(env.KV).save(`in::${message?.from}::${message?.timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
     // If the message contains an image, save it in the user folder
     if (message?.image) await saveImage(message, env);
-    // If new
-        // 1. Language choice
-        // 2. Onboarding flow
+    const existingUser = await env.KSEFBOT.fetch(`${env.KSEFBOT_BASE_URL}/app/users?phone=${message?.from}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json", "X-API-Key": env.API_KEY }
+    });
     // Existing user
-    const text = message?.text?.body;
+    if (existingUser.ok) {
+        const text = message?.text?.body;
+    // If new
+    } else {
+        // 1. Language choice
+
+        // 2. Onboarding flow
+    }
     return Response.json("OK", { status: 200 });
 }

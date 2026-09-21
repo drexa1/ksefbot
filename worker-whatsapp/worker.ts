@@ -6,6 +6,7 @@ export interface Env {
     KV: KVNamespace
     R2: R2Bucket
     KSEFBOT: Fetcher
+    KSEFBOT_BASE_URL: string
     API_KEY: string
     WHATSAPP_VERIFY_TOKEN: string
     WHATSAPP_ACCESS_TOKEN: string
