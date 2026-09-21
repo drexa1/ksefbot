@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users (
     -- Identification data
     id TEXT PRIMARY KEY CHECK (length(id) = 10 AND id NOT GLOB '*[^0-9]*'),  -- Users PK: NIP
+    language TEXT NOT NULL CHECK (language IN ('en', 'pl')),
     phone TEXT UNIQUE CHECK (phone GLOB '+[0-9]*' AND length(phone) BETWEEN 8 AND 15 AND phone NOT GLOB '*[^+0-9]*'),  -- E.164
     email TEXT UNIQUE,
     googleSubject TEXT UNIQUE,

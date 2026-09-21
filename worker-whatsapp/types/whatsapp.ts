@@ -35,4 +35,8 @@ export interface WhatsappMessage {
         id: string;
         url: string;
     };
+    button?: {
+        text: string;
+        payload: string;
+    };
 }

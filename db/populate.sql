@@ -1,6 +1,7 @@
 -- Create admin user
-INSERT INTO users (id, phone, email, apiKey, tier, ksefApiToken, defaultItemName, defaultHourlyRate, bankName, bankAccountNumber) VALUES (
+INSERT INTO users (id, language, phone, email, apiKey, tier, ksefApiToken, defaultItemName, defaultHourlyRate, bankName, bankAccountNumber) VALUES (
     '6751577878',
+    'en',
     '+48518121343',
     'drexa1@hotmail.com',
     '55oUrQjUlwlZYCS30WGfpMMZCiQkfKpt',

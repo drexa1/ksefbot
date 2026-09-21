@@ -3,6 +3,7 @@ export type AppUserUpdate = Partial<Omit<AppUser, "id">>;
 export type AppUser = {
     // Identification data
     id: string;
+    language: "en" | "pl";
     phone: string;
     email: string;
     googleSubject: string;

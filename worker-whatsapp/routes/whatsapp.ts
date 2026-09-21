@@ -1,7 +1,8 @@
 import {Env} from "../worker";
 import {CloudflareKV} from "../repository/kv";
 import {IncomingMessage} from "../types/whatsapp";
-import {saveImage} from "../clients/whatsapp";
+import {saveImage, sendTemplate} from "../clients/whatsapp";
+import {attendExistingUser, initializeUser, triggerOnboarding} from "../flow/flow";
 
 const kv = new CloudflareKV();
 
@@ -41,22 +42,28 @@ export async function testSendout(request: Request, env: Env): Promise<Response>
 export async function messageHandler(request: Request, env: Env): Promise<Response> {
     const incomingMessage = await request.json() as IncomingMessage;
     const message = incomingMessage.entry[0].changes[0].value.messages?.[0];
-    console.info(`Message received from ${message?.from}`, incomingMessage);
-    await kv.binding(env.KV).save(`in::${message?.from}::${message?.timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
-    // If the message contains an image, save it in the user folder
-    if (message?.image) await saveImage(message, env);
-    const existingUser = await env.KSEFBOT.fetch(`${env.KSEFBOT_BASE_URL}/app/users?phone=${message?.from}`, {
+    if (!message)
+        return Response.json("OK", { status: 200 });
+    console.info(`Message received from ${message.from}`, incomingMessage);
+    await kv.binding(env.KV).save(`in::${message.from}::${message.timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
+    if (message.image)
+        await saveImage(env, message);
+    const user = await env.KSEFBOT.fetch(`${env.KSEFBOT_BASE_URL}/app/users?phone=${message.from}`, {
         method: "GET",
         headers: { "Content-Type": "application/json", "X-API-Key": env.API_KEY }
     });
-    // Existing user
-    if (existingUser.ok) {
-        const text = message?.text?.body;
-    // If new
+    if (user.ok) {
+        const language: "en" | "pl" = ({ language_en: "en", language_pl: "pl" } as const)[message.button?.payload!] ?? "en";
+        if (!language) {
+            // Unseen user -> language choice
+            await sendTemplate(env, message.from, "onboarding_language");
+        } else {
+            // 🐣 Initialize user with language preference
+            await initializeUser(env, message.from, language);
+            await triggerOnboarding(env, message.from, language);
+        }
     } else {
-        // 1. Language choice
-
-        // 2. Onboarding flow
+        await attendExistingUser(env, message);
     }
     return Response.json("OK", { status: 200 });
 }
