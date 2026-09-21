@@ -7,15 +7,17 @@ let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
 
 export async function get(req: Request, env: Env): Promise<Response> {
-    const appUser = await getAuthUser(req, env);
-    // Allow to fetch users only to superadmin
-    if (appUser.tier !== 0)
-        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     const url = new URL(req.url);
-    const filters: Record<string, any> ={};
+    const filters: Record<string, any> = {};
     for (const [key, value] of url.searchParams.entries()) {
         filters[key] = value;
     }
+    // 🐣 Allow checking if a user exists by phone without assuming any users yet
+    const isNewLookup = !!filters.phone;
+    const appUser = isNewLookup ? undefined : await getAuthUser(req, env);
+    // Allow to fetch users only to superadmin
+    if (!isNewLookup && appUser!.tier !== 0)
+        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     const rows = await getRepo(env).getAll<AppUser>("users", filters);
     return rows.length === 0
         ? Response.json({ success: false, error: "No user found", filters: filters }, { status: 404 })
