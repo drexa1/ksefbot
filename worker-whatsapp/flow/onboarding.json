@@ -1,0 +1,264 @@
+{
+    "version": "7.3",
+    "data_api_version": "3.0",
+    "routing_model": {
+        "ONBOARDING_WELCOME": [
+            "ONBOARDING_USER"
+        ],
+        "ONBOARDING_USER": [
+            "ONBOARDING_CUSTOMER"
+        ],
+        "ONBOARDING_CUSTOMER": [
+            "ONBOARDING_BANK"
+        ],
+        "ONBOARDING_BANK": [
+            "ONBOARDING_SUCCESS"
+        ],
+        "ONBOARDING_SUCCESS": []
+    },
+    "screens": [
+        {
+            "id": "ONBOARDING_WELCOME",
+            "title": "Let's start",
+            "data": {},
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Image",
+                        "src": "YOUR_PUBLIC_CLOUDFLARE_IMAGE_URL"
+                    },
+                    {
+                        "type": "TextHeading",
+                        "text": "Welcome"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "A few bits of information is all we need to work.\n\n1. The tax ID of your company, and your KSEF token\n2. (Optionally) The tax ID of your regular customer\n3. (Optionally) The banking account nr. of your company"
+                    },
+                    {
+                        "type": "Footer",
+                        "label": "Continue",
+                        "on-click-action": {
+                            "name": "data_exchange",
+                            "payload": {
+                                "screen": "ONBOARDING_WELCOME",
+                                "action": "start_onboarding"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "id": "ONBOARDING_USER",
+            "title": "Onboarding user",
+            "data": {
+                "tax_id_name": {
+                    "type": "string",
+                    "__example__": ""
+                }
+            },
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "TextHeading",
+                        "text": "Onboarding user"
+                    },
+                    {
+                        "type": "Form",
+                        "name": "user_form",
+                        "children": [
+                            {
+                                "type": "TextInput",
+                                "required": true,
+                                "label": "Tax ID",
+                                "name": "tax_id",
+                                "input-type": "number"
+                            },
+                            {
+                                "type": "TextBody",
+                                "text": "Name found: ${data.tax_id_name}"
+                            },
+                            {
+                                "type": "OptIn",
+                                "name": "tax_id_confirmed",
+                                "label": "Is that you?",
+                                "required": true
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Continue",
+                                "on-click-action": {
+                                    "name": "data_exchange",
+                                    "payload": {
+                                        "screen": "ONBOARDING_USER",
+                                        "action": "confirm_tax_id",
+                                        "tax_id": "${form.tax_id}",
+                                        "tax_id_confirmed": "${form.tax_id_confirmed}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "ONBOARDING_CUSTOMER",
+            "title": "Onboarding customer",
+            "data": {
+                "customer_name": {
+                    "type": "string",
+                    "__example__": ""
+                }
+            },
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "TextHeading",
+                        "text": "Onboarding customer"
+                    },
+                    {
+                        "type": "Form",
+                        "name": "customer_form",
+                        "children": [
+                            {
+                                "type": "TextInput",
+                                "required": false,
+                                "label": "Customer NIP",
+                                "name": "customer_nip",
+                                "input-type": "number"
+                            },
+                            {
+                                "type": "TextBody",
+                                "text": "Customer found: ${data.customer_name}"
+                            },
+                            {
+                                "type": "OptIn",
+                                "name": "customer_confirmed",
+                                "label": "Is that your regular customer?",
+                                "required": false
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Continue",
+                                "on-click-action": {
+                                    "name": "data_exchange",
+                                    "payload": {
+                                        "screen": "ONBOARDING_CUSTOMER",
+                                        "action": "confirm_customer",
+                                        "customer_nip": "${form.customer_nip}",
+                                        "customer_confirmed": "${form.customer_confirmed}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "ONBOARDING_BANK",
+            "title": "Onboarding banking",
+            "data": {},
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "TextHeading",
+                        "text": "Bank details"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "Bank details are optional."
+                    },
+                    {
+                        "type": "Form",
+                        "name": "bank_form",
+                        "children": [
+                            {
+                                "type": "Dropdown",
+                                "label": "Bank",
+                                "name": "bank",
+                                "required": false,
+                                "data-source": [
+                                    {
+                                        "id": "PKO_BP",
+                                        "title": "PKO Bank Polski"
+                                    },
+                                    {
+                                        "id": "BANK_PEKAO",
+                                        "title": "Bank Pekao"
+                                    },
+                                    {
+                                        "id": "SANTANDER",
+                                        "title": "Santander Bank Polska"
+                                    },
+                                    {
+                                        "id": "MBANK",
+                                        "title": "mBank"
+                                    },
+                                    {
+                                        "id": "ING",
+                                        "title": "ING Bank Śląski"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "TextInput",
+                                "required": false,
+                                "label": "Bank account",
+                                "name": "bank_account",
+                                "input-type": "number"
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Finish",
+                                "on-click-action": {
+                                    "name": "data_exchange",
+                                    "payload": {
+                                        "screen": "ONBOARDING_BANK",
+                                        "action": "complete",
+                                        "bank": "${form.bank}",
+                                        "bank_account": "${form.bank_account}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "ONBOARDING_SUCCESS",
+            "title": "Success",
+            "terminal": true,
+            "success": true,
+            "data": {},
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "TextHeading",
+                        "text": "All done!"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "Everything has been successfully collected."
+                    },
+                    {
+                        "type": "Footer",
+                        "label": "Done",
+                        "on-click-action": {
+                            "name": "complete",
+                            "payload": {}
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -11,7 +11,17 @@ export async function initializeUser(env: Env, from: string, language: "en" | "p
 }
 
 export async function triggerOnboarding(env: Env, from: string, language: any) {
+    console.info(`Starting onboarding for ${from}`);
     // TODO: start onboarding flow
+}
+
+export async function onboardingFlow(request: Request, env: Env): Promise<Response> {
+    const payload = await request.json();
+    console.info("Onboarding flow exchange", payload);
+    // Determine which screen/action this exchange belongs to, then perform the appropriate backend operation
+    return Response.json({
+        // Flow response
+    });
 }
 
 export async function attendExistingUser(env: Env, message: WhatsappMessage) {

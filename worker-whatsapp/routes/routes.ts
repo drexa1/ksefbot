@@ -28,11 +28,12 @@ const withErrorHandling = (routes: Routes): Routes => {
 
 export const routes: Record<string, Routes> =  {
     //🔓 Not requiring authentication
-    "/":                  { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
-    "/swagger":           { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
-    "/docs":              { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
-    "/openapi.json":      { GET: async () => Response.json(getOpenApiSpec()) },
-    "/whatsapp/webhooks": withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
+    "/":                            { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
+    "/swagger":                     { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
+    "/docs":                        { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
+    "/openapi.json":                { GET: async () => Response.json(getOpenApiSpec()) },
+    "/whatsapp/webhooks":           withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
+    "/whatsapp/flows/onboarding/1": withErrorHandling({  }),
     //🔒 Requiring authentication
-    "/whatsapp/test":     withErrorHandling({ POST: testSendout })
+    "/whatsapp/test":               withErrorHandling({ POST: testSendout })
 };
