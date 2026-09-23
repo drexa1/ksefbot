@@ -33,7 +33,7 @@
                     {
                         "type": "TextBody",
                         "markdown": true,
-                        "text": "**A few bits of information is all we need to start working:**\n\n1. The ID of your company, and your KSeF token\n2. (Optionally) The ID of your regular customer\n3. (Optionally) The banking account nr. of your company"
+                        "text": "**A few bits of information is all we need to start automating invoices:**\n\n1. The ID of your company, and a KSeF token\n2. (Optionally) The ID of your regular customer\n3. (Optionally) The banking account nr. of your company"
                     },
                     {
                         "type": "Footer",
@@ -51,7 +51,7 @@
         },
         {
             "id": "ONBOARDING_USER",
-            "title": "Onboarding user",
+            "title": "1. About your company",
             "data": {
                 "tax_id_name": {
                     "type": "string",
@@ -62,40 +62,56 @@
                 "type": "SingleColumnLayout",
                 "children": [
                     {
-                        "type": "TextHeading",
-                        "text": "Onboarding user"
-                    },
-                    {
                         "type": "Form",
                         "name": "user_form",
                         "children": [
                             {
                                 "type": "TextInput",
                                 "required": true,
-                                "label": "Tax ID",
+                                "label": "Company NIP",
                                 "name": "tax_id",
-                                "input-type": "number"
+                                "input-type": "number",
+                                "helper-text": "10 digits — We will do the rest locating the details."
                             },
                             {
                                 "type": "TextBody",
-                                "text": "Name found: ${data.tax_id_name}"
+                                "text": "Company: ${data.company_name}"
                             },
                             {
                                 "type": "OptIn",
-                                "name": "tax_id_confirmed",
-                                "label": "Is that you?",
+                                "name": "company_confirmed",
+                                "label": "I confirm this is my company",
                                 "required": true
                             },
                             {
+                                "type": "TextInput",
+                                "required": false,
+                                "label": "Company main service",
+                                "name": "default_item_name",
+                                "helper-text": "Filling this now will save time later during invoice creation."
+                            },
+                            {
+                                "type": "TextInput",
+                                "required": true,
+                                "label": "KSeF token",
+                                "name": "ksef_token",
+                                "input-type": "text"
+                            },
+                            {
+                                "type": "TextBody",
+                                "markdown": true,
+                                "text": "You are not sure how to get a KSeF token? [Read more](https://ksefbot.druizbarbero.workers.dev/pages/onboarding/token)"
+                            },
+                            {
                                 "type": "Footer",
-                                "label": "Continue",
+                                "label": "2. Your customer",
                                 "on-click-action": {
                                     "name": "data_exchange",
                                     "payload": {
                                         "screen": "ONBOARDING_USER",
                                         "action": "confirm_tax_id",
                                         "tax_id": "${form.tax_id}",
-                                        "tax_id_confirmed": "${form.tax_id_confirmed}"
+                                        "tax_id_confirmed": "${form.company_confirmed}"
                                     }
                                 }
                             }
@@ -106,7 +122,7 @@
         },
         {
             "id": "ONBOARDING_CUSTOMER",
-            "title": "Onboarding customer",
+            "title": "2. About your customer",
             "data": {
                 "customer_name": {
                     "type": "string",
@@ -116,10 +132,6 @@
             "layout": {
                 "type": "SingleColumnLayout",
                 "children": [
-                    {
-                        "type": "TextHeading",
-                        "text": "Onboarding customer"
-                    },
                     {
                         "type": "Form",
                         "name": "customer_form",
