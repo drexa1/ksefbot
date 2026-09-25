@@ -29,14 +29,14 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
         type: "text",
         text: { preview_url: false, body: body.message }
     };
-    console.log("Whatsapp request:", JSON.stringify({ url, phoneId: env.WHATSAPP_PHONE_ID, payload }));
+    console.info(`Message request for ${payload.to}`, payload.text);
     const response = await fetch(url, {
         method: "POST",
         headers: { "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     });
     const result = await response.json();
-    console.log("Whatsapp response:", JSON.stringify({ status: response.status, result }));
+    console.info("`Message response:", result);
     return Response.json(result, { status: response.status });
 }
 
@@ -45,7 +45,9 @@ export async function testFlow(request: Request, env: Env): Promise<Response> {
     if (!body.to || !body.flowId)
         return Response.json({error: "'to' and 'flowId' are required"}, {status: 400});
     try {
+        console.info(`Flow request for ${body.to}`, body.flowId);
         const result = await sendFlow(env, body.to, body.flowId);
+        console.info("`Flow response:", result);
         return Response.json(result);
     } catch (error) {
         console.error("Failed to send flow:", error);

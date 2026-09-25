@@ -21,43 +21,32 @@ export async function sendTemplate( env: Env, to: string, template: string, lang
 }
 
 export async function sendFlow(env: Env, to: string, flowId: string, language = "en") {
-    const url = `https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`;
-    const payload = {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: to,
-        type: "interactive",
-        interactive: {
-            type: "flow",
-            body: { text: "..." },
-            action: {
-                name: "flow",
-                parameters: {
-                    flow_message_version: "3",
-                    flow_id: flowId,
-                    // flow_token: crypto.randomUUID(),
-                    flow_cta: "Start onboarding",
-                    // flow_action: "navigate",
-                    // flow_action_payload: {screen: "ONBOARDING_USER"}
-                }
-            }
-        }
-    };
-
-    console.log("Whatsapp flow request:", JSON.stringify({url, phoneId: env.WHATSAPP_PHONE_ID, to, flowId, language, payload}));
-
-    const response = await fetch(url, {
+    const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",
         headers: {"Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json"},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: to,
+            type: "interactive",
+            interactive: {
+                type: "flow",
+                body: { text: "..." },
+                action: {
+                    name: "flow",
+                    parameters: {
+                        flow_message_version: "3",
+                        flow_id: flowId,
+                        flow_cta: "Start flow: "
+                    }
+                }
+            }
+        })
     });
-
     const result = await response.json();
     console.log("Whatsapp flow response:", JSON.stringify({status: response.status, result}));
-
     if (!response.ok)
         throw new Error(`Failed to send flow: ${response.status} ${JSON.stringify(result)}`);
-
     return result;
 }
 
