@@ -20,6 +20,35 @@ export async function sendTemplate( env: Env, to: string, template: string, lang
     return response;
 }
 
+export async function sendFlow( env: Env, to: string, flowId: string, language: string = "en") {
+    const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: to,
+            type: "interactive",
+            interactive: {
+                type: "flow",
+                body: { text: "..." },
+                action: {
+                    name: "flow",
+                    parameters: {
+                        flow_message_version: "3",
+                        flow_id: flowId,
+                        // flow_cta: "Start",
+                        // flow_action: "navigate",
+                        // flow_action_payload: { screen: "ONBOARDING_USER" }
+                    }
+                }
+            }
+        }),
+    });
+    if (!response.ok)
+        throw new Error(`Failed to send onboarding flow: ${response.status} ${await response.text()}`);
+    return response.json();
+}
+
 export async function saveImage(env: Env, message: WhatsappMessage) {
     try {
         const image = await downloadImage(env, message);
