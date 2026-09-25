@@ -9,6 +9,8 @@
 @mediaId = 1768883360984354
 @mediaUrl = https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=1768883360984354&source=getMedia&ext=1789928589&hash=ATxmIjh0jCxA5Wu7t53BEZW6gKFiBL-SjaA1BoIr72fCiQ
 
+@phoneNumberId = 1212895211918077
+
 ### WhatsApp webhook verification
 GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=12345
 
@@ -22,4 +24,8 @@ Authorization: Bearer {{accessToken}}
 
 ### Download Whatsapp image
 GET {{mediaUrl}}
+Authorization: Bearer {{accessToken}}
+
+### Get Whatsapp Flows public key configuration
+GET {{metaUrl}}/{{apiVersion}}/{{phoneNumberId}}/whatsapp_business_encryption
 Authorization: Bearer {{accessToken}}
