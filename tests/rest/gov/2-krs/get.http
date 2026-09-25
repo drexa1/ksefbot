@@ -3,7 +3,7 @@
 @apiKey = test
 @krsSearchUrl = https://wyszukiwarka-krs-api.ms.gov.pl
 @krsApiUrl = https://api-krs.ms.gov.pl
-@krsApiKey = [REDACTED]
+@krsApiKey =
 @companyNip = 6252447933
 @companyKrs = 0000448939
 @jdgNIP = 7272445205

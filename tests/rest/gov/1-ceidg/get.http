@@ -2,7 +2,7 @@
 @baseUrl = http://localhost:3001
 @apiKey = test
 @ceidgUrl = https://dane.biznes.gov.pl/api/ceidg/v3
-@ceidgApiKey = [REDACTED]
+@ceidgApiKey =
 @jdgNip = 7272445205
 @jdgId = 4BBCA035-90AF-406C-B811-F835FBAA8753
 @companyNip = 5170312965

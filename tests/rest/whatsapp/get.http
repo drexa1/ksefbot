@@ -1,10 +1,10 @@
 #@no-redirect
 @baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
-@verifyToken = [REDACTED]
+@verifyToken =
 
 @metaUrl = https://graph.facebook.com
 @apiVersion = v26.0
-@accessToken = [REDACTED]
+@accessToken =
 @wabaId = 1814174903356359
 @mediaId = 1768883360984354
 @mediaUrl = https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=1768883360984354&source=getMedia&ext=1789928589&hash=ATxmIjh0jCxA5Wu7t53BEZW6gKFiBL-SjaA1BoIr72fCiQ

@@ -1,6 +1,6 @@
 #@no-redirect
 @baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
-@apiKey = 55oUrQjUlwlZYCS30WGfpMMZCiQkfKpt
+@apiKey =
 
 @metaUrl = https://graph.facebook.com
 @apiVersion = v26.0
