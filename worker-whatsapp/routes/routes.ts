@@ -27,9 +27,6 @@ const withErrorHandling = (routes: Routes): Routes => {
     return routesWithAuth;
 };
 
-console.info("onboardingExchange", onboardingExchange);
-console.info("typeof onboardingExchange", typeof onboardingExchange);
-
 export const routes: Record<string, Routes> =  {
     //🔓 Not requiring authentication
     "/":                          { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
