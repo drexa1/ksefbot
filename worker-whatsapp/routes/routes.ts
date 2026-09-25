@@ -34,7 +34,7 @@ export const routes: Record<string, Routes> =  {
     "/docs":                      { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
     "/openapi.json":              { GET: async () => Response.json(getOpenApiSpec()) },
     "/whatsapp/webhooks":         withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
-    "/whatsapp/flows/onboarding": withErrorHandling({ GET: onboardingFlow }),
+    "/whatsapp/flows/onboarding": withErrorHandling({ POST: onboardingFlow }),
     //🔒 Requiring authentication
     "/whatsapp/test":             withErrorHandling({ POST: testMessage })
 };
