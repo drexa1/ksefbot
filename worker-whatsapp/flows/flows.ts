@@ -1,5 +1,5 @@
 import {Env} from "../worker";
-import {FlowRequest, WhatsappMessage} from "../types/whatsapp";
+import {WhatsappMessage, FlowRequest} from "../types/whatsapp";
 import {decryptFlowRequest, encryptFlowResponse} from "./crypto";
 import {findCompany} from "../clients/ksefbot";
 
@@ -23,6 +23,11 @@ async function onboardingAction(payload: Record<string, string>, env: Env): Prom
     console.info(`Flow action: ${payload.action}`);
     console.info(`Flow screen: ${payload.screen}`);
     switch (payload.action) {
+        // Handles the Meta dashboard Health check
+        case "ping":
+            return {
+                data: {}
+            };
         case "start_onboarding": {
             return {
                 screen: "ONBOARDING_USER",
