@@ -34,7 +34,7 @@ export const getOpenApiSpec = () => ({
                                 properties: {
                                     to: {
                                         type: "string",
-                                        description: "Recipient WhatsApp phone number.",
+                                        description: "Recipient phone number.",
                                         example: "+48518121343"
                                     },
                                     message: {
@@ -71,13 +71,13 @@ export const getOpenApiSpec = () => ({
                                 properties: {
                                     to: {
                                         type: "string",
-                                        description: "Recipient WhatsApp phone number.",
+                                        description: "Recipient phone number.",
                                         example: "+48518121343"
                                     },
                                     flowId: {
                                         type: "string",
-                                        description: "Meta WhatsApp Flow ID.",
-                                        example: "123456789012345"
+                                        description: "Whatsapp Flow ID.",
+                                        example: "1084945671125075"
                                     }
                                 }
                             }
