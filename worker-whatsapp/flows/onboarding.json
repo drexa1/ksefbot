@@ -105,6 +105,7 @@
                                         "screen": "ONBOARDING_USER",
                                         "action": "find_user_company",
                                         "company_nip": "${form.company_nip}",
+                                        "company_name": "${data.company_name}",
                                         "company_confirmed": "${form.company_confirmed}",
                                         "default_item_name": "${form.default_item_name}",
                                         "ksef_token": "${form.ksef_token}"
@@ -120,6 +121,26 @@
             "id": "ONBOARDING_CUSTOMER",
             "title": "2. About your customer",
             "data": {
+                "company_nip": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "company_name": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "company_confirmed": {
+                    "type": "boolean",
+                    "__example__": false
+                },
+                "default_item_name": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "ksef_token": {
+                    "type": "string",
+                    "__example__": ""
+                },
                 "customer_name": {
                     "type": "string",
                     "__example__": ""
@@ -157,7 +178,13 @@
                                     "payload": {
                                         "screen": "ONBOARDING_CUSTOMER",
                                         "action": "find_customer_company",
+                                        "company_nip": "${data.company_nip}",
+                                        "company_name": "${data.company_name}",
+                                        "company_confirmed": "${data.company_confirmed}",
+                                        "default_item_name": "${data.default_item_name}",
+                                        "ksef_token": "${data.ksef_token}",
                                         "customer_nip": "${form.customer_nip}",
+                                        "customer_name": "${data.customer_name}",
                                         "customer_confirmed": "${form.customer_confirmed}"
                                     }
                                 }
@@ -170,7 +197,40 @@
         {
             "id": "ONBOARDING_BANK",
             "title": "3. Your company banking info",
-            "data": {},
+            "data": {
+                "company_nip": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "company_name": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "company_confirmed": {
+                    "type": "boolean",
+                    "__example__": false
+                },
+                "default_item_name": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "ksef_token": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "customer_nip": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "customer_name": {
+                    "type": "string",
+                    "__example__": ""
+                },
+                "customer_confirmed": {
+                    "type": "boolean",
+                    "__example__": false
+                }
+            },
             "layout": {
                 "type": "SingleColumnLayout",
                 "children": [
@@ -228,7 +288,7 @@
                             {
                                 "type": "RadioButtonsGroup",
                                 "name": "notification_day",
-                                "label": "Select when you want to be notified about invoicing",
+                                "label": "🗓️ Select when you want to be notified about invoicing",
                                 "required": true,
                                 "data-source": [
                                     {
@@ -253,10 +313,17 @@
                                     "payload": {
                                         "screen": "ONBOARDING_BANK",
                                         "action": "finish_onboarding",
+                                        "company_nip": "${data.company_nip}",
+                                        "company_name": "${data.company_name}",
+                                        "company_confirmed": "${data.company_confirmed}",
+                                        "default_item_name": "${data.default_item_name}",
+                                        "ksef_token": "${data.ksef_token}",
+                                        "customer_nip": "${data.customer_nip}",
+                                        "customer_name": "${data.customer_name}",
+                                        "customer_confirmed": "${data.customer_confirmed}",
                                         "bank_name": "${form.bank_name}",
                                         "account_number": "${form.account_number}",
-                                        "notification_day": "${form.notification_day}",
-                                        "specific_day": "${form.specific_day}"
+                                        "notification_day": "${form.notification_day}"
                                     }
                                 }
                             }

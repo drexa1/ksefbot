@@ -56,9 +56,7 @@ async function onboardingAction(payload: Record<string, string>, env: Env): Prom
                 }
             };
         }
-        // TODO: where to validate ksef_token?
         case "finish_onboarding": {
-            // Update user and mark onboarded
             const companyNip = payload.company_nip;
             const companyName = payload.company_name;
             const ksefToken = payload.ksef_token;
@@ -69,9 +67,12 @@ async function onboardingAction(payload: Record<string, string>, env: Env): Prom
             const notificationDay = payload.notification_day;
             const specificDay = payload.specific_day;
             console.info({ companyNip, companyName, ksefToken, customerNip, customerName, bankName, accountNumber, notificationDay, specificDay });
-            // Finalize initialized user
-            // Create contractor data for user and customer
-            // Notify new customer
+            // Validate ksefToken here.
+            // Finalize initialized user.
+            // Create contractor data.
+            // Save bank information.
+            // Save notification settings.
+            // Notify new customer.
             return {
                 screen: "ONBOARDING_SUCCESS"
             };
