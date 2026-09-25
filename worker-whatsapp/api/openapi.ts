@@ -77,7 +77,7 @@ export const getOpenApiSpec = () => ({
                                     message: {
                                         type: "string",
                                         description: "Message to send.",
-                                        example: "..."
+                                        example: "Hello 👋"
                                     },
                                     buttonCaption: {
                                         type: "string",
