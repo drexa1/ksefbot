@@ -15,14 +15,14 @@ export const getOpenApiSpec = () => ({
         }
     },
     tags: [
-        { name: "Whatsapp" }
+        {name: "Whatsapp"}
     ],
     paths: {
         "/whatsapp/test": {
             post: {
                 summary: "Send a test message",
                 tags: ["Whatsapp"],
-                security: [{ ApiKeyAuth: [] }],
+                security: [{ApiKeyAuth: []}],
                 requestBody: {
                     required: true,
                     content: {
@@ -48,9 +48,46 @@ export const getOpenApiSpec = () => ({
                     }
                 },
                 responses: {
-                    "200": { description: "Whatsapp message sent successfully." },
-                    "400": { description: "Missing or invalid message parameters." },
-                    "401": { description: "Unauthorized." }
+                    "200": {description: "Whatsapp message sent successfully."},
+                    "400": {description: "Missing or invalid message parameters."},
+                    "401": {description: "Unauthorized."}
+                }
+            }
+        },
+
+        "/whatsapp/test-flow": {
+            post: {
+                summary: "Send a test WhatsApp Flow",
+                tags: ["Whatsapp"],
+                security: [{ApiKeyAuth: []}],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                required: ["to", "flowId"],
+                                properties: {
+                                    to: {
+                                        type: "string",
+                                        description: "Recipient WhatsApp phone number.",
+                                        example: "+48518121343"
+                                    },
+                                    flowId: {
+                                        type: "string",
+                                        description: "Meta WhatsApp Flow ID.",
+                                        example: "123456789012345"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    "200": {description: "Whatsapp Flow sent successfully."},
+                    "400": {description: "Missing or invalid Flow parameters."},
+                    "401": {description: "Unauthorized."}
                 }
             }
         }

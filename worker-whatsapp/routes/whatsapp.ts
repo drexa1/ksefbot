@@ -1,9 +1,9 @@
 import {Env} from "../worker";
 import {CloudflareKV} from "../repository/kv";
 import {IncomingMessage} from "../types/whatsapp";
-import {saveImage, sendTemplate} from "../clients/whatsapp";
+import {saveImage, sendFlow, sendTemplate} from "../clients/whatsapp";
 import {initializeUser} from "../clients/ksefbot";
-import {attendExistingUser, triggerOnboarding} from "../flows/flows";
+import {attendExistingUser, triggerOnboarding} from "../flows/onboarding";
 
 const kv = new CloudflareKV();
 
@@ -38,6 +38,19 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
     const result = await response.json();
     console.log("Whatsapp response:", JSON.stringify({ status: response.status, result }));
     return Response.json(result, { status: response.status });
+}
+
+export async function testFlow(request: Request, env: Env): Promise<Response> {
+    const body = await request.json() as {to?: string, flowId?: string};
+    if (!body.to || !body.flowId)
+        return Response.json({error: "'to' and 'flowId' are required"}, {status: 400});
+    try {
+        const result = await sendFlow(env, body.to, body.flowId);
+        return Response.json(result);
+    } catch (error) {
+        console.error("Failed to send flow:", error);
+        return Response.json({error: error instanceof Error ? error.message : String(error)}, {status: 500});
+    }
 }
 
 export async function messageHandler(request: Request, env: Env): Promise<Response> {
