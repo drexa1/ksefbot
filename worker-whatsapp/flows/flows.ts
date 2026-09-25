@@ -26,7 +26,9 @@ async function onboardingAction(payload: Record<string, string>, env: Env): Prom
         // Handles the Meta dashboard Health check
         case "ping":
             return {
-                data: {}
+                data: {
+                    status: "active"
+                }
             };
         case "start_onboarding": {
             return {
