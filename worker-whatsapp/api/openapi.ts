@@ -67,12 +67,22 @@ export const getOpenApiSpec = () => ({
                             schema: {
                                 type: "object",
                                 additionalProperties: false,
-                                required: ["to", "flowId"],
+                                required: ["to", "message", "buttonCaption", "flowId"],
                                 properties: {
                                     to: {
                                         type: "string",
                                         description: "Recipient phone number.",
                                         example: "+48518121343"
+                                    },
+                                    message: {
+                                        type: "string",
+                                        description: "Message to send.",
+                                        example: "..."
+                                    },
+                                    buttonCaption: {
+                                        type: "string",
+                                        description: "Caption for the flow button.",
+                                        example: "Start flow"
                                     },
                                     flowId: {
                                         type: "string",

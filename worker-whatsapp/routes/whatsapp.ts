@@ -41,12 +41,12 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
 }
 
 export async function testFlow(request: Request, env: Env): Promise<Response> {
-    const body = await request.json() as {to?: string, flowId?: string};
-    if (!body.to || !body.flowId)
-        return Response.json({error: "'to' and 'flowId' are required"}, {status: 400});
+    const body = await request.json() as { to: string, message: string, buttonCaption: string, flowId: string };
+    if (!body.to || !body.message || !body.buttonCaption || !body.flowId)
+        return Response.json({ error: "'to' and 'flowId' are required" }, {status: 400});
     try {
         console.info(`Flow request for ${body.to}`, body.flowId);
-        const result = await sendFlow(env, body.to, body.flowId);
+        const result = await sendFlow(env, body.to, body.message, body.buttonCaption, body.flowId);
         console.info("`Flow response:", result);
         return Response.json(result);
     } catch (error) {

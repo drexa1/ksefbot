@@ -20,7 +20,7 @@ export async function sendTemplate( env: Env, to: string, template: string, lang
     return response;
 }
 
-export async function sendFlow(env: Env, to: string, flowId: string, language = "en") {
+export async function sendFlow(env: Env, to: string, message: string, buttonCaption: string, flowId: string) {
     const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",
         headers: {"Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json"},
@@ -31,13 +31,13 @@ export async function sendFlow(env: Env, to: string, flowId: string, language = 
             type: "interactive",
             interactive: {
                 type: "flow",
-                body: { text: "..." },
+                body: { text: message },
                 action: {
                     name: "flow",
                     parameters: {
                         flow_message_version: "3",
                         flow_id: flowId,
-                        flow_cta: "Start flow: "
+                        flow_cta: buttonCaption
                     }
                 }
             }
