@@ -2,7 +2,12 @@
 @baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
 @apiKey = 55oUrQjUlwlZYCS30WGfpMMZCiQkfKpt
 
-### Test WhatsApp webhook
+@metaUrl = https://graph.facebook.com
+@apiVersion = v26.0
+@accessToken =
+@phoneNumberId = 1212895211918077
+
+### Test Whatsapp webhook
 POST {{baseUrl}}/whatsapp/webhooks
 Content-Type: application/json
 
@@ -19,3 +24,10 @@ X-API-Key: {{apiKey}}
     "to": "48518121343",
     "message": "test sendout"
 }
+
+### Register Whatsapp flows public key
+POST {{metaUrl}}/{{apiVersion}}/{{phoneNumberId}}/whatsapp_business_encryption
+Authorization: Bearer {{accessToken}}
+Content-Type: application/x-www-form-urlencoded
+
+business_public_key=-----BEGIN%20PUBLIC%20KEY-----%0AMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtCtpSpKCT5QvyMo7WYXo%0AHram3Ul6vz2RnpSOpbHWZUx6w6TNXNcVtmOXy71MVKAE2MWPaZzdlSv2x2xU4EaR%0AB%2B661kslNHtuVY3V4u86sGbmn2wLle4Y4Rjs9bjs5%2FubGUxIgrJEZybUurtvrFFq%0A1LVyvHt1pdY%2FLtfD7GqnI7hhq1PtppkExHfq2uOApCfHMZIiDIAp1daYUp2I4grn%0AsUeg8JJAzx44CVYeGXV5SkY4mOCa7YY%2FOMrf7Mncu4WwXbXZPblWzS26tssf0EYq%0AAnVn5Q2xgCi954ow4WiICZL0eBCyn21sShUeYNXo5asLX3rcblMY0SuKA9Znx9Gz%0ATQIDAQAB%0A-----END%20PUBLIC%20KEY-----
