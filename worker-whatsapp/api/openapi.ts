@@ -86,7 +86,7 @@ export const getOpenApiSpec = () => ({
                                     },
                                     flowId: {
                                         type: "string",
-                                        description: "Whatsapp Flow ID.",
+                                        description: "Whatsapp flow ID.",
                                         example: "1084945671125075"
                                     }
                                 }
