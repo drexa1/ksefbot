@@ -40,3 +40,9 @@ export interface WhatsappMessage {
         payload: string;
     };
 }
+
+export interface FlowRequest {
+    encrypted_aes_key: string;
+    encrypted_flow_data: string;
+    initial_vector: string;
+}

@@ -2,7 +2,8 @@ import {Env} from "../worker";
 import {CloudflareKV} from "../repository/kv";
 import {IncomingMessage} from "../types/whatsapp";
 import {saveImage, sendTemplate} from "../clients/whatsapp";
-import {attendExistingUser, initializeUser, triggerOnboarding} from "../flows/flows";
+import {initializeUser} from "../clients/ksefbot";
+import {attendExistingUser, triggerOnboarding} from "../flows/flows";
 
 const kv = new CloudflareKV();
 

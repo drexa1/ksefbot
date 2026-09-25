@@ -4,7 +4,7 @@ import {scalarHtml} from "../api/scalar";
 import {corsHeaders} from "../auth";
 import {AuthError} from "../types/auth";
 import {verificationHandler, messageHandler, testMessage } from "./whatsapp";
-import {onboardingFlow} from "../flows/flows";
+import {onboardingExchange} from "../flows/flows";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
@@ -34,7 +34,7 @@ export const routes: Record<string, Routes> =  {
     "/docs":                      { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
     "/openapi.json":              { GET: async () => Response.json(getOpenApiSpec()) },
     "/whatsapp/webhooks":         withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
-    "/whatsapp/flows/onboarding": withErrorHandling({ POST: onboardingFlow }),
+    "/whatsapp/flows/onboarding": withErrorHandling({ POST: onboardingExchange }),
     //🔒 Requiring authentication
     "/whatsapp/test":             withErrorHandling({ POST: testMessage })
 };

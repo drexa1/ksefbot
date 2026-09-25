@@ -12,6 +12,8 @@ export interface Env {
     WHATSAPP_ACCESS_TOKEN: string
     META_API_VERSION: string
     WHATSAPP_PHONE_ID: string
+    WHATSAPP_FLOWS_PUBLIC_KEY: string
+    WHATSAPP_FLOWS_PEM: string
 }
 
 // noinspection JSUnusedGlobalSymbols
