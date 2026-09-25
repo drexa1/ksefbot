@@ -36,7 +36,7 @@ export async function sendFlow(env: Env, to: string, flowId: string, language = 
                     flow_message_version: "3",
                     flow_id: flowId,
                     // flow_token: crypto.randomUUID(),
-                    // flow_cta: "Start onboarding",
+                    flow_cta: "Start onboarding",
                     // flow_action: "navigate",
                     // flow_action_payload: {screen: "ONBOARDING_USER"}
                 }
