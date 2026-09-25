@@ -1,25 +1,6 @@
 import {Env} from "../worker";
 import {WhatsappMessage} from "../types/whatsapp";
 
-export async function saveImage(env: Env, message: WhatsappMessage) {
-    try {
-        const image = await downloadImage(env, message);
-        const fileExtension = message.image!.mime_type.split("/")[1];
-        const key = `user/images/${message.from}/${message.image!.id}.${fileExtension}`;
-        await env.R2.put(key, await image.arrayBuffer());
-        console.info(`Saved image from ${message.from} message to R2 ${key}`);
-    } catch (error) {
-        console.error("Saving image to R2 failed", error);
-    }
-}
-
-async function downloadImage(env: Env, message: WhatsappMessage): Promise<Response> {
-    const response = await fetch(message.image!.url, { headers: { Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}` }});
-    if (!response.ok || !response.body)
-        throw new Error(`Failed to download media: ${response.status} ${await response.text()}`);
-    return response;
-}
-
 export async function sendTemplate( env: Env, to: string, template: string, language: string = "en") {
     const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",
@@ -36,5 +17,24 @@ export async function sendTemplate( env: Env, to: string, template: string, lang
     );
     if (!response.ok)
         console.error("WhatsApp error:", await response.text());
+    return response;
+}
+
+export async function saveImage(env: Env, message: WhatsappMessage) {
+    try {
+        const image = await downloadImage(env, message);
+        const fileExtension = message.image!.mime_type.split("/")[1];
+        const key = `user/images/${message.from}/${message.image!.id}.${fileExtension}`;
+        await env.R2.put(key, await image.arrayBuffer());
+        console.info(`Saved image from ${message.from} message to R2 ${key}`);
+    } catch (error) {
+        console.error("Saving image to R2 failed", error);
+    }
+}
+
+async function downloadImage(env: Env, message: WhatsappMessage): Promise<Response> {
+    const response = await fetch(message.image!.url, { headers: { Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}` }});
+    if (!response.ok || !response.body)
+        throw new Error(`Failed to download media: ${response.status} ${await response.text()}`);
     return response;
 }

@@ -16,7 +16,7 @@ export async function verificationHandler(request: Request, env: Env): Promise<R
     return new Response("Forbidden", { status: 403 });
 }
 
-export async function testSendout(request: Request, env: Env): Promise<Response> {
+export async function testMessage(request: Request, env: Env): Promise<Response> {
     const body = await request.json() as { to?: string, message?: string };
     if (!body.to || !body.message)
         return Response.json({ error: "'to' and 'message' are required" }, { status: 400 });

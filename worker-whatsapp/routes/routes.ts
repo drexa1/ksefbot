@@ -3,7 +3,8 @@ import {getOpenApiSpec, swaggerHtml} from "../api/openapi";
 import {scalarHtml} from "../api/scalar";
 import {corsHeaders} from "../auth";
 import {AuthError} from "../types/auth";
-import {verificationHandler, messageHandler, testSendout } from "./whatsapp";
+import {verificationHandler, messageHandler, testMessage } from "./whatsapp";
+import {onboardingFlow} from "../flows/flows";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
@@ -28,12 +29,12 @@ const withErrorHandling = (routes: Routes): Routes => {
 
 export const routes: Record<string, Routes> =  {
     //🔓 Not requiring authentication
-    "/":                            { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
-    "/swagger":                     { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
-    "/docs":                        { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
-    "/openapi.json":                { GET: async () => Response.json(getOpenApiSpec()) },
-    "/whatsapp/webhooks":           withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
-    "/whatsapp/flows/onboarding/1": withErrorHandling({  }),
+    "/":                          { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
+    "/swagger":                   { GET: async () => new Response(swaggerHtml, { headers: { "Content-Type": "text/html" }}) },
+    "/docs":                      { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
+    "/openapi.json":              { GET: async () => Response.json(getOpenApiSpec()) },
+    "/whatsapp/webhooks":         withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
+    "/whatsapp/flows/onboarding": withErrorHandling({ GET: onboardingFlow }),
     //🔒 Requiring authentication
-    "/whatsapp/test":               withErrorHandling({ POST: testSendout })
+    "/whatsapp/test":             withErrorHandling({ POST: testMessage })
 };
