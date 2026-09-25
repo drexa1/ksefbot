@@ -18,7 +18,7 @@ export const getOpenApiSpec = () => ({
         {name: "Whatsapp"}
     ],
     paths: {
-        "/whatsapp/test": {
+        "/whatsapp/test-message": {
             post: {
                 summary: "Send a test message",
                 tags: ["Whatsapp"],
