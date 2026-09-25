@@ -33,7 +33,7 @@
                     {
                         "type": "TextBody",
                         "markdown": true,
-                        "text": "**A few bits of information is all we need to start automating invoices:**\n\n1. The ID of your company, and a KSeF token\n2. (Optionally) The ID of your regular customer\n3. (Optionally) The banking account nr. of your company"
+                        "text": "**A few bits of information is all we need to start automating invoices:**\n\n1. The tax ID of your company, and a KSeF token\n2. (Optionally) The tax ID of your regular customer\n3. (Optionally) The banking account nr. of your company"
                     },
                     {
                         "type": "Footer",
@@ -145,17 +145,17 @@
                             },
                             {
                                 "type": "TextBody",
-                                "text": "Customer found: ${data.customer_name}"
+                                "text": "Customer: ${data.customer_name}"
                             },
                             {
                                 "type": "OptIn",
                                 "name": "customer_confirmed",
-                                "label": "Is that your regular customer?",
+                                "label": "Is that your customer?",
                                 "required": false
                             },
                             {
                                 "type": "Footer",
-                                "label": "Continue",
+                                "label": "3. Your company banking info",
                                 "on-click-action": {
                                     "name": "data_exchange",
                                     "payload": {
@@ -173,18 +173,14 @@
         },
         {
             "id": "ONBOARDING_BANK",
-            "title": "Onboarding banking",
+            "title": "3. Your company banking info",
             "data": {},
             "layout": {
                 "type": "SingleColumnLayout",
                 "children": [
                     {
-                        "type": "TextHeading",
-                        "text": "Bank details"
-                    },
-                    {
                         "type": "TextBody",
-                        "text": "Bank details are optional."
+                        "text": "Filling this now will save time later during invoice creation."
                     },
                     {
                         "type": "Form",
@@ -197,24 +193,32 @@
                                 "required": false,
                                 "data-source": [
                                     {
-                                        "id": "PKO_BP",
-                                        "title": "PKO Bank Polski"
+                                        "id": "ALIOR",
+                                        "title": "Alior Bank SA"
                                     },
                                     {
-                                        "id": "BANK_PEKAO",
-                                        "title": "Bank Pekao"
+                                        "id": "BNP",
+                                        "title": "BNP Paribas Bank Polska SA"
+                                    },
+                                    {
+                                        "id": "ING",
+                                        "title": "ING Bank Śląski SA"
+                                    },
+                                    {
+                                        "id": "MBANK",
+                                        "title": "mBank SA"
+                                    },
+                                    {
+                                        "id": "MILLENNIUM",
+                                        "title": "Bank Millennium SA"
+                                    },
+                                    {
+                                        "id": "PKOBP",
+                                        "title": "PKO Bank Polski"
                                     },
                                     {
                                         "id": "SANTANDER",
                                         "title": "Santander Bank Polska"
-                                    },
-                                    {
-                                        "id": "MBANK",
-                                        "title": "mBank"
-                                    },
-                                    {
-                                        "id": "ING",
-                                        "title": "ING Bank Śląski"
                                     }
                                 ]
                             },
@@ -245,7 +249,7 @@
         },
         {
             "id": "ONBOARDING_SUCCESS",
-            "title": "Success",
+            "title": "All done!",
             "terminal": true,
             "success": true,
             "data": {},
@@ -253,12 +257,37 @@
                 "type": "SingleColumnLayout",
                 "children": [
                     {
-                        "type": "TextHeading",
-                        "text": "All done!"
+                        "type": "TextBody",
+                        "text": "We got all the required to automatically start creating and submitting invoices.\nYou can change these settings at any moment."
                     },
                     {
-                        "type": "TextBody",
-                        "text": "Everything has been successfully collected."
+                        "type": "RadioButtonsGroup",
+                        "name": "notification_day",
+                        "label": "📅 Select which day you want to be notified to go about the invoicing",
+                        "required": true,
+                        "init-value": "LAST_DAY",
+                        "data-source": [
+                            {
+                                "id": "LAST_DAY",
+                                "title": "Last day each on-going month"
+                            },
+                            {
+                                "id": "FIRST_DAY",
+                                "title": "First day of the next month"
+                            },
+                            {
+                                "id": "MID_DAY",
+                                "title": "By the mid (14th) each month"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "Dropdown",
+                        "name": "specific_day",
+                        "label": "Day",
+                        "required": false,
+                        "visible": false,
+                        "data-source": [ { "id": "1", "title": "1" }, { "id": "2", "title": "2" }, { "id": "3", "title": "3" }, { "id": "4", "title": "4" }, { "id": "5", "title": "5" }, { "id": "6", "title": "6" }, { "id": "7", "title": "7" }, { "id": "8", "title": "8" }, { "id": "9", "title": "9" }, { "id": "10", "title": "10" }, { "id": "11", "title": "11" }, { "id": "12", "title": "12" }, { "id": "13", "title": "13" }, { "id": "14", "title": "14" }, { "id": "15", "title": "15" }, { "id": "16", "title": "16" }, { "id": "17", "title": "17" }, { "id": "18", "title": "18" }, { "id": "19", "title": "19" }, { "id": "20", "title": "20" }, { "id": "21", "title": "21" }, { "id": "22", "title": "22" }, { "id": "23", "title": "23" }, { "id": "24", "title": "24" }, { "id": "25", "title": "25" }, { "id": "26", "title": "26" }, { "id": "27", "title": "27" }, { "id": "28", "title": "28" } ]
                     },
                     {
                         "type": "Footer",
