@@ -62,15 +62,18 @@
 - [x] KV for Whatsapp worker  
 - [x] Method to clear all messages in KV  
 - [x] Method to check if whatsapp user is new  
+- [ ] Whatsapp: unravel double WABA setup  
+- [ ] Whatsapp: get PROD number display name working  
+- [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
+- [x] CLI: Google SSO  
+- [ ] CLI: Microsoft SSO  
+- [ ] CLI: login with email  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  
 - [ ] CLI: adapt sales/purchase invoices summary  
 - [ ] CLI: create customer  
-- [ ] CLI: create invoice  
-- [ ] CLI: Google SSO  
-- [ ] CLI: Microsoft SSO
-- [ ] CLI: login with email  
+- [ ] CLI: create invoice
 - [ ] CLI: edit user settings  
 - [ ] CLI: first time flow  
 - [ ] Review security architecture  
