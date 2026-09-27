@@ -43,13 +43,13 @@ pub async fn list_purchase_invoices() -> anyhow::Result<()> {
     Ok(())
 }
 
+const DATEPICKER_HELP_MESSAGE: &str = "Arrows: move · PageUp/Down: months · Shift+PageUp/Down: years · Enter: select";
 async fn list_invoices(endpoint: &InvoiceType) -> anyhow::Result<Vec<serde_json::Value>> {
-    let datepicker_help_message = "Arrows: move · PageUp/Down: months · Shift+PageUp/Down: years · Enter: select";
     let from = DateSelect::new("From date:")
-        .with_help_message(datepicker_help_message)
+        .with_help_message(DATEPICKER_HELP_MESSAGE)
         .prompt()?.and_hms_opt(0, 0, 0).unwrap().and_utc();
     let to = DateSelect::new("To date:")
-        .with_help_message(datepicker_help_message)
+        .with_help_message(DATEPICKER_HELP_MESSAGE)
         .prompt()?.and_hms_opt(23, 59, 59).unwrap().and_utc();
     let json: serde_json::Value = reqwest::Client::new()
         .get(format!("{}/ksef/{endpoint}", var("CF_WORKER_URL")?))
