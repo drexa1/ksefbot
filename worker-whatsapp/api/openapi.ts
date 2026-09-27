@@ -54,7 +54,57 @@ export const getOpenApiSpec = () => ({
                 }
             }
         },
-
+        "/whatsapp/test-template": {
+            post: {
+                summary: "Send a test WhatsApp template",
+                tags: ["Whatsapp"],
+                security: [{ApiKeyAuth: []}],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                required: ["to", "template", "language"],
+                                properties: {
+                                    to: {
+                                        type: "string",
+                                        description: "Recipient phone number.",
+                                        example: "48518121343"
+                                    },
+                                    template: {
+                                        type: "string",
+                                        description: "Name of the approved Whatsapp message template.",
+                                        example: "onboarding_language"
+                                    },
+                                    language: {
+                                        type: "string",
+                                        enum: ["en", "pl"],
+                                        description: "Language code of the approved Whatsapp template.",
+                                        example: "en"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    "200": {
+                        description: "WhatsApp template sent successfully."
+                    },
+                    "400": {
+                        description: "Missing or invalid template parameters."
+                    },
+                    "401": {
+                        description: "Unauthorized."
+                    },
+                    "502": {
+                        description: "WhatsApp API rejected the message."
+                    }
+                }
+            }
+        },
         "/whatsapp/test-flow": {
             post: {
                 summary: "Send a test WhatsApp Flow",
