@@ -29,13 +29,3 @@ Authorization: Bearer {{accessToken}}
 ### Download Whatsapp image
 GET {{mediaUrl}}
 Authorization: Bearer {{accessToken}}
-
-
-
-
-
-
-
-###
-GET https://graph.facebook.com/v26.0/1431639538915116/owned_whatsapp_business_accounts
-Authorization: Bearer {{accessToken}}
