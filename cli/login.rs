@@ -23,11 +23,19 @@ pub enum LoginMethod {
     #[strum(to_string = "Your e-mail")] Email
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AuthUser {
+    #[serde(rename = "sub")]
+    pub id: String,
+    pub email: String,
+    pub name: Option<String>,
+}
+
 // -------------------------------------------------------------------------------------------------
 // Login with SSO
 // -------------------------------------------------------------------------------------------------
 
-pub async fn login_with_google() -> Result<bool> {
+pub async fn login_with_google() -> Result<AuthUser> {
     let listener = TcpListener::bind("127.0.0.1:0").await.context("Failed to bind OAuth callback listener")?;
     let port = listener.local_addr().context("Failed to determine OAuth callback port")?.port();
     let redirect_uri = format!("http://127.0.0.1:{port}");
@@ -88,10 +96,6 @@ pub async fn login_with_google() -> Result<bool> {
         response_body.len()
     );
     stream.write_all(response.as_bytes()).await.context("failed to send OAuth callback response")?;
-    if let Some(error) = error {
-        println!("Google authentication failed: {error}");
-        return Ok(false);
-    }
     let received_state = state.context("Google callback did not contain state")?;
     if received_state != *csrf_state.secret() {
         anyhow::bail!("OAuth state mismatch");
@@ -109,20 +113,35 @@ pub async fn login_with_google() -> Result<bool> {
     println!("Google login successful.");
     let access_token = token.access_token().secret();
     println!("Received Google access token ({} characters).", access_token.len());
-    Ok(true)
+    let user: AuthUser = reqwest::Client::new()
+        .get("https://openidconnect.googleapis.com/v1/userinfo")
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .context("Failed to retrieve Google user information")?
+        .error_for_status()
+        .context("Google user information request failed")?
+        .json()
+        .await
+        .context("Failed to parse Google user information")?;
+    Ok(user)
 }
 
-pub async fn login_with_microsoft() -> Result<bool> {
+pub async fn login_with_microsoft() -> Result<AuthUser> {
     println!("Opening Microsoft authentication...");
-    println!("Waiting for Microsoft OAuth callback...");
-    Ok(true)
+    let user = AuthUser {
+        id: "dummy".to_owned(),
+        email: "dummy@example.com".to_owned(),
+        name: Some("Dummy User".to_owned()),
+    };
+    Ok(user)
 }
 
 // -------------------------------------------------------------------------------------------------
 // Login with email
 // -------------------------------------------------------------------------------------------------
 
-pub async fn login_with_email_loop() -> Result<bool> {
+pub async fn login_with_email_loop() -> Result<AuthUser> {
     let email = Text::new("Email address").with_placeholder("you@example.com").prompt()?;
     if account_exists(&email)? {
         println!("Account found.");
@@ -138,10 +157,10 @@ pub async fn login_with_email_loop() -> Result<bool> {
         create_account(&email)?;
         println!("Account created successfully");
         println!("We've sent a verification link to: {email} - Please verify your email and continue to log in.");
+        anyhow::bail!("Email verification required");
     } else {
-        println!("Account creation cancelled.");
+        anyhow::bail!("Account creation cancelled");
     }
-    Ok(false)
 }
 
 fn account_exists(email: &str) -> Result<bool> {
@@ -152,15 +171,6 @@ fn account_exists(email: &str) -> Result<bool> {
     Ok(false)
 }
 
-fn login_with_email(email: &str, password: &str) -> Result<bool> {
-    let _ = password;
-    println!("  [API] POST /auth/login");
-    println!("  [API] email = {email}");
-    println!("  [API] password = ********");
-    println!("  [API] Response: authentication successful");
-    Ok(true)
-}
-
 fn create_account(email: &str) -> Result<()> {
     println!("Creating account...");
     println!("  [API] POST /auth/register");
@@ -168,4 +178,18 @@ fn create_account(email: &str) -> Result<()> {
     println!("  [API] Creating account record...");
     println!("  [EMAIL] Verification email sent.");
     Ok(())
+}
+
+fn login_with_email(email: &str, password: &str) -> Result<AuthUser> {
+    let _ = password;
+    println!("  [API] POST /auth/login");
+    println!("  [API] email = {email}");
+    println!("  [API] password = ********");
+    println!("  [API] Response: authentication successful");
+    let user = AuthUser {
+        id: "dummy".to_owned(),
+        email: "dummy@example.com".to_owned(),
+        name: Some("Dummy User".to_owned()),
+    };
+    Ok(user)
 }

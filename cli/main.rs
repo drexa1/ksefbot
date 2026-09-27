@@ -29,8 +29,8 @@ async fn main() -> Result<()> {
     dotenvy::from_filename("cli/.env").ok();
     match std::env::var("TUI").as_deref() {
         Ok("inquire") => {
-            login_loop().await?;
-            main_loop().await?;
+            let logged_user = login_loop().await?;
+            main_loop(&logged_user).await?;
         }
         Ok("ratatui") | Err(_) => {
             tui::ratatui::run().await?;

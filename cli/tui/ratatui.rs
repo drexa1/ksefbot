@@ -15,21 +15,22 @@ use ratatui::{
 use std::io;
 use ratatui::widgets::Paragraph;
 use strum::IntoEnumIterator;
+use crate::login::AuthUser;
 
 type Tui = Terminal<CrosstermBackend<io::Stdout>>;
 
 pub async fn run() -> Result<()> {
     let mut terminal = setup_terminal()?;
     let result = async {
-        login_loop(&mut terminal).await?;
-        main_loop(&mut terminal).await?;
+        let logged_user = login_loop(&mut terminal).await?;
+        main_loop(&mut terminal, &logged_user).await?;
         Ok(())
     }.await;
     restore_terminal(&mut terminal)?;
     result
 }
 
-async fn login_loop(terminal: &mut Tui) -> Result<()> {
+async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
     let methods: Vec<login::LoginMethod> = login::LoginMethod::iter().collect();
     let mut selected = 0usize;
     loop {
@@ -43,24 +44,21 @@ async fn login_loop(terminal: &mut Tui) -> Result<()> {
             }
             KeyCode::Enter => {
                 restore_terminal(terminal)?;
-                let logged_in = match methods[selected].clone() {
+                let user = match methods[selected].clone() {
                     login::LoginMethod::Google => login::login_with_google().await?,
                     login::LoginMethod::Microsoft => login::login_with_microsoft().await?,
                     login::LoginMethod::Email => login::login_with_email_loop().await?
                 };
-                if logged_in {
-                    setup_terminal_in_place(terminal)?;
-                    return Ok(());
-                }
                 setup_terminal_in_place(terminal)?;
+                return Ok(user);
             }
-            KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
-            _ => {}
+            KeyCode::Esc | KeyCode::Char('q') => return Err(anyhow::anyhow!("Login cancelled")), _ => {}
         }
     }
 }
 
-async fn main_loop(terminal: &mut Tui) -> Result<()> {
+async fn main_loop(terminal: &mut Tui, logged_user: &AuthUser) -> Result<()> {
+    println!("Logged user: {}", logged_user.email);
     let actions: Vec<MainMenuAction> = MainMenuAction::iter().collect();
     let mut selected = 0usize;
     loop {
