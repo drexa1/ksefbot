@@ -19,8 +19,8 @@ pub enum MainMenuAction {
     #[strum(to_string = "2. List [sales] invoices")] ListSalesInvoices,
     #[strum(to_string = "3. List [purchase] invoices")] ListPurchaseInvoices,
     #[strum(to_string = "4. Create new contractor")] CreateContractor,
-    #[strum(to_string = "5. List known contractors")] ListContractors,
-    #[strum(to_string = "6. User settings")] UserSettings,
+    #[strum(to_string = "5. List contractors")] ListContractors,
+    #[strum(to_string = "6. Update user settings")] UserSettings,
     #[strum(to_string = "7. Exit")] Exit
 }
 
