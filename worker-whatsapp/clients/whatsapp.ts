@@ -1,6 +1,29 @@
 import {Env} from "../worker";
 import {WhatsappMessage} from "../types/whatsapp";
 
+export async function sendText(env: Env, to: string, message: string) {
+    const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to,
+            type: "text",
+            text: {
+                preview_url: false,
+                body: message
+            }
+        })
+    });
+    if (!response.ok)
+        throw new Error(`Failed to send text: ${response.status} ${JSON.stringify(await response.text())}`);
+    return await response.json();
+}
+
 export async function sendTemplate( env: Env, to: string, template: string, language: string = "en") {
     const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",
@@ -17,7 +40,7 @@ export async function sendTemplate( env: Env, to: string, template: string, lang
     );
     if (!response.ok)
         console.error("WhatsApp error:", await response.text());
-    return response;
+    return await response.json();
 }
 
 export async function sendFlow(env: Env, to: string, message: string, buttonCaption: string, flowId: string) {
@@ -43,11 +66,9 @@ export async function sendFlow(env: Env, to: string, message: string, buttonCapt
             }
         })
     });
-    const result = await response.json();
-    console.log("Whatsapp flow response:", JSON.stringify({status: response.status, result}));
     if (!response.ok)
-        throw new Error(`Failed to send flow: ${response.status} ${JSON.stringify(result)}`);
-    return result;
+        throw new Error(`Failed to send flow: ${response.status} ${JSON.stringify(await response.text())}`);
+    return await response.json();
 }
 
 export async function saveImage(env: Env, message: WhatsappMessage) {

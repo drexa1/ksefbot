@@ -35,7 +35,7 @@ export const getOpenApiSpec = () => ({
                                     to: {
                                         type: "string",
                                         description: "Recipient phone number.",
-                                        example: "+48518121343"
+                                        example: "48518121343"
                                     },
                                     message: {
                                         type: "string",
@@ -72,7 +72,7 @@ export const getOpenApiSpec = () => ({
                                     to: {
                                         type: "string",
                                         description: "Recipient phone number.",
-                                        example: "+48518121343"
+                                        example: "48518121343"
                                     },
                                     message: {
                                         type: "string",

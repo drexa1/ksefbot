@@ -21,19 +21,17 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
     const body = await request.json() as { to?: string, message?: string };
     if (!body.to || !body.message)
         return Response.json({ error: "'to' and 'message' are required" }, { status: 400 });
-    const url = `https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`;
-    const payload = {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: body.to,
-        type: "text",
-        text: { preview_url: false, body: body.message }
-    };
-    console.info(`Message request for ${payload.to}`, payload.text);
-    const response = await fetch(url, {
+    console.info(`Message request for ${body.to}`, body.message);
+    const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: body.to,
+            type: "text",
+            text: { preview_url: false, body: body.message }
+        })
     });
     const result = await response.json();
     console.info("`Message response:", result);
@@ -56,10 +54,20 @@ export async function testFlow(request: Request, env: Env): Promise<Response> {
 }
 
 export async function messageHandler(request: Request, env: Env): Promise<Response> {
-    const incomingMessage = await request.json() as IncomingMessage;
-    const message = incomingMessage.entry[0].changes[0].value.messages?.[0];
-    if (!message)
+    const rawBody = await request.text();
+    console.info("Whatsapp webhook raw:", rawBody);
+    let incomingMessage: IncomingMessage;
+    try {
+        incomingMessage = JSON.parse(rawBody) as IncomingMessage;
+    } catch (error) {
+        console.error("Invalid webhook JSON:", error);
+        return Response.json({ error: "invalid JSON" }, { status: 400 });
+    }
+    const message = incomingMessage.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    if (!message) {
+        console.info("Webhook contains no incoming message");
         return Response.json("OK", { status: 200 });
+    }
     console.info(`Message received from ${message.from}`, incomingMessage);
     await kv.binding(env.KV).save(`in::${message.from}::${message.timestamp}`, incomingMessage.entry[0].changes[0].value.messages);
     if (message.image)
