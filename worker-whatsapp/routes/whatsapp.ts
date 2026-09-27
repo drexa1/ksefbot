@@ -28,7 +28,7 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
         return Response.json(result);
     } catch (error) {
         console.error("Failed to send message:", error);
-        return Response.json({error: error instanceof Error ? error.message : String(error)}, { status: 500 });
+        return Response.json({ error }, { status: 500 });
     }
 }
 
@@ -43,7 +43,7 @@ export async function testFlow(request: Request, env: Env): Promise<Response> {
         return Response.json(result);
     } catch (error) {
         console.error("Failed to send flow:", error);
-        return Response.json({error: error instanceof Error ? error.message : String(error)}, {status: 500});
+        return Response.json({ error}, {status: 500});
     }
 }
 
@@ -55,7 +55,7 @@ export async function messageHandler(request: Request, env: Env): Promise<Respon
         incomingMessage = JSON.parse(rawBody) as IncomingMessage;
     } catch (error) {
         console.error("Invalid webhook JSON:", error);
-        return Response.json({ error: "invalid JSON" }, { status: 400 });
+        return Response.json({ error }, { status: 400 });
     }
     const message = incomingMessage.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     if (!message) {
