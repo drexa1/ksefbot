@@ -20,15 +20,14 @@ use tokio::net::TcpListener;
 pub enum LoginMethod {
     #[strum(to_string = "Sign in with Google account")] Google,
     #[strum(to_string = "Sign in with Microsoft account")] Microsoft,
-    #[strum(to_string = "Your e-mail")] Email
+    #[strum(to_string = "Created account with your e-mail")] Email
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct AuthUser {
     #[serde(rename = "sub")]
-    pub id: String,
-    pub email: String,
     pub name: Option<String>,
+    pub email: String
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -130,9 +129,8 @@ pub async fn login_with_google() -> Result<AuthUser> {
 pub async fn login_with_microsoft() -> Result<AuthUser> {
     println!("Opening Microsoft authentication...");
     let user = AuthUser {
-        id: "dummy".to_owned(),
-        email: "dummy@example.com".to_owned(),
         name: Some("Dummy User".to_owned()),
+        email: "dummy@example.com".to_owned()
     };
     Ok(user)
 }
@@ -187,9 +185,8 @@ fn login_with_email(email: &str, password: &str) -> Result<AuthUser> {
     println!("  [API] password = ********");
     println!("  [API] Response: authentication successful");
     let user = AuthUser {
-        id: "dummy".to_owned(),
-        email: "dummy@example.com".to_owned(),
         name: Some("Dummy User".to_owned()),
+        email: "dummy@example.com".to_owned()
     };
     Ok(user)
 }
