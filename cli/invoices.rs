@@ -9,6 +9,8 @@ pub enum InvoiceType {
     #[strum(to_string = "purchases")] Purchases
 }
 
+const DATEPICKER_HELP_MESSAGE: &str = "Arrows: move · PageUp/Down: months · Shift+PageUp/Down: years · Enter: select";
+
 pub async fn list_sales_invoices() -> anyhow::Result<()> {
     let invoices = list_invoices(&InvoiceType::Sales).await?;
 
@@ -43,7 +45,6 @@ pub async fn list_purchase_invoices() -> anyhow::Result<()> {
     Ok(())
 }
 
-const DATEPICKER_HELP_MESSAGE: &str = "Arrows: move · PageUp/Down: months · Shift+PageUp/Down: years · Enter: select";
 async fn list_invoices(endpoint: &InvoiceType) -> anyhow::Result<Vec<serde_json::Value>> {
     let from = DateSelect::new("From date:")
         .with_help_message(DATEPICKER_HELP_MESSAGE)
