@@ -66,9 +66,9 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
     if (!body.to || !body.message)
         return Response.json({ error: "'to' and 'message' are required" }, { status: 400 });
     try {
-        console.info(`Message request for ${body.to}`, body.message);
+        console.log(`Message request for ${body.to}`, body.message);
         const result = await sendText(env, body.to, body.message);
-        console.info("Message response:", result);
+        console.log("Message response:", result);
         return Response.json(result);
     } catch (error) {
         console.error("Failed to send message:", error instanceof Error ? error.message : error);
@@ -81,12 +81,12 @@ export async function testTemplate(request: Request, env: Env): Promise<Response
     if (!body.to || !body.template || !body.language)
         return Response.json({ error: "'to', 'template', and 'language' are required" }, {status: 400});
     try {
-        console.info(`Template request for ${body.to}`, body.template);
+        console.log(`Template request for ${body.to}`, body.template);
         const result = await sendTemplate(env, body.to, body.template, body.language);
-        console.info("Template response:", result);
+        console.log("Template response:", result);
         return Response.json(result);
     } catch (error) {
-        console.error("Failed to send message:", error instanceof Error ? error.message : error);
+        console.error("Failed to send template:", error instanceof Error ? error.message : error);
         return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }
@@ -96,9 +96,9 @@ export async function testFlow(request: Request, env: Env): Promise<Response> {
     if (!body.to || !body.message || !body.buttonCaption || !body.flowId)
         return Response.json({ error: "'to', 'message', 'buttonCaption' and 'flowId' are required" }, {status: 400});
     try {
-        console.info(`Flow request for ${body.to}`, body.flowId);
+        console.log(`Flow request for ${body.to}`, body.flowId);
         const result = await sendFlow(env, body.to, body.message, body.buttonCaption, body.flowId);
-        console.info("`Flow response:", result);
+        console.log("`Flow response:", result);
         return Response.json(result);
     } catch (error) {
         console.error("Failed to send flow:", error instanceof Error ? error.message : error);
