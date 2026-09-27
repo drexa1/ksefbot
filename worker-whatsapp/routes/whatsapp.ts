@@ -1,7 +1,7 @@
 import {Env} from "../worker";
 import {CloudflareKV} from "../repository/kv";
 import {IncomingMessage} from "../types/whatsapp";
-import {saveImage, sendFlow, sendTemplate} from "../clients/whatsapp";
+import {saveImage, sendFlow, sendTemplate, sendText} from "../clients/whatsapp";
 import {initializeUser} from "../clients/ksefbot";
 import {attendExistingUser, triggerOnboarding} from "../flows/onboarding";
 
@@ -21,21 +21,15 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
     const body = await request.json() as { to?: string, message?: string };
     if (!body.to || !body.message)
         return Response.json({ error: "'to' and 'message' are required" }, { status: 400 });
-    console.info(`Message request for ${body.to}`, body.message);
-    const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to: body.to,
-            type: "text",
-            text: { preview_url: false, body: body.message }
-        })
-    });
-    const result = await response.json();
-    console.info("`Message response:", result);
-    return Response.json(result, { status: response.status });
+    try {
+        console.info(`Message request for ${body.to}`, body.message);
+        const result = await sendText(env, body.to, body.message);
+        console.info("Message response:", result);
+        return Response.json(result);
+    } catch (error) {
+        console.error("Failed to send message:", error);
+        return Response.json({error: error instanceof Error ? error.message : String(error)}, { status: 500 });
+    }
 }
 
 export async function testFlow(request: Request, env: Env): Promise<Response> {
