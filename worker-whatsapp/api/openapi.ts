@@ -18,7 +18,7 @@ export const getOpenApiSpec = () => ({
         {name: "Whatsapp"}
     ],
     paths: {
-        "/whatsapp/test-message": {
+        "/whatsapp/test/message": {
             post: {
                 summary: "Send a test message",
                 tags: ["Whatsapp"],
@@ -54,7 +54,7 @@ export const getOpenApiSpec = () => ({
                 }
             }
         },
-        "/whatsapp/test-template": {
+        "/whatsapp/test/template": {
             post: {
                 summary: "Send a test WhatsApp template",
                 tags: ["Whatsapp"],
@@ -105,7 +105,7 @@ export const getOpenApiSpec = () => ({
                 }
             }
         },
-        "/whatsapp/test-flow": {
+        "/whatsapp/test/flow": {
             post: {
                 summary: "Send a test WhatsApp Flow",
                 tags: ["Whatsapp"],
