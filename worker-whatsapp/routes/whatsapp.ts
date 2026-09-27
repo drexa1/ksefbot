@@ -71,8 +71,8 @@ export async function testMessage(request: Request, env: Env): Promise<Response>
         console.info("Message response:", result);
         return Response.json(result);
     } catch (error) {
-        console.error("Failed to send message:", error);
-        return Response.json({ error }, { status: 500 });
+        console.error("Failed to send message:", error instanceof Error ? error.message : error);
+        return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }
 
@@ -86,8 +86,8 @@ export async function testTemplate(request: Request, env: Env): Promise<Response
         console.info("Template response:", result);
         return Response.json(result);
     } catch (error) {
-        console.error("Failed to send message:", error);
-        return Response.json({ error }, { status: 500 });
+        console.error("Failed to send message:", error instanceof Error ? error.message : error);
+        return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }
 
@@ -101,7 +101,7 @@ export async function testFlow(request: Request, env: Env): Promise<Response> {
         console.info("`Flow response:", result);
         return Response.json(result);
     } catch (error) {
-        console.error("Failed to send flow:", error);
-        return Response.json({ error}, {status: 500});
+        console.error("Failed to send flow:", error instanceof Error ? error.message : error);
+        return Response.json({ error: error instanceof Error ? error.message : String(error)}, {status: 500});
     }
 }
