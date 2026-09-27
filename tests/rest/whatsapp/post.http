@@ -1,10 +1,10 @@
 #@no-redirect
 @baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
-@apiKey = 55oUrQjUlwlZYCS30WGfpMMZCiQkfKpt
+@apiKey =
 
 @metaUrl = https://graph.facebook.com
 @apiVersion = v26.0
-@accessToken = EAATxCmjtvowBSv4JZC05nQZBQEi7ZA20uTTi8aZAP1sZCV7GlOWsdRUdhSlZCdxY0wsb6zO2H1pyFgriNZBhUwqUsGEeQYTBSTH2MqXS6NTIMvJe8LZATD0SesZABIuPjKZBwxeMkYxLf9bSYfu5xZBMQNKv6aVZA1ZCfyDGWVXKqKqdanwv1zg1q4vYt6EN9mUJRZAu0r5gZDZD
+@accessToken =
 @phoneNumberId = 1316073114919570
 
 ### Test Whatsapp webhook
