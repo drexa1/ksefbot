@@ -5,6 +5,7 @@ import {corsHeaders} from "../auth";
 import {AuthError} from "../types/auth";
 import {verificationHandler, messageHandler, testMessage, testFlow, testTemplate} from "./whatsapp";
 import {onboardingExchange} from "../flows/onboarding";
+import {testToken} from "../clients/whatsapp";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
@@ -36,6 +37,7 @@ export const routes: Record<string, Routes> =  {
     "/whatsapp/webhooks":         withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
     "/whatsapp/flows/onboarding": withErrorHandling({ POST: onboardingExchange }),
     //🔒 Requiring authentication
+    "/whatsapp/test/token":       withErrorHandling({ GET: testToken }),
     "/whatsapp/test/message":     withErrorHandling({ POST: testMessage }),
     "/whatsapp/test/template":    withErrorHandling({ POST: testTemplate }),
     "/whatsapp/test/flow":        withErrorHandling({ POST: testFlow }),

@@ -1,6 +1,14 @@
 import {Env} from "../worker";
 import {WhatsappMessage} from "../types/whatsapp";
 
+export async function testToken(request: Request, env: Env): Promise<Response> {
+    const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/me`, { headers: {
+        Authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+    }});
+    const result = await response.json();
+    return Response.json({ metaStatus: response.status, result });
+}
+
 export async function sendText(env: Env, to: string, message: string) {
     const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",

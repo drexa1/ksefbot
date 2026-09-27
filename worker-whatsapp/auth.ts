@@ -29,6 +29,7 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
         case "/whatsapp/flows/onboarding":
             return true;
         //🔒 Protected routes
+        case "/whatsapp/test/token":
         case "/whatsapp/test/message":
         case "/whatsapp/test/template":
         case "/whatsapp/test/flow":
