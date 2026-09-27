@@ -5,18 +5,22 @@
 @metaUrl = https://graph.facebook.com
 @apiVersion = v26.0
 @accessToken =
-@wabaId = 1814174903356359
+@wabaId = 1772724103855526
 @mediaId = 1768883360984354
 @mediaUrl = https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=1768883360984354&source=getMedia&ext=1789928589&hash=ATxmIjh0jCxA5Wu7t53BEZW6gKFiBL-SjaA1BoIr72fCiQ
 
-@phoneNumberId = 1212895211918077
+@phoneNumberId = 1316073114919570
 
-### WhatsApp webhook verification
-GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=12345
+### Get Whatsapp Flows public key configuration
+GET https://graph.facebook.com/v26.0/me/permissions
+Authorization: Bearer {{accessToken}}
 
 ### Check subscribed apps
 GET {{metaUrl}}/{{apiVersion}}/{{wabaId}}/subscribed_apps
 Authorization: Bearer {{accessToken}}
+
+### WhatsApp webhook verification
+GET {{baseUrl}}/whatsapp/webhooks?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=12345
 
 ### Get Whatsapp media URL
 GET {{metaUrl}}/{{apiVersion}}/{{mediaId}}
@@ -26,6 +30,12 @@ Authorization: Bearer {{accessToken}}
 GET {{mediaUrl}}
 Authorization: Bearer {{accessToken}}
 
-### Get Whatsapp Flows public key configuration
-GET {{metaUrl}}/{{apiVersion}}/{{phoneNumberId}}/whatsapp_business_encryption
+
+
+
+
+
+
+###
+GET https://graph.facebook.com/v26.0/1431639538915116/owned_whatsapp_business_accounts
 Authorization: Bearer {{accessToken}}
