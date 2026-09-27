@@ -9,14 +9,14 @@ use inquire::{Select, Text};
 use std::io::{self};
 use strum::IntoEnumIterator;
 
-pub fn login_loop() -> Result<()> {
+pub async fn login_loop() -> Result<()> {
     loop {
-        let method = Select::new("Welcome to KSeF Bot. How would you like to log in?", crate::auth::LoginMethod::iter().collect()).prompt()?;
+        let method = Select::new("Welcome to KSeF Bot. How would you like to log in?", crate::login::LoginMethod::iter().collect()).prompt()?;
         let logged_in = match method {
-            crate::auth::LoginMethod::Google => crate::auth::login_with_google()?,
-            crate::auth::LoginMethod::Microsoft => crate::auth::login_with_microsoft()?,
-            crate::auth::LoginMethod::Facebook => crate::auth::login_with_facebook()?,
-            crate::auth::LoginMethod::Email => crate::auth::login_with_email_loop()?
+            crate::login::LoginMethod::Google => crate::login::login_with_google().await?,
+            crate::login::LoginMethod::Microsoft => crate::login::login_with_microsoft().await?,
+            crate::login::LoginMethod::Facebook => crate::login::login_with_facebook().await?,
+            crate::login::LoginMethod::Email => crate::login::login_with_email_loop().await?
         };
         if logged_in {
             println!("Login successful.");
@@ -29,12 +29,12 @@ pub fn login_loop() -> Result<()> {
 pub async fn main_loop() -> Result<()> {
     loop {
         match Select::new("What shall we do now?", MainMenuAction::iter().collect()).prompt()? {
-            MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice()?,
+            MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice().await?,
             MainMenuAction::ListSalesInvoices => invoices::list_sales_invoices().await?,
             MainMenuAction::ListPurchaseInvoices => invoices::list_purchase_invoices().await?,
-            MainMenuAction::CreateContractor => customers::create_customer()?,
-            MainMenuAction::ListContractors => customers::list_customers()?,
-            MainMenuAction::UserSettings => settings::edit_profile()?,
+            MainMenuAction::CreateContractor => customers::create_customer().await?,
+            MainMenuAction::ListContractors => customers::list_customers().await?,
+            MainMenuAction::UserSettings => settings::edit_profile().await?,
             MainMenuAction::Exit => return Ok(())
         }
         pause()?

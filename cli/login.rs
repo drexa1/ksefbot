@@ -1,0 +1,178 @@
+use crate::{google_client_id, google_client_secret};
+use anyhow::{Context, Result};
+use inquire::{Confirm, Password, Text};
+use oauth2::{
+    AuthUrl,
+    AuthorizationCode,
+    ClientId,
+    ClientSecret,
+    CsrfToken,
+    RedirectUrl,
+    Scope,
+    TokenResponse,
+    TokenUrl,
+    basic::BasicClient};
+use strum::{Display, EnumIter};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+
+#[derive(Clone, Display, EnumIter)]
+pub enum LoginMethod {
+    #[strum(to_string = "Google")] Google,
+    #[strum(to_string = "Microsoft")] Microsoft,
+    #[strum(to_string = "Facebook")] Facebook,
+    #[strum(to_string = "Email")] Email
+}
+
+// -------------------------------------------------------------------------------------------------
+// Login with SSO
+// -------------------------------------------------------------------------------------------------
+
+pub async fn login_with_google() -> Result<bool> {
+    let listener = TcpListener::bind("127.0.0.1:0").await.context("Failed to bind OAuth callback listener")?;
+    let port = listener.local_addr().context("Failed to determine OAuth callback port")?.port();
+    let redirect_uri = format!("http://127.0.0.1:{port}");
+    let client = BasicClient::new(ClientId::new(google_client_id!().to_owned()))
+        .set_client_secret(ClientSecret::new(google_client_secret!().to_owned()))
+        .set_auth_uri(AuthUrl::new("https://accounts.google.com/o/oauth2/auth".to_owned())?)
+        .set_token_uri(TokenUrl::new("https://oauth2.googleapis.com/token".to_owned())?).set_redirect_uri(RedirectUrl::new(redirect_uri.clone())?);
+    let (authorize_url, csrf_state) = client
+        .authorize_url(CsrfToken::new_random)
+        .add_scope(Scope::new("openid".to_owned()))
+        .add_scope(Scope::new("email".to_owned()))
+        .add_scope(Scope::new("profile".to_owned()))
+        .url();
+    webbrowser::open(authorize_url.as_str()).context("Failed to open browser")?;
+    let (mut stream, _) = listener.accept().await.context("Failed to accept OAuth callback")?;
+    let mut buffer = [0u8; 8192];
+    let bytes_read = stream
+        .read(&mut buffer)
+        .await
+        .context("Failed to read OAuth callback")?;
+    let request = String::from_utf8_lossy(&buffer[..bytes_read]);
+    let request_target = request.lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .context("Invalid OAuth callback request")?;
+    let callback_url = url::Url::parse(&format!("http://127.0.0.1{request_target}")).context("Failed to parse OAuth callback URL")?;
+    let mut code = None;
+    let mut state = None;
+    let mut error = None;
+    for (key, value) in callback_url.query_pairs() {
+        match key.as_ref() {
+            "code" => code = Some(value.into_owned()),
+            "state" => state = Some(value.into_owned()),
+            "error" => error = Some(value.into_owned()),
+            _ => {}
+        }
+    }
+    let response_body = if let Some(error) = &error {
+        format!(
+            "<html><body>\
+             <h1>Google login failed</h1>\
+             <p>{error}</p>\
+             </body></html>"
+        )
+    } else {
+        "<html><body>\
+         <h1>Login successful</h1>\
+         <p>You can close this window and return to KSeF Bot.</p>\
+         </body></html>".to_owned()
+    };
+    let response = format!(
+        "HTTP/1.1 200 OK\r\n\
+         Content-Type: text/html; charset=utf-8\r\n\
+         Content-Length: {}\r\n\
+         Connection: close\r\n\
+         \r\n\
+         {response_body}",
+        response_body.len()
+    );
+    stream.write_all(response.as_bytes()).await.context("failed to send OAuth callback response")?;
+    if let Some(error) = error {
+        println!("Google authentication failed: {error}");
+        return Ok(false);
+    }
+    let received_state = state.context("Google callback did not contain state")?;
+    if received_state != *csrf_state.secret() {
+        anyhow::bail!("OAuth state mismatch");
+    }
+    let code = code.context("Google callback did not contain authorization code")?;
+    let http_client = oauth2::reqwest::ClientBuilder::new()
+        .redirect(oauth2::reqwest::redirect::Policy::none())
+        .build()
+        .context("Failed to create OAuth HTTP client")?;
+    let token = client
+        .exchange_code(AuthorizationCode::new(code))
+        .request_async(&http_client)
+        .await
+        .context("Failed to exchange authorization code for Google token")?;
+    println!("Google login successful.");
+    let access_token = token.access_token().secret();
+    println!("Received Google access token ({} characters).", access_token.len());
+    Ok(true)
+}
+
+pub async fn login_with_microsoft() -> Result<bool> {
+    println!("Opening Microsoft authentication...");
+    println!("Waiting for Microsoft OAuth callback...");
+    Ok(true)
+}
+
+pub async fn login_with_facebook() -> Result<bool> {
+    println!("Opening Facebook authentication...");
+    println!("Waiting for Facebook OAuth callback...");
+    Ok(true)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Login with email
+// -------------------------------------------------------------------------------------------------
+
+pub async fn login_with_email_loop() -> Result<bool> {
+    let email = Text::new("Email address").with_placeholder("you@example.com").prompt()?;
+    if account_exists(&email)? {
+        println!("Account found.");
+        let password = Password::new("Password").prompt()?;
+        return login_with_email(&email, &password)
+    }
+    println!("No account found for {email}.");
+    let create = Confirm::new("Would you like to create an account?")
+        .with_default(true)
+        .with_help_message("Create an account with this email")
+        .prompt()?;
+    if create {
+        create_account(&email)?;
+        println!("Account created successfully");
+        println!("We've sent a verification link to: {email} - Please verify your email and continue to log in.");
+    } else {
+        println!("Account creation cancelled.");
+    }
+    Ok(false)
+}
+
+fn account_exists(email: &str) -> Result<bool> {
+    println!("  [API] GET /auth/account-exists");
+    println!("  [API] email = {email}");
+    println!("  [API] Response: account not found");
+    // Change to true to test the password flow.
+    Ok(false)
+}
+
+fn login_with_email(email: &str, password: &str) -> Result<bool> {
+    let _ = password;
+    println!("  [API] POST /auth/login");
+    println!("  [API] email = {email}");
+    println!("  [API] password = ********");
+    println!("  [API] Response: authentication successful");
+    Ok(true)
+}
+
+fn create_account(email: &str) -> Result<()> {
+    println!("Creating account...");
+    println!("  [API] POST /auth/register");
+    println!("  [API] email = {email}");
+    println!("  [API] Creating account record...");
+    println!("  [EMAIL] Verification email sent.");
+    Ok(())
+}

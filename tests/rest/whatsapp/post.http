@@ -1,11 +1,11 @@
 #@no-redirect
 @baseUrl = https://ksefbot-whatsapp.druizbarbero.workers.dev
-@apiKey =
+@apiKey = 55oUrQjUlwlZYCS30WGfpMMZCiQkfKpt
 
 @metaUrl = https://graph.facebook.com
 @apiVersion = v26.0
-@accessToken =
-@phoneNumberId = 1212895211918077
+@accessToken = EAATxCmjtvowBSv4JZC05nQZBQEi7ZA20uTTi8aZAP1sZCV7GlOWsdRUdhSlZCdxY0wsb6zO2H1pyFgriNZBhUwqUsGEeQYTBSTH2MqXS6NTIMvJe8LZATD0SesZABIuPjKZBwxeMkYxLf9bSYfu5xZBMQNKv6aVZA1ZCfyDGWVXKqKqdanwv1zg1q4vYt6EN9mUJRZAu0r5gZDZD
+@phoneNumberId = 1316073114919570
 
 ### Test Whatsapp webhook
 POST {{baseUrl}}/whatsapp/webhooks
@@ -15,15 +15,35 @@ Content-Type: application/json
     "message": "test handler"
 }
 
-### Send WhatsApp message
-POST {{baseUrl}}/whatsapp/test
+### ⚠️ Send Whatsapp message (does not work if the user has not initiated first or pass 24h conversation session)
+POST {{baseUrl}}/whatsapp/test/message
 Content-Type: application/json
 X-API-Key: {{apiKey}}
 
 {
     "to": "48518121343",
-    "message": "test sendout"
+    "message": "test message"
 }
+
+### Send Whatsapp template
+POST {{baseUrl}}/whatsapp/test/template
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "to": "48518121343",
+    "template": "onboarding_language",
+    "language": "en"
+}
+
+
+
+### Send Whatsapp template
+GET https://graph.facebook.com/v26.0/1316073114919570?fields=id,display_phone_number,verified_name,code_verification_status,name_status
+Authorization: Bearer {{accessToken}}
+
+
+
 
 ### Register Whatsapp flows public key
 POST {{metaUrl}}/{{apiVersion}}/{{phoneNumberId}}/whatsapp_business_encryption

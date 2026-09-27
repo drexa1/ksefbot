@@ -7,11 +7,11 @@ mod tui {
     pub mod ratatui;
 }
 
-mod auth;
+mod login;
 mod invoices;
 mod customers;
 mod settings;
-mod cloudflare;
+mod obfstr;
 
 #[derive(Clone, Display, EnumIter)]
 pub enum MainMenuAction {
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     dotenvy::from_filename("cli/.env").ok();
     match std::env::var("TUI").as_deref() {
         Ok("inquire") => {
-            login_loop()?;
+            login_loop().await?;
             main_loop().await?;
         }
         Ok("ratatui") | Err(_) => {

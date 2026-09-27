@@ -1,4 +1,4 @@
-use crate::{MainMenuAction, auth, customers, invoices, settings};
+use crate::{MainMenuAction, login, customers, invoices, settings};
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
@@ -21,7 +21,7 @@ type Tui = Terminal<CrosstermBackend<io::Stdout>>;
 pub async fn run() -> Result<()> {
     let mut terminal = setup_terminal()?;
     let result = async {
-        login_loop(&mut terminal)?;
+        login_loop(&mut terminal).await?;
         main_loop(&mut terminal).await?;
         Ok(())
     }.await;
@@ -29,8 +29,8 @@ pub async fn run() -> Result<()> {
     result
 }
 
-fn login_loop(terminal: &mut Tui) -> Result<()> {
-    let methods: Vec<auth::LoginMethod> = auth::LoginMethod::iter().collect();
+async fn login_loop(terminal: &mut Tui) -> Result<()> {
+    let methods: Vec<login::LoginMethod> = login::LoginMethod::iter().collect();
     let mut selected = 0usize;
     loop {
         terminal.draw(|frame| draw_login(frame, &methods, selected))?;
@@ -44,10 +44,10 @@ fn login_loop(terminal: &mut Tui) -> Result<()> {
             KeyCode::Enter => {
                 restore_terminal(terminal)?;
                 let logged_in = match methods[selected].clone() {
-                    auth::LoginMethod::Google => auth::login_with_google()?,
-                    auth::LoginMethod::Microsoft => auth::login_with_microsoft()?,
-                    auth::LoginMethod::Facebook => auth::login_with_facebook()?,
-                    auth::LoginMethod::Email => auth::login_with_email_loop()?,
+                    login::LoginMethod::Google => login::login_with_google().await?,
+                    login::LoginMethod::Microsoft => login::login_with_microsoft().await?,
+                    login::LoginMethod::Facebook => login::login_with_facebook().await?,
+                    login::LoginMethod::Email => login::login_with_email_loop().await?
                 };
                 if logged_in {
                     setup_terminal_in_place(terminal)?;
@@ -78,12 +78,12 @@ async fn main_loop(terminal: &mut Tui) -> Result<()> {
             KeyCode::Enter => {
                 restore_terminal(terminal)?;
                 match actions[selected].clone() {
-                    MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice()?,
+                    MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice().await?,
                     MainMenuAction::ListSalesInvoices => invoices::list_sales_invoices().await?,
                     MainMenuAction::ListPurchaseInvoices => invoices::list_purchase_invoices().await?,
-                    MainMenuAction::CreateContractor => customers::create_customer()?,
-                    MainMenuAction::ListContractors => customers::list_customers()?,
-                    MainMenuAction::UserSettings => settings::edit_profile()?,
+                    MainMenuAction::CreateContractor => customers::create_customer().await?,
+                    MainMenuAction::ListContractors => customers::list_customers().await?,
+                    MainMenuAction::UserSettings => settings::edit_profile().await?,
                     MainMenuAction::Exit => return Ok(())
                 }
                 setup_terminal_in_place(terminal)?;
@@ -141,7 +141,7 @@ fn restore_terminal(terminal: &mut Tui) -> Result<()> {
     Ok(())
 }
 
-fn draw_login(frame: &mut ratatui::Frame, methods: &[auth::LoginMethod], selected: usize) {
+fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], selected: usize) {
     let area = centered_rect(frame.area(), 60, 50);
     let items = methods.iter().map(|method| ListItem::new(method.to_string())).collect::<Vec<_>>();
     let list = List::new(items)

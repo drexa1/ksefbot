@@ -1,7 +1,7 @@
 use anyhow::Result;
 use inquire::{Text};
 
-pub fn edit_profile() -> Result<()> {
+pub async fn edit_profile() -> Result<()> {
     println!("Fetching current profile...");
     println!("  [API] GET /profile");
     println!();
