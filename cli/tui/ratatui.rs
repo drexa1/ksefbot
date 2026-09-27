@@ -46,7 +46,6 @@ async fn login_loop(terminal: &mut Tui) -> Result<()> {
                 let logged_in = match methods[selected].clone() {
                     login::LoginMethod::Google => login::login_with_google().await?,
                     login::LoginMethod::Microsoft => login::login_with_microsoft().await?,
-                    login::LoginMethod::Facebook => login::login_with_facebook().await?,
                     login::LoginMethod::Email => login::login_with_email_loop().await?
                 };
                 if logged_in {

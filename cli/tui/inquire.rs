@@ -15,7 +15,6 @@ pub async fn login_loop() -> Result<()> {
         let logged_in = match method {
             crate::login::LoginMethod::Google => crate::login::login_with_google().await?,
             crate::login::LoginMethod::Microsoft => crate::login::login_with_microsoft().await?,
-            crate::login::LoginMethod::Facebook => crate::login::login_with_facebook().await?,
             crate::login::LoginMethod::Email => crate::login::login_with_email_loop().await?
         };
         if logged_in {

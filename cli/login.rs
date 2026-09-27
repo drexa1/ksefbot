@@ -18,10 +18,9 @@ use tokio::net::TcpListener;
 
 #[derive(Clone, Display, EnumIter)]
 pub enum LoginMethod {
-    #[strum(to_string = "Google")] Google,
-    #[strum(to_string = "Microsoft")] Microsoft,
-    #[strum(to_string = "Facebook")] Facebook,
-    #[strum(to_string = "Email")] Email
+    #[strum(to_string = "Sign in with Google account")] Google,
+    #[strum(to_string = "Sign in with Microsoft account")] Microsoft,
+    #[strum(to_string = "Your e-mail")] Email
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -70,7 +69,7 @@ pub async fn login_with_google() -> Result<bool> {
         format!(
             "<html><body>\
              <h1>Google login failed</h1>\
-             <p>{error}</p>\
+             <p>error: {error}</p>\
              </body></html>"
         )
     } else {
@@ -116,12 +115,6 @@ pub async fn login_with_google() -> Result<bool> {
 pub async fn login_with_microsoft() -> Result<bool> {
     println!("Opening Microsoft authentication...");
     println!("Waiting for Microsoft OAuth callback...");
-    Ok(true)
-}
-
-pub async fn login_with_facebook() -> Result<bool> {
-    println!("Opening Facebook authentication...");
-    println!("Waiting for Facebook OAuth callback...");
     Ok(true)
 }
 
