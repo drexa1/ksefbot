@@ -9,8 +9,6 @@
 @mediaId = 1768883360984354
 @mediaUrl = https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=1768883360984354&source=getMedia&ext=1789928589&hash=ATxmIjh0jCxA5Wu7t53BEZW6gKFiBL-SjaA1BoIr72fCiQ
 
-@phoneNumberId = 1316073114919570
-
 ### Get Whatsapp Flows public key configuration
 GET https://graph.facebook.com/v26.0/me/permissions
 Authorization: Bearer {{accessToken}}
