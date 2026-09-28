@@ -6,6 +6,9 @@ export interface Env {
     ENVIRONMENT: "dev" | "cloudflare"
     TEST_MODE: boolean
     // SSO
+    GOOGLE_AUTH_URL: string
+    GOOGLE_AUTH_TOKEN_URL: string
+    GOOGLE_AUTH_USERINFO_URL: string
     GOOGLE_CLIENT_ID: string
     GOOGLE_CLIENT_SECRET: string
     GOOGLE_CALLBACK_URI: string
