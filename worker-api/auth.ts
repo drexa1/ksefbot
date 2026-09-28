@@ -32,11 +32,11 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
         case "/swagger":
         case "/docs":
         case "/health":
+        case "/sso/google/callback":
             return true;
         //🔒 Protected routes
         case "/whoami":
         case "/sso/google":
-        case "/sso/google/callback":
         case "/ksef/sales":
         case "/ksef/sales/sessions":
         case "/ksef/sales/status":

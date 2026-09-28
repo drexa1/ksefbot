@@ -50,10 +50,10 @@ export const routes: Record<string, Routes> =  {
     "/docs":                { GET: async () => new Response(scalarHtml,  { headers: { "Content-Type": "text/html" }}) },
     "/openapi.json":        { GET: async () => Response.json(getOpenApiSpec()) },
     "/health":              { GET: healthGET },
+    "/sso/google/callback":  withErrorHandling({ GET: loginWithGoogleCallback }),
     //🔒 Requiring authentication
     "/whoami":               withErrorHandling({ GET: whoamiGET }),
     "/sso/google":           withErrorHandling({ GET: loginWithGoogle }),
-    "/sso/google/callback":  withErrorHandling({ GET: loginWithGoogleCallback }),
     "/ksef/sales":           withErrorHandling({ GET: salesGET, POST: salesPOST }),
     "/ksef/sales/status":    withErrorHandling({ GET: invoiceStatusGET }),
     "/ksef/sales/sessions":  withErrorHandling({ GET: sessionsGET }),
