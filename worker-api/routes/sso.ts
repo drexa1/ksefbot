@@ -36,12 +36,15 @@ export async function loginWithGoogleCallback(req: Request, env: Env): Promise<R
             redirect_uri: env.GOOGLE_CALLBACK_URI
         })
     });
-    const token = await tokenResponse.json() as {access_token: string};
+    const tokenBody = await tokenResponse.text();
+    const token = JSON.parse(tokenBody) as {access_token: string};
     const userResponse = await fetch(env.GOOGLE_AUTH_USERINFO_URL, {
         headers: {Authorization: `Bearer ${token.access_token}`}
     });
-    const googleUser = await userResponse.json() as {sub: string, email: string, name?: string};
+    const userBody = await userResponse.text();
+    console.log("[Google UserInfo]", userResponse.status, userBody);
+    const googleUser = JSON.parse(userBody) as { sub: string, email: string, name: string };
     callbackUrl.searchParams.set("email", googleUser.email);
-    callbackUrl.searchParams.set("name", googleUser.name ?? "");
+    callbackUrl.searchParams.set("name", googleUser.name);
     return Response.redirect(callbackUrl.toString(), 302);
 }

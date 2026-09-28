@@ -63,7 +63,7 @@
 - [x] Method to clear all messages in KV  
 - [x] Method to check if whatsapp user is new  
 - [ ] Whatsapp: get PROD number display name working  
-- [ ] Whatsapp: unravel double WABA setup
+- [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
 - [x] CLI: Google SSO  
