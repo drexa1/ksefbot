@@ -76,7 +76,7 @@ export const getOpenApiSpec = () => ({
                                     template: {
                                         type: "string",
                                         description: "Name of the approved Whatsapp message template.",
-                                        example: "onboarding_language"
+                                        example: "onboarding_language_choice"
                                     },
                                     language: {
                                         type: "string",

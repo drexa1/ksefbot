@@ -44,7 +44,7 @@ export async function messageHandler(request: Request, env: Env): Promise<Respon
         const language = ({ language_en: "en", language_pl: "pl" } as const)[message.button?.payload!];
         if (!language) {
             // Unseen user -> language choice
-            await sendTemplate(env, message.from, "onboarding_language");
+            await sendTemplate(env, message.from, "onboarding_language_choice");
         } else {
             // Acknowledge language selection
             await sendText(env, message.from, {
