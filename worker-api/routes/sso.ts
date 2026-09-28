@@ -37,7 +37,8 @@ export async function loginWithGoogleCallback(req: Request, env: Env): Promise<R
         })
     });
     const tokenBody = await tokenResponse.text();
-    const token = JSON.parse(tokenBody) as {access_token: string};
+    console.info("[Google Token]", tokenResponse.status, tokenBody);
+    const token = JSON.parse(tokenBody) as { access_token: string };
     const userResponse = await fetch(env.GOOGLE_AUTH_USERINFO_URL, {
         headers: {Authorization: `Bearer ${token.access_token}`}
     });
