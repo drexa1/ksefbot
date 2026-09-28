@@ -8,6 +8,7 @@ ENVIRONMENT = "cloudflare"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_AUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTH_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+GOOGLE_CALLBACK_URI = "https://ksefbot-api.druizbarbero.workers.dev/sso/google/callback"
 # KSeF
 KSEF_URL = "https://api.ksef.mf.gov.pl/v2"
 KSEF_INVOICE_SCHEMA = "https://assets.local/schemas/KSeFInvoice.avsc"
