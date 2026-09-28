@@ -37,13 +37,19 @@ export async function loginWithGoogleCallback(req: Request, env: Env): Promise<R
         })
     });
     const tokenBody = await tokenResponse.text();
-    console.info("[Google Token]", tokenResponse.status, tokenBody);
+    if (!tokenResponse.ok) {
+        callbackUrl.searchParams.set("error", "Google token exchange failed");
+        return Response.redirect(callbackUrl.toString(), 302);
+    }
     const token = JSON.parse(tokenBody) as { access_token: string };
-    const userResponse = await fetch(env.GOOGLE_AUTH_USERINFO_URL, {
-        headers: {Authorization: `Bearer ${token.access_token}`}
-    });
+    const userResponse = await fetch(env.GOOGLE_AUTH_USERINFO_URL, { headers: {
+        Authorization: `Bearer ${token.access_token}`
+    }});
     const userBody = await userResponse.text();
-    console.log("[Google UserInfo]", userResponse.status, userBody);
+    if (!userResponse.ok) {
+        callbackUrl.searchParams.set("error", "Google UserInfo failed");
+        return Response.redirect(callbackUrl.toString(), 302);
+    }
     const googleUser = JSON.parse(userBody) as { sub: string, email: string, name: string };
     callbackUrl.searchParams.set("email", googleUser.email);
     callbackUrl.searchParams.set("name", googleUser.name);
