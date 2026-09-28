@@ -3,7 +3,7 @@ import {CloudflareKV} from "../repository/kv";
 import {IncomingMessage} from "../types/whatsapp";
 import {saveImage, sendFlow, sendTemplate, sendText} from "../clients/whatsapp";
 import {initializeUser} from "../clients/ksefbot";
-import {attendExistingUser, triggerOnboarding} from "../flows/onboarding";
+import {attendExistingUser} from "../flows/onboarding";
 
 const kv = new CloudflareKV();
 
@@ -40,15 +40,17 @@ export async function messageHandler(request: Request, env: Env): Promise<Respon
         method: "GET",
         headers: { "Content-Type": "application/json", "X-API-Key": env.API_KEY }
     });
-    if (user.ok) {
-        const language: "en" | "pl" = ({ language_en: "en", language_pl: "pl" } as const)[message.button?.payload!] ?? "en";
+    if (!user.ok) {
+        const language = ({ language_en: "en", language_pl: "pl" } as const)[message.button?.payload!];
         if (!language) {
             // Unseen user -> language choice
             await sendTemplate(env, message.from, "onboarding_language");
         } else {
+            // Acknowledge language selection
+            await sendText(env, message.from, language === "en" ? "We'll talk in English, thanks" : "Będziemy mówić po Polsku, dziękujemy");
             // 🐣 Initialize user with language preference
             await initializeUser(env, message.from, language);
-            await triggerOnboarding(env, message.from, language);
+            // await triggerOnboarding(env, message.from, language);
         }
     } else {
         await attendExistingUser(env, message);

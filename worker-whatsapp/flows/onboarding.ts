@@ -3,11 +3,6 @@ import {WhatsappMessage, FlowRequest} from "../types/whatsapp";
 import {decryptFlowRequest, encryptFlowResponse} from "./crypto";
 import {findCompany} from "../clients/ksefbot";
 
-export async function triggerOnboarding(env: Env, from: string, language: any) {
-    console.info(`Starting onboarding for ${from}`);
-    // TODO: start onboarding flow
-}
-
 export async function onboardingExchange(request: Request, env: Env): Promise<Response> {
     const encryptedRequest = await request.json() as FlowRequest;
     console.info("Onboarding flow exchange received");
