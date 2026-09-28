@@ -36,15 +36,6 @@ X-API-Key: {{apiKey}}
     "language": "en"
 }
 
-
-
-### Send Whatsapp template
-GET https://graph.facebook.com/v26.0/1316073114919570?fields=id,display_phone_number,verified_name,code_verification_status,name_status
-Authorization: Bearer {{accessToken}}
-
-
-
-
 ### Register Whatsapp flows public key
 POST {{metaUrl}}/{{apiVersion}}/{{phoneNumberId}}/whatsapp_business_encryption
 Authorization: Bearer {{accessToken}}
