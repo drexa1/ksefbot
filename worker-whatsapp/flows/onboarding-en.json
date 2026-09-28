@@ -94,7 +94,7 @@
                             {
                                 "type": "TextBody",
                                 "markdown": true,
-                                "text": "You are not sure how to get a KSeF token? [Read more](https://ksefbot.druizbarbero.workers.dev/pages/onboarding/token)"
+                                "text": "You are not sure how to get a KSeF token? [Read more](https://ksefbot-api.druizbarbero.workers.dev/pages/onboarding/token)"
                             },
                             {
                                 "type": "Footer",
