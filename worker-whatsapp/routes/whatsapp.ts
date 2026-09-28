@@ -47,7 +47,10 @@ export async function messageHandler(request: Request, env: Env): Promise<Respon
             await sendTemplate(env, message.from, "onboarding_language");
         } else {
             // Acknowledge language selection
-            await sendText(env, message.from, language === "en" ? "We'll talk in English, thanks" : "Będziemy mówić po Polsku, dziękujemy");
+            await sendText(env, message.from, {
+                pl: "Będziemy mówić po Polsku, dziękujemy",
+                en: "We'll talk in English, thanks"
+            }[language]);
             // 🐣 Initialize user with language preference
             await initializeUser(env, message.from, language);
             // await triggerOnboarding(env, message.from, language);
