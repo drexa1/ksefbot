@@ -5,6 +5,10 @@ import {auth, corsHeaders, withCors} from "./auth";
 export interface Env {
     ENVIRONMENT: "dev" | "cloudflare"
     TEST_MODE: boolean
+    // SSO
+    GOOGLE_CLIENT_ID: string
+    GOOGLE_CLIENT_SECRET: string
+    GOOGLE_CALLBACK_URI: string
     // KSeF (National e-Invoicing System)
     KSEF_URL: string
     KSEF_INVOICE_SCHEMA: string

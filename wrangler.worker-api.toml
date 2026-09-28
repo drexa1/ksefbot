@@ -1,9 +1,13 @@
-name = "ksefbot"
+name = "ksefbot-api"
 main = "worker-api/worker.ts"
 compatibility_date = "2026-01-01"
 
 [vars]
 ENVIRONMENT = "cloudflare"
+# SSO
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_AUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_AUTH_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 # KSeF
 KSEF_URL = "https://api.ksef.mf.gov.pl/v2"
 KSEF_INVOICE_SCHEMA = "https://assets.local/schemas/KSeFInvoice.avsc"

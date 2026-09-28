@@ -62,11 +62,12 @@
 - [x] KV for Whatsapp worker  
 - [x] Method to clear all messages in KV  
 - [x] Method to check if whatsapp user is new  
-- [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: get PROD number display name working  
+- [ ] Whatsapp: unravel double WABA setup
 - [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
 - [x] CLI: Google SSO  
+- [ ] Move Google SSO to the backend  
 - [ ] CLI: Microsoft SSO  
 - [ ] CLI: login with email  
 - [ ] First time frontend workflow  

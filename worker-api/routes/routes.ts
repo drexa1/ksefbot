@@ -20,6 +20,7 @@ import {get as contractorsGET, post as contractorsPOST, put as contractorsPUT, d
 import {get as invoicesGET, post as invoicesPOST, put as invoicesPUT, del as invoicesDELETE} from "./app/invoices";
 import {get as taxesGET, simulate as simulateGET, post as taxesPOST, put as taxesPUT, del as taxesDELETE, } from "./app/taxes";
 import {AuthError} from "../types/auth";
+import {loginWithGoogle, loginWithGoogleCallback} from "./sso";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
@@ -51,6 +52,8 @@ export const routes: Record<string, Routes> =  {
     "/health":              { GET: healthGET },
     //🔒 Requiring authentication
     "/whoami":               withErrorHandling({ GET: whoamiGET }),
+    "/sso/google":           withErrorHandling({ GET: loginWithGoogle }),
+    "/sso/google/callback":  withErrorHandling({ GET: loginWithGoogleCallback }),
     "/ksef/sales":           withErrorHandling({ GET: salesGET, POST: salesPOST }),
     "/ksef/sales/status":    withErrorHandling({ GET: invoiceStatusGET }),
     "/ksef/sales/sessions":  withErrorHandling({ GET: sessionsGET }),
