@@ -61,16 +61,15 @@
 - [x] Manual check of the invoice page after refactor  
 - [x] KV for Whatsapp worker  
 - [x] Method to clear all messages in KV  
-- [x] Method to check if whatsapp user is new  
-- [ ] Whatsapp: get PROD number display name working  
-- [ ] Whatsapp: unravel double WABA setup  
-- [ ] Whatsapp: add real phone  
-- [ ] Whatsapp bot bruno tests  
-- [x] CLI: Google SSO  
-- [ ] Move Google SSO to the backend  
-- [ ] CLI: Microsoft SSO  
+- [x] Method to check if whatsapp user is new
+- [x] CLI: Google SSO
+- [x] CLI: Microsoft SSO  
 - [ ] CLI: Microsoft SSO verify organization  
 - [ ] CLI: login with email  
+- [ ] Whatsapp: get PROD number display name working
+- [ ] Whatsapp: unravel double WABA setup
+- [ ] Whatsapp: add real phone
+- [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  
 - [ ] CLI: adapt sales/purchase invoices summary  
