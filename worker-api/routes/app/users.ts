@@ -15,7 +15,6 @@ export async function get(req: Request, env: Env): Promise<Response> {
     // Allow to fetch users only to superadmin
     if (!isOnboardingLookup && appUser!.tier !== 0)
         return new Response("Unauthorized", { status: 401, headers: corsHeaders });
-    console.info(`USER FILTERS: ${JSON.stringify(filters)}`);
     const rows = await getRepo(env).getAll<AppUser>("users", filters);
     return rows.length === 0
         ? Response.json({ success: false, error: "No user found", filters: filters }, { status: 404 })

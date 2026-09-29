@@ -85,7 +85,7 @@ export async function whoami(req: Request, env: Env): Promise<Response> {
     //🛡️ CF Zero Trust logged user?
     const jwt = req.headers.get("Cf-Access-Jwt-Assertion");
     //💻 User identifier|email from client (that made it through CF Zero Trust), or Zero Trust specific access policy
-    const userId = jwt ? decodeJWT(jwt).email : req.headers.get("X-User-Id");
+    const userId = req.headers.get("X-User-Id") ?? (jwt ? decodeJWT(jwt).email : undefined);
     if (!userId) throw new AuthError("Unauthenticated user", 401);
     console.info("[Whoami] requester:", userId);
     return Response.json({ userId, ...(jwt ? { origin: "Cf-Access-Jwt" } : {}) });
