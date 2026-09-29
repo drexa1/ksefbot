@@ -1,7 +1,6 @@
 use crate::api::customers::{AppContractor, load_contractors};
 use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
-use anyhow::Context;
 use chrono::{Datelike, Duration, Local, NaiveDate, SecondsFormat, Utc};
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -12,15 +11,16 @@ const DEFAULT_PAYMENT_TYPE: &str = "6";
 const DEFAULT_PAYMENT_TERM_DAYS: i64 = 7;
 const INVOICE_TEMPLATE: &str = include_str!("../../../public/schemas/invoice-template.xml");
 
-pub struct SalesInvoiceParties {
+pub struct InvoiceParties {
     pub seller: AppContractor,
     pub customers: Vec<AppContractor>
 }
 
-pub struct CreatedSalesInvoice {
+pub struct SalesInvoice {
     pub invoice_number: String,
-    pub session_reference_number: String,
-    pub invoice_reference_number: String
+    pub xml: String,
+    pub session_reference_number: Option<String>,
+    pub invoice_reference_number: Option<String>
 }
 
 pub struct SalesInvoicePreview {
@@ -45,12 +45,12 @@ struct InvoiceData {
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SubmissionReferences {
-    session_reference_number: String,
-    invoice_reference_number: String
+pub struct KsefSubmissionReferences {
+    pub session_reference_number: String,
+    pub invoice_reference_number: String
 }
 
-pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<SalesInvoiceParties> {
+pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<InvoiceParties> {
     let contractors = load_contractors(app_user).await?;
     let seller = contractors.iter()
         .find(|contractor| app_user.contractor_id.as_deref() == Some(&contractor.id))
@@ -68,26 +68,20 @@ pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<SalesInv
         contractor.id != seller.id
             && contractor.nip.as_deref().is_some_and(|nip| !nip.is_empty())
     }).collect();
-    Ok(SalesInvoiceParties { seller, customers })
+    Ok(InvoiceParties { seller, customers })
 }
 
-pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer: &AppContractor, hours_worked: u32) -> anyhow::Result<CreatedSalesInvoice> {
+pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer: &AppContractor, hours_worked: u32) -> anyhow::Result<SalesInvoice> {
     if hours_worked <= 0 {
         anyhow::bail!("Hours worked must be greater than zero");
     }
-    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let invoice = InvoiceData::with_defaults(app_user, hours_worked)?;
     let xml = invoice.to_xml(seller, customer, app_user.bank_account_number.as_deref())?;
-    let submitted = submit_invoice(api_key, &app_user.id, &xml).await?;
-    let notes = format!("{} invoice for {}", app_user.id, invoice.issue_date.format("%B %Y"));
-    save_invoice(api_key, &app_user.id, &xml, &notes).await.context(format!(
-        "KSeF accepted the invoice as {}, but it could not be saved",
-        submitted.invoice_reference_number
-    ))?;
-    Ok(CreatedSalesInvoice {
+    Ok(SalesInvoice {
         invoice_number: invoice.number,
-        session_reference_number: submitted.session_reference_number,
-        invoice_reference_number: submitted.invoice_reference_number
+        xml,
+        session_reference_number: None,
+        invoice_reference_number: None
     })
 }
 
@@ -242,17 +236,18 @@ fn fill_placeholders(template: &str, values: &[(&str, String)]) -> anyhow::Resul
     Ok(xml)
 }
 
-async fn submit_invoice(api_key: &str, user_id: &str, xml: &str) -> anyhow::Result<SubmissionReferences> {
+pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyhow::Result<KsefSubmissionReferences> {
+    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let form = reqwest::multipart::Form::new().part(
         "file",
-        reqwest::multipart::Part::bytes(xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?
+        reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?
     );
     let response = reqwest::Client::new()
         .post(format!("{}/ksef/sales", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
         .header("X-API-Key", api_key)
-        .header("X-User-Id", user_id)
+        .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .multipart(form)
         .send()
@@ -265,10 +260,11 @@ async fn submit_invoice(api_key: &str, user_id: &str, xml: &str) -> anyhow::Resu
     Ok(serde_json::from_value(body["result"].clone())?)
 }
 
-async fn save_invoice(api_key: &str, user_id: &str, xml: &str, notes: &str) -> anyhow::Result<()> {
+pub async fn save_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &str) -> anyhow::Result<()> {
+    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let form = reqwest::multipart::Form::new().part(
         "file",
-        reqwest::multipart::Part::bytes(xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?
+        reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?
         )
         .text("type", "sales")
         .text("notes", notes.to_string());
@@ -277,7 +273,7 @@ async fn save_invoice(api_key: &str, user_id: &str, xml: &str, notes: &str) -> a
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
         .header("X-API-Key", api_key)
-        .header("X-User-Id", user_id)
+        .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .multipart(form)
         .send()
@@ -290,12 +286,14 @@ async fn save_invoice(api_key: &str, user_id: &str, xml: &str, notes: &str) -> a
     Ok(())
 }
 
-pub async fn download_receipt(app_user: &AppUser, invoice: &CreatedSalesInvoice) -> anyhow::Result<PathBuf> {
+pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> anyhow::Result<PathBuf> {
     let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
+    let session_reference_number = invoice.session_reference_number.as_deref().ok_or_else(|| anyhow::anyhow!("This invoice was not submitted to KSeF yet"))?;
+    let invoice_reference_number = invoice.invoice_reference_number.as_deref().ok_or_else(|| anyhow::anyhow!("This invoice was not submitted to KSeF yet"))?;
     let mut url = reqwest::Url::parse(&format!("{}/ksef/sales/receipt", cf_worker_url!()))?;
     url.query_pairs_mut()
-        .append_pair("sessionReferenceNumber", &invoice.session_reference_number)
-        .append_pair("invoiceReferenceNumber", &invoice.invoice_reference_number);
+        .append_pair("sessionReferenceNumber", session_reference_number)
+        .append_pair("invoiceReferenceNumber", invoice_reference_number);
     let response = reqwest::Client::new().get(url)
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
