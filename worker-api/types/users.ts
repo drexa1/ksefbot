@@ -6,7 +6,6 @@ export type AppUser = {
     language: "en" | "pl";
     phone: string;
     email: string;
-    googleSubject: string;
     companyLogo?: Uint8Array;
     // Contractor data
     contractorId: string;

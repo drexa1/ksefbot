@@ -1,5 +1,5 @@
 use crate::login::AuthUser;
-use crate::{api_key, cf_worker_url};
+use crate::{api_key, cf_client_id, cf_client_secret, cf_worker_url};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -9,7 +9,6 @@ pub struct AppUser {
     pub language: Language,
     pub phone: String,
     pub email: String,
-    pub google_subject: String,
     pub company_logo: Option<Vec<u8>>,
     // Contractor data
     pub contractor_id: String,
@@ -46,7 +45,10 @@ pub enum SettlementType {
 pub async fn get_app_user(logged_user: &AuthUser) -> anyhow::Result<Option<AppUser>> {
     let response = reqwest::Client::new()
         .get(format!("{}/app/users", cf_worker_url!()))
-        .query(&[("email", logged_user.email.as_str()), ("onboarding", "true"), ])
+        .query(&[("email", logged_user.email.as_str())])
+        .query(&[("onboarding", None::<&str>)])
+        .header("CF-Access-Client-Id", cf_client_id!())
+        .header("CF-Access-Client-Secret", cf_client_secret!())
         .header("X-API-Key", api_key!())
         .header("Accept", "application/json")
         .send()
@@ -69,7 +71,6 @@ pub async fn init_app_user(logged_user: &AuthUser) -> anyhow::Result<AppUser> {
         language: Language::En,
         phone: "000000000".to_string(),
         email: logged_user.email.clone(),
-        google_subject: "dummy-google-subject".to_string(),
         company_logo: None,
         contractor_id: "dummy-contractor-id".to_string(),
         tier: 0,

@@ -5,7 +5,6 @@ CREATE TABLE users (
     language TEXT NOT NULL CHECK (language IN ('en', 'pl')),
     phone TEXT UNIQUE CHECK (phone GLOB '+[0-9]*' AND length(phone) BETWEEN 8 AND 15 AND phone NOT GLOB '*[^+0-9]*'),  -- E.164
     email TEXT UNIQUE,
-    googleSubject TEXT UNIQUE,
     companyLogo BLOB,
     -- Contractor data
     contractorId TEXT REFERENCES contractors(id),

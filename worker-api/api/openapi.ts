@@ -146,10 +146,6 @@ export const getOpenApiSpec = () => ({
                         format: "email",
                         description: "Email address provided during account creation."
                     },
-                    googleSubject: {
-                        type: "string",
-                        description: "Google account subject from SSO login."
-                    },
                     phone: {
                         type: "string",
                         description: "Phone number in E.164 format."
