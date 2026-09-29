@@ -289,7 +289,7 @@ class KsefClientBase {
 
 export class KsefClient extends KsefClientBase {
 
-    async queryPurchaseInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from?: Date, to?: Date) {
+    async queryPurchaseInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from: Date, to: Date) {
         // Authentication
         await super.authenticate(appUser);
         // Query invoice metadata
@@ -303,19 +303,19 @@ export class KsefClient extends KsefClientBase {
         }));
     }
 
-    private async queryInvoiceMetadata(subjectType: "Subject1" | "Subject2", from?: Date, to?: Date): Promise<KsefInvoiceQueryResult> {
-        const dateRange = from || to ? {
+    private async queryInvoiceMetadata(subjectType: "Subject1" | "Subject2", from: Date, to: Date): Promise<KsefInvoiceQueryResult> {
+        const dateRange = {
             dateType: "Issue" as const,
-            ...(from && { from: from.toISOString() }),
-            ...(to && { to: to.toISOString() })
-        } : undefined;
-        const response = await fetch(`${this.env.KSEF_URL}/invoices/query/metadata`, {
+            from: from.toISOString(), ...(to && { to: to.toISOString() }),
+        };
+        const response = await fetch(`${this.env.KSEF_URL}/invoices/query/metadata?pageOffset=0&pageSize=50`, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${this.token}`,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "X-Error-Format": "problem-details",
             },
-            body: JSON.stringify({ subjectType, ...(dateRange && { dateRange })})
+            body: JSON.stringify({ subjectType, dateRange })
         });
         if (!response.ok) {
             const errorBody = await response.text();
