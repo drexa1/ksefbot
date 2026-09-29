@@ -1,16 +1,16 @@
 use crate::{google_client_id, google_client_secret, microsoft_client_id};
 use anyhow::{Context, Result};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use inquire::{Confirm, Password, Text};
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,
     TokenResponse, TokenUrl, basic::BasicClient,
 };
+use rand::Rng;
+use sha2::{Digest, Sha256};
 use strum::{Display, EnumIter};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use rand::{RngCore, rngs::OsRng};
-use sha2::{Digest, Sha256};
 
 #[derive(Clone, Display, EnumIter)]
 pub enum LoginMethod {
@@ -23,9 +23,10 @@ pub enum LoginMethod {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
+#[allow(dead_code)]
 pub struct AuthUser {
-    pub name: Option<String>,
     pub email: Option<String>,
+    pub name: Option<String>,
     pub phone: Option<String>
 }
 
@@ -44,7 +45,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
     let redirect_uri = format!("http://localhost:{port}");
     let code_verifier = {
         let mut bytes = [0u8; 32];
-        OsRng.fill_bytes(&mut bytes);
+        rand::rng().fill_bytes(&mut bytes);
         URL_SAFE_NO_PAD.encode(bytes)
     };
     let code_challenge = {
@@ -53,7 +54,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
     };
     let state = {
         let mut bytes = [0u8; 32];
-        OsRng.fill_bytes(&mut bytes);
+        rand::rng().fill_bytes(&mut bytes);
         URL_SAFE_NO_PAD.encode(bytes)
     };
     let mut authorize_url = url::Url::parse("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize").context("Failed to create Microsoft auth URL")?;
