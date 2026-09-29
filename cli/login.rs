@@ -96,7 +96,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
             _ => {}
         }
     }
-    let response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 38\r\nConnection: close\r\n\r\nMicrosoft login successful. You can close this window.";
+    let response = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 53\r\nConnection: close\r\n\r\nMicrosoft login successful. You can close this window.";
     stream.write_all(response).await.context("Failed to send OAuth callback response")?;
     stream.shutdown().await.context("Failed to close OAuth callback connection")?;
     if let Some(error) = error {
