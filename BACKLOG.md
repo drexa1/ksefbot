@@ -70,7 +70,7 @@
 - [ ] CLI: login with phone  
 - [ ] Whatsapp: get PROD number display name working
 - [ ] Whatsapp: unravel double WABA setup
-- [ ] Whatsapp: add real phone
+- [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  
