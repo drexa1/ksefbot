@@ -79,7 +79,7 @@ pub async fn init_app_user(logged_user: &AuthUser) -> anyhow::Result<AppUser> {
         bank_account_number: None,
         bank_api_token: None,
         created_at: None,
-        updated_at: None
+        updated_at: None,
     };
     Ok(app_user)
 }

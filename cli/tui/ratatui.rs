@@ -1,13 +1,16 @@
+use crate::api::users::AppUser;
 use crate::api::{customers, invoices, settings};
 use crate::login::AuthUser;
 use crate::{MainMenuAction, login};
 use anyhow::Result;
+use chrono::{Datelike, Local, Months, NaiveDate};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::widgets::Paragraph;
+use ratatui::widgets::calendar::{CalendarEventStore, Monthly};
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -17,26 +20,10 @@ use ratatui::{
 };
 use std::io;
 use strum::IntoEnumIterator;
-use crate::api::users::{get_app_user, AppUser, init_app_user};
 
-type Tui = Terminal<CrosstermBackend<io::Stdout>>;
+pub type Tui = Terminal<CrosstermBackend<io::Stdout>>;
 
-pub async fn run() -> Result<()> {
-    let mut terminal = setup_terminal()?;
-    let result = async {
-        let logged_user = crate::tui::inquire::login_loop().await?;
-        let app_user = match get_app_user(&logged_user).await? {
-            Some(app_user) => app_user,
-            None => init_app_user(&logged_user).await?,
-        };
-        main_loop(&mut terminal, &app_user).await?;
-        Ok(())
-    }.await;
-    restore_terminal(&mut terminal)?;
-    result
-}
-
-async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
+pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
     let methods: Vec<login::LoginMethod> = login::LoginMethod::iter().collect();
     let mut selected = 0usize;
     loop {
@@ -53,17 +40,18 @@ async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
                 let user = match methods[selected].clone() {
                     login::LoginMethod::Google => login::login_with_google().await?,
                     login::LoginMethod::Microsoft => login::login_with_microsoft().await?,
-                    login::LoginMethod::Email => login::login_with_email_loop().await?
+                    login::LoginMethod::Email => login::login_with_email_loop().await?,
                 };
                 setup_terminal_in_place(terminal)?;
                 return Ok(user);
             }
-            KeyCode::Esc | KeyCode::Char('q') => return Err(anyhow::anyhow!("Login cancelled")), _ => {}
+            KeyCode::Esc | KeyCode::Char('q') => return Err(anyhow::anyhow!("Login cancelled")),
+            _ => {}
         }
     }
 }
 
-async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<()> {
+pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<()> {
     let actions: Vec<MainMenuAction> = MainMenuAction::iter().collect();
     let mut selected = 0usize;
     loop {
@@ -78,15 +66,38 @@ async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<()> {
                 }
             }
             KeyCode::Enter => {
-                restore_terminal(terminal)?;
                 match actions[selected].clone() {
-                    MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice(&app_user).await?,
-                    MainMenuAction::ListSalesInvoices => invoices::list_sales_invoices(&app_user).await?,
-                    MainMenuAction::ListPurchaseInvoices => invoices::list_purchase_invoices(&app_user).await?,
-                    MainMenuAction::CreateCustomer => customers::create_customer().await?,
-                    MainMenuAction::ListCustomers => customers::list_customers().await?,
-                    MainMenuAction::UserSettings => settings::edit_profile().await?,
-                    MainMenuAction::Exit => return Ok(())
+                    MainMenuAction::CreateSalesInvoice => {
+                        restore_terminal(terminal)?;
+                        crate::tui::inquire::prompt_create_invoice(app_user).await?;
+                    }
+                    MainMenuAction::ListSalesInvoices => {
+                        let Some((from, to)) = request_invoice_dates(terminal)? else {
+                            continue;
+                        };
+                        restore_terminal(terminal)?;
+                        invoices::list_sales_invoices(app_user, from, to).await?;
+                    }
+                    MainMenuAction::ListPurchaseInvoices => {
+                        let Some((from, to)) = request_invoice_dates(terminal)? else {
+                            continue;
+                        };
+                        restore_terminal(terminal)?;
+                        invoices::list_purchase_invoices(app_user, from, to).await?;
+                    }
+                    MainMenuAction::CreateCustomer => {
+                        restore_terminal(terminal)?;
+                        customers::create_customer().await?;
+                    }
+                    MainMenuAction::ListCustomers => {
+                        restore_terminal(terminal)?;
+                        customers::list_customers().await?;
+                    }
+                    MainMenuAction::UserSettings => {
+                        restore_terminal(terminal)?;
+                        settings::edit_profile().await?;
+                    }
+                    MainMenuAction::Exit => return Ok(()),
                 }
                 setup_terminal_in_place(terminal)?;
                 pause(terminal)?;
@@ -95,6 +106,66 @@ async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<()> {
             _ => {}
         }
     }
+}
+
+fn request_invoice_dates(terminal: &mut Tui) -> Result<Option<(NaiveDate, NaiveDate)>> {
+    let today = Local::now().date_naive();
+    let Some(from) = select_date(terminal, "From date", today, None)? else {
+        return Ok(None);
+    };
+    let Some(to) = select_date(terminal, "To date", today.max(from), Some(from))? else {
+        return Ok(None);
+    };
+    Ok(Some((from, to)))
+}
+
+fn select_date(terminal: &mut Tui, title: &str, initial: NaiveDate, minimum: Option<NaiveDate>) -> Result<Option<NaiveDate>> {
+    let mut selected = initial;
+    loop {
+        let date = time::Date::from_calendar_date(
+            selected.year(),
+            (selected.month() as u8).try_into()?,
+            selected.day() as u8
+        )?;
+        terminal.draw(|frame| {
+            let area = centered_rect(frame.area(), 90, 90);
+            let sections = Layout::vertical([Constraint::Length(11), Constraint::Min(3)]).split(area);
+            let mut events = CalendarEventStore::default();
+            events.add(date, Style::default().add_modifier(Modifier::REVERSED | Modifier::BOLD));
+            let calendar = Monthly::new(date, events)
+                .show_month_header(Modifier::BOLD)
+                .show_weekdays_header(Modifier::BOLD)
+                .show_surrounding(Modifier::DIM)
+                .block(Block::default().title(format!("{title}: {selected}")).borders(Borders::ALL));
+            frame.render_widget(calendar, sections[0]);
+            let minimum_hint = minimum.map(|date| format!("\nEarliest date: {date}")).unwrap_or_default();
+            frame.render_widget(Paragraph::new(format!(
+                "Arrows: day/week | PgUp/PgDn: month\nEnter: select | Esc/q: cancel{minimum_hint}"
+            )), sections[1]);
+        })?;
+        let key = read_key()?;
+        match key {
+            KeyCode::Enter => return Ok(Some(selected)),
+            KeyCode::Esc | KeyCode::Char('q') => return Ok(None),
+            _ => selected = move_calendar_date(selected, key, minimum),
+        }
+    }
+}
+
+fn move_calendar_date(selected: NaiveDate, key: KeyCode, minimum: Option<NaiveDate>) -> NaiveDate {
+    let next = match key {
+        KeyCode::Left => selected.checked_sub_signed(chrono::Duration::days(1)),
+        KeyCode::Right => selected.checked_add_signed(chrono::Duration::days(1)),
+        KeyCode::Up => selected.checked_sub_signed(chrono::Duration::days(7)),
+        KeyCode::Down => selected.checked_add_signed(chrono::Duration::days(7)),
+        KeyCode::PageUp => selected.checked_sub_months(Months::new(1)),
+        KeyCode::PageDown => selected.checked_add_months(Months::new(1)),
+        _ => None,
+    };
+    next
+        .filter(|date| minimum.is_none_or(|min| *date >= min))
+        .filter(|date| (time::Date::MIN.year()..=time::Date::MAX.year()).contains(&date.year()))
+        .unwrap_or(selected)
 }
 
 fn pause(terminal: &mut Tui) -> Result<()> {
@@ -116,6 +187,13 @@ fn read_key() -> Result<KeyCode> {
             }
         }
     }
+}
+
+pub async fn with_terminal<T>(action: impl AsyncFnOnce(&mut Tui) -> Result<T>) -> Result<T> {
+    let mut terminal = setup_terminal()?;
+    let result = action(&mut terminal).await;
+    restore_terminal(&mut terminal)?;
+    result
 }
 
 fn setup_terminal() -> Result<Tui> {
@@ -147,7 +225,7 @@ fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], select
     let area = centered_rect(frame.area(), 60, 50);
     let items = methods.iter().map(|method| ListItem::new(method.to_string())).collect::<Vec<_>>();
     let list = List::new(items)
-        .block(Block::default().title("Welcome to KSeF Bot. How would you like to log in?").borders(Borders::ALL), )
+        .block(Block::default().title("Welcome to KSeF Bot. How would you like to log in?").borders(Borders::ALL))
         .highlight_symbol("> ")
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
     let mut state = ListState::default();
@@ -159,7 +237,9 @@ fn draw_main_menu(frame: &mut ratatui::Frame, actions: &[MainMenuAction], select
     let area = centered_rect(frame.area(), 60, 60);
     let items = actions.iter().map(|action| ListItem::new(action.to_string())).collect::<Vec<_>>();
     let list = List::new(items)
-        .block(Block::default().title("What shall we do now?").borders(Borders::ALL))
+        .block(Block::default()
+        .title("What shall we do now?")
+        .borders(Borders::ALL))
         .highlight_symbol("> ")
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
     let mut state = ListState::default();
@@ -168,21 +248,18 @@ fn draw_main_menu(frame: &mut ratatui::Frame, actions: &[MainMenuAction], select
 }
 
 fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
-    let vertical = Layout::default().direction(Direction::Vertical).constraints([
-        Constraint::Percentage((100 - height) / 2),
-        Constraint::Percentage(height),
-        Constraint::Percentage((100 - height) / 2),
-    ]).split(area);
-    Layout::default().direction(Direction::Horizontal).constraints([
-        Constraint::Percentage((100 - width) / 2),
-        Constraint::Percentage(width),
-        Constraint::Percentage((100 - width) / 2),
-    ]).split(vertical[1])[1]
+    let vertical = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage((100 - height) / 2), Constraint::Percentage(height), Constraint::Percentage((100 - height) / 2)])
+        .split(area);
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage((100 - width) / 2), Constraint::Percentage(width), Constraint::Percentage((100 - width) / 2)])
+        .split(vertical[1])[1]
 }
 
 fn draw_pause(frame: &mut ratatui::Frame) {
     let area = centered_rect(frame.area(), 60, 20);
-    let paragraph = Paragraph::new("Press [Enter] to go back to the main menu...")
-        .block(Block::default().title("Done").borders(Borders::ALL), );
+    let paragraph = Paragraph::new("Press [Enter] to go back to the main menu...").block(Block::default().title("Done").borders(Borders::ALL));
     frame.render_widget(paragraph, area);
 }

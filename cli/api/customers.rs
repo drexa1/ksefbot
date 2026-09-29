@@ -1,4 +1,35 @@
-use inquire::{Text};
+use crate::api::users::AppUser;
+use crate::{cf_client_id, cf_client_secret, cf_worker_url};
+use inquire::Text;
+use serde::Deserialize;
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppContractor {
+    pub id: String,
+    pub name: String,
+    pub nip: Option<String>,
+    pub country_code: String,
+    pub address_l1: String
+}
+
+pub async fn load_contractors(app_user: &AppUser) -> anyhow::Result<Vec<AppContractor>> {
+    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
+    let response = reqwest::Client::new()
+        .get(format!("{}/app/contractors", cf_worker_url!()))
+        .header("CF-Access-Client-Id", cf_client_id!())
+        .header("CF-Access-Client-Secret", cf_client_secret!())
+        .header("X-API-Key", api_key)
+        .header("X-User-Id", &app_user.id)
+        .header("Accept", "application/json")
+        .send()
+        .await?;
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(Vec::new());
+    }
+    let response = response.error_for_status()?;
+    Ok(response.json().await?)
+}
 
 pub async fn list_customers() -> anyhow::Result<()> {
     println!("Fetching contractors...");

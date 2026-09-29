@@ -45,7 +45,6 @@ macro_rules! microsoft_client_id {
     };
 }
 
-
 #[macro_export]
 macro_rules! google_client_id {
     () => {

@@ -1,7 +1,7 @@
-use crate::tui::inquire::{login_loop, main_loop};
+use crate::api::users::{get_app_user, init_app_user};
+use crate::tui::{inquire, ratatui};
 use anyhow::Result;
 use strum::{Display, EnumIter};
-use crate::api::users::{get_app_user, init_app_user};
 
 mod tui {
     pub mod inquire;
@@ -9,22 +9,30 @@ mod tui {
 }
 mod login;
 mod api {
-    pub mod users;
     pub mod customers;
+    #[path = "invoices/list.rs"]
     pub mod invoices;
     pub mod settings;
+    pub mod users;
 }
 mod obfstr;
 
 #[derive(Clone, Display, EnumIter)]
 pub enum MainMenuAction {
-    #[strum(to_string = "1. Create new [💵 sales] invoice")] CreateSalesInvoice,
-    #[strum(to_string = "2. List [💵 sales] invoices")] ListSalesInvoices,
-    #[strum(to_string = "3. List [🛒 purchase] invoices")] ListPurchaseInvoices,
-    #[strum(to_string = "4. Create new customer")] CreateCustomer,
-    #[strum(to_string = "5. List customers")] ListCustomers,
-    #[strum(to_string = "6. Update user settings")] UserSettings,
-    #[strum(to_string = "7. Exit")] Exit
+    #[strum(to_string = "1. Create new [💵 sales] invoice")]
+    CreateSalesInvoice,
+    #[strum(to_string = "2. List [💵 sales] invoices")]
+    ListSalesInvoices,
+    #[strum(to_string = "3. List [🛒 purchase] invoices")]
+    ListPurchaseInvoices,
+    #[strum(to_string = "4. Create new customer")]
+    CreateCustomer,
+    #[strum(to_string = "5. List customers")]
+    ListCustomers,
+    #[strum(to_string = "6. Update user settings")]
+    UserSettings,
+    #[strum(to_string = "7. Exit")]
+    Exit
 }
 
 #[tokio::main]
@@ -32,17 +40,25 @@ async fn main() -> Result<()> {
     dotenvy::from_filename("cli/.env").ok();
     match std::env::var("TUI").as_deref() {
         Ok("inquire") => {
-            let logged_user = login_loop().await?;
+            let logged_user = inquire::login_loop().await?;
             let app_user = match get_app_user(&logged_user).await? {
                 Some(app_user) => app_user,
                 None => init_app_user(&logged_user).await?,
             };
-            main_loop(&app_user).await?;
+            inquire::main_loop(&app_user).await?;
         }
         Ok("ratatui") | Err(_) => {
-            tui::ratatui::run().await?;
+            ratatui::with_terminal(async |terminal| {
+                let logged_user = ratatui::login_loop(terminal).await?;
+                let app_user = match get_app_user(&logged_user).await? {
+                    Some(app_user) => app_user,
+                    None => init_app_user(&logged_user).await?,
+                };
+                ratatui::main_loop(terminal, &app_user).await
+            })
+            .await?;
         }
-        Ok(tui) => anyhow::bail!("Unknown TUI implementation: {tui}")
+        Ok(tui) => anyhow::bail!("Unknown TUI implementation: {tui}"),
     }
     Ok(())
 }

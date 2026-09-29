@@ -2,25 +2,24 @@ use crate::{google_client_id, google_client_secret, microsoft_client_id};
 use anyhow::{Context, Result};
 use inquire::{Confirm, Password, Text};
 use oauth2::{
-    AuthUrl,
-    AuthorizationCode,
-    ClientId,
-    ClientSecret,
-    CsrfToken,
-    RedirectUrl,
-    Scope,
-    TokenResponse,
-    TokenUrl,
-    basic::BasicClient};
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,
+    TokenResponse, TokenUrl, basic::BasicClient,
+};
 use strum::{Display, EnumIter};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use rand::{RngCore, rngs::OsRng};
+use sha2::{Digest, Sha256};
 
 #[derive(Clone, Display, EnumIter)]
 pub enum LoginMethod {
-    #[strum(to_string = "Sign in with Microsoft account")] Microsoft,
-    #[strum(to_string = "Sign in with Google account")] Google,
-    #[strum(to_string = "Created account with your e-mail")] Email
+    #[strum(to_string = "Sign in with Microsoft account")]
+    Microsoft,
+    #[strum(to_string = "Sign in with Google account")]
+    Google,
+    #[strum(to_string = "Created account with your e-mail")]
+    Email
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -44,26 +43,20 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
     let port = listener.local_addr().context("Failed to determine OAuth callback port")?.port();
     let redirect_uri = format!("http://localhost:{port}");
     let code_verifier = {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-        use rand::{rngs::OsRng, RngCore};
         let mut bytes = [0u8; 32];
         OsRng.fill_bytes(&mut bytes);
         URL_SAFE_NO_PAD.encode(bytes)
     };
     let code_challenge = {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-        use sha2::{Digest, Sha256};
         let hash = Sha256::digest(code_verifier.as_bytes());
         URL_SAFE_NO_PAD.encode(hash)
     };
     let state = {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-        use rand::{rngs::OsRng, RngCore};
         let mut bytes = [0u8; 32];
         OsRng.fill_bytes(&mut bytes);
         URL_SAFE_NO_PAD.encode(bytes)
     };
-    let mut authorize_url = url::Url::parse("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize").context("Failed to create Microsoft authorization URL")?;
+    let mut authorize_url = url::Url::parse("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize").context("Failed to create Microsoft auth URL")?;
     authorize_url.query_pairs_mut()
         .append_pair("client_id", microsoft_client_id!())
         .append_pair("response_type", "code")
@@ -78,10 +71,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
     let mut buffer = [0u8; 8192];
     let bytes_read = stream.read(&mut buffer).await.context("Failed to read OAuth callback")?;
     let request = String::from_utf8_lossy(&buffer[..bytes_read]);
-    let request_target = request.lines()
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))
-        .context("Invalid OAuth callback request")?;
+    let request_target = request.lines().next().and_then(|line| line.split_whitespace().nth(1)).context("Invalid OAuth callback request")?;
     let callback_url = url::Url::parse(&format!("http://127.0.0.1{request_target}")).context("Failed to parse OAuth callback URL")?;
     let mut code = None;
     let mut received_state = None;
@@ -100,7 +90,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
     stream.write_all(response).await.context("Failed to send OAuth callback response")?;
     stream.shutdown().await.context("Failed to close OAuth callback connection")?;
     if let Some(error) = error {
-        anyhow::bail!("Microsoft login failed: {}{}", error, error_description.map(|description| format!(" ({description})")).unwrap_or_default());
+        anyhow::bail!("Microsoft login failed: {}{}",error,error_description.map(|description| format!(" ({description})")).unwrap_or_default());
     }
     let received_state = received_state.context("Microsoft callback did not contain state")?;
     if received_state != state {
@@ -108,8 +98,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
     }
     let code = code.context("Microsoft callback did not contain authorization code")?;
     let http_client = reqwest::Client::new();
-    let token: MSTokenResponse = http_client.post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
-        .form(&[
+    let token: MSTokenResponse = http_client.post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token").form(&[
             ("client_id", microsoft_client_id!()),
             ("grant_type", "authorization_code"),
             ("code", code.as_str()),
@@ -130,7 +119,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
     }
     let payload = token_parts[1];
     let payload = {
-        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         URL_SAFE_NO_PAD.decode(payload).context("Failed to decode Microsoft ID token")?
     };
     let claims: AuthUser = serde_json::from_slice(&payload).context("Failed to parse Microsoft ID token claims")?;
@@ -152,17 +141,11 @@ pub async fn login_with_google() -> Result<AuthUser> {
         .add_scope(Scope::new("profile".to_owned()))
         .url();
     webbrowser::open(authorize_url.as_str()).context("Failed to open browser")?;
-    let (mut stream, _) = listener
-        .accept()
-        .await
-        .context("Failed to accept OAuth callback")?;
+    let (mut stream, _) = listener.accept().await.context("Failed to accept OAuth callback")?;
     let mut buffer = [0u8; 8192];
     let bytes_read = stream.read(&mut buffer).await.context("Failed to read OAuth callback")?;
     let request = String::from_utf8_lossy(&buffer[..bytes_read]);
-    let request_target = request.lines()
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))
-        .context("Invalid OAuth callback request")?;
+    let request_target = request.lines().next().and_then(|line| line.split_whitespace().nth(1)).context("Invalid OAuth callback request")?;
     let callback_url = url::Url::parse(&format!("http://127.0.0.1{request_target}")).context("Failed to parse OAuth callback URL")?;
     let mut code = None;
     let mut received_state = None;
@@ -197,14 +180,12 @@ pub async fn login_with_google() -> Result<AuthUser> {
         .redirect(oauth2::reqwest::redirect::Policy::none())
         .build()
         .context("Failed to create OAuth HTTP client")?;
-    let token = client
-        .exchange_code(AuthorizationCode::new(code))
+    let token = client.exchange_code(AuthorizationCode::new(code))
         .request_async(&http_client)
         .await
         .context("Failed to exchange authorization code for Google token")?;
     let access_token = token.access_token().secret();
-    let user: AuthUser = reqwest::Client::new()
-        .get("https://openidconnect.googleapis.com/v1/userinfo")
+    let user: AuthUser = reqwest::Client::new().get("https://openidconnect.googleapis.com/v1/userinfo")
         .bearer_auth(access_token)
         .send()
         .await
@@ -226,7 +207,7 @@ pub async fn login_with_email_loop() -> Result<AuthUser> {
     if account_exists(&email)? {
         println!("Account found.");
         let password = Password::new("Password").prompt()?;
-        return login_with_email(&email, &password)
+        return login_with_email(&email, &password);
     }
     println!("No account found for {email}.");
     let create = Confirm::new("Would you like to create an account?")
@@ -269,7 +250,7 @@ fn login_with_email(email: &str, password: &str) -> Result<AuthUser> {
     let user = AuthUser {
         name: Some("Dummy User".to_owned()),
         email: Some("dummy@example.com".to_owned()),
-        phone: None,
+        phone: None
     };
     Ok(user)
 }
