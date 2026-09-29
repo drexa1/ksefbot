@@ -39,7 +39,6 @@ struct MSTokenResponse {
 }
 
 pub async fn login_with_microsoft() -> Result<AuthUser> {
-    println!("Opening Microsoft authentication...");
     let listener = TcpListener::bind("127.0.0.1:0").await.context("Failed to bind OAuth callback listener")?;
     let port = listener.local_addr().context("Failed to determine OAuth callback port")?.port();
     let redirect_uri = format!("http://localhost:{port}");
@@ -138,27 +137,26 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
 }
 
 pub async fn login_with_google() -> Result<AuthUser> {
-    println!("Opening Google authentication...");
     let listener = TcpListener::bind("127.0.0.1:0").await.context("Failed to bind OAuth callback listener")?;
     let port = listener.local_addr().context("Failed to determine OAuth callback port")?.port();
     let redirect_uri = format!("http://127.0.0.1:{port}");
     let client = BasicClient::new(ClientId::new(google_client_id!().to_owned()))
         .set_client_secret(ClientSecret::new(google_client_secret!().to_owned()))
         .set_auth_uri(AuthUrl::new("https://accounts.google.com/o/oauth2/auth".to_owned())?)
-        .set_token_uri(TokenUrl::new("https://oauth2.googleapis.com/token".to_owned())?).set_redirect_uri(RedirectUrl::new(redirect_uri.clone())?);
-    let (authorize_url, csrf_state) = client
-        .authorize_url(CsrfToken::new_random)
+        .set_token_uri(TokenUrl::new("https://oauth2.googleapis.com/token".to_owned())?)
+        .set_redirect_uri(RedirectUrl::new(redirect_uri.clone())?);
+    let (authorize_url, csrf_state) = client.authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new("openid".to_owned()))
         .add_scope(Scope::new("email".to_owned()))
         .add_scope(Scope::new("profile".to_owned()))
         .url();
     webbrowser::open(authorize_url.as_str()).context("Failed to open browser")?;
-    let (mut stream, _) = listener.accept().await.context("Failed to accept OAuth callback")?;
-    let mut buffer = [0u8; 8192];
-    let bytes_read = stream
-        .read(&mut buffer)
+    let (mut stream, _) = listener
+        .accept()
         .await
-        .context("Failed to read OAuth callback")?;
+        .context("Failed to accept OAuth callback")?;
+    let mut buffer = [0u8; 8192];
+    let bytes_read = stream.read(&mut buffer).await.context("Failed to read OAuth callback")?;
     let request = String::from_utf8_lossy(&buffer[..bytes_read]);
     let request_target = request.lines()
         .next()
@@ -166,32 +164,30 @@ pub async fn login_with_google() -> Result<AuthUser> {
         .context("Invalid OAuth callback request")?;
     let callback_url = url::Url::parse(&format!("http://127.0.0.1{request_target}")).context("Failed to parse OAuth callback URL")?;
     let mut code = None;
-    let mut state = None;
+    let mut received_state = None;
     let mut error = None;
+    let mut error_description = None;
     for (key, value) in callback_url.query_pairs() {
         match key.as_ref() {
             "code" => code = Some(value.into_owned()),
-            "state" => state = Some(value.into_owned()),
+            "state" => received_state = Some(value.into_owned()),
             "error" => error = Some(value.into_owned()),
+            "error_description" => error_description = Some(value.into_owned()),
             _ => {}
         }
     }
-    let response_body = if let Some(error) = &error {
-        format!("<html><body><h1>Google login failed</h1><p>Error: {error}</p></body></html>")
-    } else {
-        "<html><body><h1>Login successful</h1><p>You can close this window and return to KSeF Bot.</p></body></html>".to_owned()
-    };
-    let response = format!(
-        "HTTP/1.1 200 OK\r\n\
-         Content-Type: text/html; charset=utf-8\r\n\
-         Content-Length: {}\r\n\
-         Connection: close\r\n\
-         \r\n\
-         {response_body}",
-        response_body.len()
-    );
-    stream.write_all(response.as_bytes()).await.context("failed to send OAuth callback response")?;
-    let received_state = state.context("Google callback did not contain state")?;
+    if let Some(error) = error {
+        let message = format!("Google login failed: {}{}", error, error_description.map(|description| format!(" ({description})")).unwrap_or_default());
+        let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{message}", message.len());
+        stream.write_all(response.as_bytes()).await.context("Failed to send OAuth callback response")?;
+        stream.shutdown().await.context("Failed to close OAuth callback connection")?;
+        anyhow::bail!("{message}");
+    }
+    let response_body = "Google login successful. You can close this window and return to KSeF Bot.";
+    let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response_body}", response_body.len());
+    stream.write_all(response.as_bytes()).await.context("Failed to send OAuth callback response")?;
+    stream.shutdown().await.context("Failed to close OAuth callback connection")?;
+    let received_state = received_state.context("Google callback did not contain state")?;
     if received_state != *csrf_state.secret() {
         anyhow::bail!("OAuth state mismatch");
     }
@@ -205,9 +201,7 @@ pub async fn login_with_google() -> Result<AuthUser> {
         .request_async(&http_client)
         .await
         .context("Failed to exchange authorization code for Google token")?;
-    println!("Google login successful.");
     let access_token = token.access_token().secret();
-    println!("Received Google access token ({} characters).", access_token.len());
     let user: AuthUser = reqwest::Client::new()
         .get("https://openidconnect.googleapis.com/v1/userinfo")
         .bearer_auth(access_token)
