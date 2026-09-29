@@ -8,10 +8,10 @@ Content-Type: multipart/form-data; boundary=ksefInvoice
 X-API-Key: {{apiKey}}
 
 --ksefInvoice
-Content-Disposition: form-data; name="file"; filename="august.xml"
+Content-Disposition: form-data; name="file"; filename="september.xml"
 Content-Type: application/xml
 
-< ../../../testresources/ksef/sales/august.xml
+< ../../../testresources/ksef/sales/september.xml
 --ksefInvoice
 Content-Disposition: form-data; name="notes"
 

@@ -12,7 +12,7 @@ const DEFAULT_PAYMENT_TERM_DAYS: i64 = 7;
 const INVOICE_TEMPLATE: &str = include_str!("../../../public/schemas/invoice-template.xml");
 
 pub struct InvoiceParties {
-    pub seller: AppContractor,
+    pub user_contractor: AppContractor,
     pub customers: Vec<AppContractor>
 }
 
@@ -27,7 +27,8 @@ pub struct SalesInvoice {
 pub struct SalesInvoicePreview {
     pub hourly_rate: f64,
     pub total_net: f64,
-    pub total_vat: f64
+    pub total_vat: f64,
+    pub total_gross: f64
 }
 
 struct InvoiceData {
@@ -57,22 +58,32 @@ pub struct KsefSubmissionReferences {
 
 pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<InvoiceParties> {
     let contractors = load_contractors(app_user).await?;
-    let seller = contractors.iter()
+    let user_contractor = contractors.iter()
         .find(|contractor| app_user.contractor_id.as_deref() == Some(&contractor.id))
         .or_else(|| {
             contractors.iter().find(|contractor| contractor.nip.as_deref() == Some(&app_user.id))
         })
         .cloned()
         .ok_or_else(|| {
-            anyhow::anyhow!("Your seller details were not found in the contractor database")
+            anyhow::anyhow!("Seller details not found in the contractor database")
         })?;
-    if seller.nip.as_deref().is_none_or(str::is_empty) {
-        anyhow::bail!("Your seller profile must include a NIP before creating an invoice");
-    }
-    let customers = contractors.into_iter().filter(|contractor| {
-        contractor.id != seller.id && contractor.nip.as_deref().is_some_and(|nip| !nip.is_empty())
+    let customers: Vec<AppContractor> = contractors.into_iter().filter(|contractor| {
+        contractor.id != user_contractor.id && contractor.nip.as_deref().is_some_and(|nip| !nip.is_empty())
     }).collect();
-    Ok(InvoiceParties { seller, customers })
+    if customers.is_empty() {
+        anyhow::bail!("No customers found. Add a customer before creating an invoice.");
+    }
+    Ok(InvoiceParties { user_contractor, customers })
+}
+
+pub fn preview_sales_invoice(app_user: &AppUser, hours_worked: u32) -> anyhow::Result<SalesInvoicePreview> {
+    let invoice = InvoiceData::with_defaults(app_user, hours_worked)?;
+    Ok(SalesInvoicePreview {
+        hourly_rate: invoice.hourly_rate,
+        total_net: invoice.total_net,
+        total_vat: invoice.total_vat,
+        total_gross: invoice.total_gross
+    })
 }
 
 pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer: &AppContractor, hours_worked: u32) -> anyhow::Result<SalesInvoice> {
@@ -88,11 +99,6 @@ pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer
         session_reference_number: None,
         invoice_reference_number: None
     })
-}
-
-pub fn preview_sales_invoice(app_user: &AppUser, hours_worked: u32) -> anyhow::Result<SalesInvoicePreview> {
-    let invoice = InvoiceData::with_defaults(app_user, hours_worked)?;
-    Ok(SalesInvoicePreview { hourly_rate: invoice.hourly_rate, total_net: invoice.total_net, total_vat: invoice.total_vat })
 }
 
 impl InvoiceData {
@@ -282,12 +288,10 @@ pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyho
 }
 
 pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> anyhow::Result<PathBuf> {
-    let session_reference_number = invoice.session_reference_number.as_deref().ok_or_else(|| anyhow::anyhow!("This invoice was not submitted to KSeF yet"))?;
-    let invoice_reference_number = invoice.invoice_reference_number.as_deref().ok_or_else(|| anyhow::anyhow!("This invoice was not submitted to KSeF yet"))?;
     let mut url = reqwest::Url::parse(&format!("{}/ksef/sales/receipt", cf_worker_url!()))?;
     url.query_pairs_mut()
-        .append_pair("sessionReferenceNumber", session_reference_number)
-        .append_pair("invoiceReferenceNumber", invoice_reference_number);
+        .append_pair("sessionReferenceNumber", invoice.session_reference_number.as_deref().unwrap())
+        .append_pair("invoiceReferenceNumber", invoice.invoice_reference_number.as_deref().unwrap());
     let response = reqwest::Client::new().get(url)
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
@@ -304,7 +308,10 @@ pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> any
             '_'
         }
     }).collect();
-    let path = PathBuf::from(format!("{safe_number}-UPO.xml"));
+    let home = std::env::var_os("USERPROFILE").unwrap();
+    let app_folder = PathBuf::from(home).join(".ksefbot");
+    std::fs::create_dir_all(&app_folder)?;
+    let path = app_folder.join(format!("{safe_number}-UPO.xml"));
     std::fs::write(&path, response.bytes().await?)?;
     Ok(path)
 }

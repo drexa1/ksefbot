@@ -13,7 +13,7 @@ use crossterm::{
 use inquire::{Confirm, DateSelect, Select, Text};
 use std::io::{self};
 use strum::IntoEnumIterator;
-use crate::api::invoices::create::{create_invoice, download_receipt, load_invoice_parties, submit_invoice};
+use crate::api::invoices::create::{create_invoice, download_receipt, load_invoice_parties, preview_sales_invoice, submit_invoice, upload_invoice, UploadInvoiceResult};
 
 pub async fn login_loop() -> Result<AuthUser> {
     loop {
@@ -56,25 +56,23 @@ pub fn prompt_invoice_dates() -> Result<(String, String)> {
 }
 
 pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
-
+    // Fetch invoice counterparties
     let invoice_parties = load_invoice_parties(app_user).await?;
-    if invoice_parties.customers.is_empty() {
-        anyhow::bail!("No customers found. Add a customer before creating an invoice.");
-    }
     let customer = if invoice_parties.customers.len() == 1 {
+        // There is only one customer, we select it
         &invoice_parties.customers[0]
     } else {
+        // Display customer choice
         let customer_choices: Vec<String> = invoice_parties.customers.iter().enumerate().map(|(index, customer)| {
             format!("{}. {} (NIP: {})", index + 1, customer.name, customer.nip.as_deref().unwrap())
         }).collect();
         let selected: String = Select::new("Select customer", customer_choices).prompt()?;
         let customer_index = selected.split_once(". ")
-            .and_then(|(index, _)| index.parse::<usize>().ok())
-            .and_then(|index| index.checked_sub(1))
-            .filter(|index| *index < invoice_parties.customers.len())
-            .ok_or_else(|| anyhow::anyhow!("Customer not found"))?;
+            .map(|(index, _)| index.parse::<usize>().unwrap() - 1)
+            .unwrap();
         &invoice_parties.customers[customer_index]
     };
+    // Prompt hours worked
     let hours_worked = loop {
         let value = Text::new("Hours worked: ").with_placeholder("160").prompt()?;
         match value.trim().parse::<u32>() {
@@ -82,49 +80,78 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
             _ => println!("The number of hours must be greater than zero."),
         }
     };
-    let preview = invoices::create::preview_sales_invoice(app_user, hours_worked)?;
-    println!(
-        "  Invoice for [{} hours at {:.2} PLN/h]: {} PLN net + {:.2} PLN VAT = {:.2} PLN gross",
+    // Preview on screen
+    let preview = preview_sales_invoice(app_user, hours_worked)?;
+    println!("  Invoice for [{} hours at {:.2} PLN/h]: {} PLN net + {:.2} PLN VAT = {:.2} PLN gross",
         hours_worked,
         preview.hourly_rate,
         format!("{:.2}", preview.total_net).green(),
         preview.total_vat,
-        format!("{:.2}", preview.total_net).blue()
+        format!("{:.2}", preview.total_gross).blue()
     );
-    let mut new_invoice = create_invoice(app_user, &invoice_parties.seller, customer, hours_worked).await?;
+    // Generate .xml
+    let mut new_invoice = create_invoice(app_user, &invoice_parties.user_contractor, customer, hours_worked).await?;
+    // Upload to cloud backend
     if Confirm::new("Save this invoice in your online vault?").with_default(true).prompt()? {
         let notes = "Invoice generated from CLI client";
-        match invoices::create::upload_invoice(app_user, &new_invoice, notes).await? {
-            invoices::create::UploadInvoiceResult::Uploaded(invoice_id) => {
+        match upload_invoice(app_user, &new_invoice, notes).await? {
+            UploadInvoiceResult::Uploaded(invoice_id) => {
                 println!("  Invoice '{}' uploaded for user '{}'", invoice_id, app_user.id);
             }
-            invoices::create::UploadInvoiceResult::AlreadyExists(message) => {
+            UploadInvoiceResult::AlreadyExists(message) => {
                 println!("  {message}");
             }
         }
     }
-    if Confirm::new("Save invoice XML to application folder?").with_default(false).prompt()? {
+    // Save .xml to application folder
+    if Confirm::new("Save invoice .xml to application folder?").with_default(true).prompt()? {
         let home = std::env::var_os("USERPROFILE").unwrap();
         let app_folder = std::path::PathBuf::from(home).join(".ksefbot");
         std::fs::create_dir_all(&app_folder)?;
-        let path = app_folder.join(format!("{}.xml", new_invoice.month_name));
-        std::fs::write(&path, &new_invoice.xml)?;
-        println!("Invoice XML saved to {}", path.display().to_string().dark_yellow());
+        let original_path = app_folder.join(format!("{}.xml", new_invoice.month_name));
+        let path = if original_path.exists() {
+            let choice = Select::new(
+                "An invoice file for this month already exists. What shall we do?",
+                vec!["1. Overwrite existing file", "2. Save a new file"]
+            ).prompt()?;
+            match choice {
+                "1. Overwrite existing file" => Some(original_path),
+                "2. Save a new file" => {
+                    let mut suffix = 2;
+                    let path = loop {
+                        let candidate = app_folder.join(format!("{}-{suffix}.xml", new_invoice.month_name));
+                        if !candidate.exists() {
+                            break candidate;
+                        }
+                        suffix += 1;
+                    };
+                    Some(path)
+                }
+                _ => None,
+            }
+        } else {
+            Some(original_path)
+        };
+        if let Some(path) = path {
+            std::fs::write(&path, &new_invoice.xml)?;
+            println!("  📂 Invoice .xml saved to {}", path.display().to_string().dark_yellow());
+        }
     }
+    // Submit to KSeF
     if Confirm::new("Submit this invoice to KSeF?").with_default(false).prompt()? {
         let submission = submit_invoice(app_user, &new_invoice).await?;
         new_invoice.session_reference_number = Some(submission.session_reference_number);
         new_invoice.invoice_reference_number = Some(submission.invoice_reference_number);
         println!("  Invoice submitted to KSeF.");
         println!("  Invoice number: {}", new_invoice.invoice_number);
-        println!("  Invoice reference: {}", new_invoice.invoice_reference_number.as_deref().unwrap_or_default());
-        println!("  KSeF session: {}", new_invoice.session_reference_number.as_deref().unwrap_or_default());
+        println!("  Invoice reference: {}", new_invoice.invoice_reference_number.as_deref().unwrap());
+        println!("  KSeF session: {}", new_invoice.session_reference_number.as_deref().unwrap());
         if Confirm::new("Download the KSeF receipt?").with_default(true).prompt()? {
             let save_path = download_receipt(app_user, &new_invoice).await?;
-            println!("Receipt saved at {}", save_path.display());
+            println!("  📂 Submission receipt saved to {}", save_path.display().to_string().dark_yellow());
         }
     } else {
-        println!("Invoice created locally but not submitted to KSeF.");
+        println!("  Invoice created but not submitted.");
     }
     Ok(())
 }
