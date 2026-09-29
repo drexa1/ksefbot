@@ -64,8 +64,10 @@
 - [x] Method to check if whatsapp user is new
 - [x] CLI: Google SSO
 - [x] CLI: Microsoft SSO  
-- [ ] CLI: Microsoft SSO verify organization  
+- [ ] Fix tests failing after refactor  
+- [ ] Schedule daily tests  
 - [ ] CLI: login with email  
+- [ ] CLI: login with phone  
 - [ ] Whatsapp: get PROD number display name working
 - [ ] Whatsapp: unravel double WABA setup
 - [ ] Whatsapp: add real phone
@@ -99,5 +101,6 @@
 - [ ] Google Analytics  
 - [ ] Bug report  
 - [ ] Sentry  
+- [ ] CLI: Microsoft SSO verify organization  
 - [ ] Go public  
 - [ ] Slack bot
