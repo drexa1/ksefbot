@@ -1,7 +1,7 @@
 use inquire::DateSelect;
-use std::env::var;
 use strum::{Display};
-use crate::{cf_worker_url, api_key, cf_client_id, cf_client_secret};
+use crate::{cf_worker_url, cf_client_id, cf_client_secret};
+use crate::api::users::AppUser;
 
 #[derive(Clone, Display)]
 pub enum InvoiceType {
@@ -9,8 +9,8 @@ pub enum InvoiceType {
     #[strum(to_string = "purchases")] Purchases
 }
 
-pub async fn list_sales_invoices() -> anyhow::Result<()> {
-    let invoices = list_invoices(&InvoiceType::Sales).await?;
+pub async fn list_sales_invoices(app_user: &AppUser) -> anyhow::Result<()> {
+    let invoices = list_invoices(&app_user, &InvoiceType::Sales).await?;
 
     let max_width = |get: fn(&serde_json::Value) -> &str| invoices.iter().map(get).map(str::len).max().unwrap_or(0);
     let invoice_number_width = max_width(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap());
@@ -26,8 +26,8 @@ pub async fn list_sales_invoices() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn list_purchase_invoices() -> anyhow::Result<()> {
-    let invoices = list_invoices(&InvoiceType::Purchases).await?;
+pub async fn list_purchase_invoices(app_user: &AppUser) -> anyhow::Result<()> {
+    let invoices = list_invoices(&app_user, &InvoiceType::Purchases).await?;
 
     let max_width = |get: fn(&serde_json::Value) -> &str| invoices.iter().map(get).map(str::len).max().unwrap_or(0);
     let invoice_number_width = max_width(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap());
@@ -43,7 +43,7 @@ pub async fn list_purchase_invoices() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn list_invoices(endpoint: &InvoiceType) -> anyhow::Result<Vec<serde_json::Value>> {
+async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType) -> anyhow::Result<Vec<serde_json::Value>> {
     let from = DateSelect::new("From date:").prompt()?.and_hms_opt(0, 0, 0).unwrap().and_utc();
     let to = DateSelect::new("To date:").prompt()?.and_hms_opt(23, 59, 59).unwrap().and_utc();
     let json: serde_json::Value = reqwest::Client::new()
@@ -51,8 +51,8 @@ async fn list_invoices(endpoint: &InvoiceType) -> anyhow::Result<Vec<serde_json:
         .query(&[("from", from.format("%Y/%m/%d").to_string()), ("to", to.format("%Y/%m/%d").to_string())])
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", api_key!())  // FIXME: this should be available from logged user
-        .header("X-User-Id", var("APP_USER_ID")?)  // FIXME: this should be available from logged user
+        .header("X-API-Key", app_user.api_key.as_deref().unwrap())
+        .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .send().await?.json().await?;
     if json["success"].as_bool() != Some(true) {
@@ -64,8 +64,8 @@ async fn list_invoices(endpoint: &InvoiceType) -> anyhow::Result<Vec<serde_json:
     Ok(invoices)
 }
 
-pub async fn create_sales_invoice() -> anyhow::Result<()> {
-    println!("Step 1/5: Loading customers...");
+pub async fn create_sales_invoice(app_user: &AppUser) -> anyhow::Result<()> {
+    println!("Step 1/5: Loading customers for {}...", app_user.email);
     println!("  [API] GET /customers");
     println!("  [API] 3 customers available.");
     println!();

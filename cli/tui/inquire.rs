@@ -26,12 +26,11 @@ pub async fn login_loop() -> Result<AuthUser> {
 }
 
 pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
-    println!("Logged user: {}", logged_user.id);
     loop {
         match Select::new("What shall we do now?", MainMenuAction::iter().collect()).prompt()? {
-            MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice().await?,
-            MainMenuAction::ListSalesInvoices => invoices::list_sales_invoices().await?,
-            MainMenuAction::ListPurchaseInvoices => invoices::list_purchase_invoices().await?,
+            MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice(&logged_user).await?,
+            MainMenuAction::ListSalesInvoices => invoices::list_sales_invoices(&logged_user).await?,
+            MainMenuAction::ListPurchaseInvoices => invoices::list_purchase_invoices(&logged_user).await?,
             MainMenuAction::CreateCustomer => customers::create_customer().await?,
             MainMenuAction::ListCustomers => customers::list_customers().await?,
             MainMenuAction::UserSettings => settings::edit_profile().await?,

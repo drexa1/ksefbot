@@ -17,14 +17,19 @@ use ratatui::{
 };
 use std::io;
 use strum::IntoEnumIterator;
+use crate::api::users::{get_app_user, AppUser, init_app_user};
 
 type Tui = Terminal<CrosstermBackend<io::Stdout>>;
 
 pub async fn run() -> Result<()> {
     let mut terminal = setup_terminal()?;
     let result = async {
-        let logged_user = login_loop(&mut terminal).await?;
-        main_loop(&mut terminal, &logged_user).await?;
+        let logged_user = crate::tui::inquire::login_loop().await?;
+        let app_user = match get_app_user(&logged_user).await? {
+            Some(app_user) => app_user,
+            None => init_app_user(&logged_user).await?,
+        };
+        main_loop(&mut terminal, &app_user).await?;
         Ok(())
     }.await;
     restore_terminal(&mut terminal)?;
@@ -58,8 +63,7 @@ async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
     }
 }
 
-async fn main_loop(terminal: &mut Tui, logged_user: &AuthUser) -> Result<()> {
-    println!("Logged user: {:?}", logged_user.email);
+async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<()> {
     let actions: Vec<MainMenuAction> = MainMenuAction::iter().collect();
     let mut selected = 0usize;
     loop {
@@ -76,9 +80,9 @@ async fn main_loop(terminal: &mut Tui, logged_user: &AuthUser) -> Result<()> {
             KeyCode::Enter => {
                 restore_terminal(terminal)?;
                 match actions[selected].clone() {
-                    MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice().await?,
-                    MainMenuAction::ListSalesInvoices => invoices::list_sales_invoices().await?,
-                    MainMenuAction::ListPurchaseInvoices => invoices::list_purchase_invoices().await?,
+                    MainMenuAction::CreateSalesInvoice => invoices::create_sales_invoice(&app_user).await?,
+                    MainMenuAction::ListSalesInvoices => invoices::list_sales_invoices(&app_user).await?,
+                    MainMenuAction::ListPurchaseInvoices => invoices::list_purchase_invoices(&app_user).await?,
                     MainMenuAction::CreateCustomer => customers::create_customer().await?,
                     MainMenuAction::ListCustomers => customers::list_customers().await?,
                     MainMenuAction::UserSettings => settings::edit_profile().await?,
