@@ -18,6 +18,7 @@ pub struct InvoiceParties {
 
 pub struct SalesInvoice {
     pub invoice_number: String,
+    pub month_name: String,
     pub xml: String,
     pub session_reference_number: Option<String>,
     pub invoice_reference_number: Option<String>
@@ -26,8 +27,7 @@ pub struct SalesInvoice {
 pub struct SalesInvoicePreview {
     pub hourly_rate: f64,
     pub total_net: f64,
-    pub total_vat: f64,
-    pub total_gross: f64
+    pub total_vat: f64
 }
 
 struct InvoiceData {
@@ -41,6 +41,11 @@ struct InvoiceData {
     total_net: f64,
     total_vat: f64,
     total_gross: f64
+}
+
+pub enum UploadInvoiceResult {
+    Uploaded(String),
+    AlreadyExists(String)
 }
 
 #[derive(serde::Deserialize)]
@@ -65,8 +70,7 @@ pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<InvoiceP
         anyhow::bail!("Your seller profile must include a NIP before creating an invoice");
     }
     let customers = contractors.into_iter().filter(|contractor| {
-        contractor.id != seller.id
-            && contractor.nip.as_deref().is_some_and(|nip| !nip.is_empty())
+        contractor.id != seller.id && contractor.nip.as_deref().is_some_and(|nip| !nip.is_empty())
     }).collect();
     Ok(InvoiceParties { seller, customers })
 }
@@ -79,6 +83,7 @@ pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer
     let xml = invoice.to_xml(seller, customer, app_user.bank_account_number.as_deref())?;
     Ok(SalesInvoice {
         invoice_number: invoice.number,
+        month_name: invoice.issue_date.format("%B").to_string().to_lowercase(),
         xml,
         session_reference_number: None,
         invoice_reference_number: None
@@ -87,12 +92,7 @@ pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer
 
 pub fn preview_sales_invoice(app_user: &AppUser, hours_worked: u32) -> anyhow::Result<SalesInvoicePreview> {
     let invoice = InvoiceData::with_defaults(app_user, hours_worked)?;
-    Ok(SalesInvoicePreview {
-        hourly_rate: invoice.hourly_rate,
-        total_net: invoice.total_net,
-        total_vat: invoice.total_vat,
-        total_gross: invoice.total_gross
-    })
+    Ok(SalesInvoicePreview { hourly_rate: invoice.hourly_rate, total_net: invoice.total_net, total_vat: invoice.total_vat })
 }
 
 impl InvoiceData {
@@ -207,9 +207,9 @@ fn xml_escape(value: &str) -> String {
 }
 
 fn fill_placeholders(template: &str, values: &[(&str, String)]) -> anyhow::Result<String> {
-    let mut replacements: HashMap<&str, Vec<&String>> = HashMap::new();
+    let mut placeholders: HashMap<&str, Vec<&String>> = HashMap::new();
     for (name, value) in values {
-        replacements.entry(name).or_default().push(value);
+        placeholders.entry(name).or_default().push(value);
     }
     let mut next_occurrence: HashMap<&str, usize> = HashMap::new();
     let mut xml = String::with_capacity(template.len());
@@ -220,24 +220,45 @@ fn fill_placeholders(template: &str, values: &[(&str, String)]) -> anyhow::Resul
         let name_end = remaining[name_start..].find("}}").ok_or_else(|| anyhow::anyhow!("Unterminated placeholder"))? + name_start;
         let name = &remaining[name_start..name_end];
         let occurrence = next_occurrence.entry(name).or_default();
-        let replacement = replacements.get(name)
+        let replacement = placeholders.get(name)
             .and_then(|values| values.get(*occurrence))
-            .ok_or_else(|| anyhow::anyhow!("No value provided for placeholder {{{{{name}}}}}"))?;
+            .ok_or_else(|| anyhow::anyhow!("No value for placeholder {{{name}}}"))?;
         xml.push_str(replacement);
         *occurrence += 1;
         remaining = &remaining[name_end + 2..];
     }
     xml.push_str(remaining);
-    for (name, values) in replacements {
-        if next_occurrence.get(name).copied().unwrap_or_default() != values.len() {
-            anyhow::bail!("Template does not contain all occurrences of placeholder {{{{{name}}}}}");
-        }
-    }
     Ok(xml)
 }
 
+pub async fn upload_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &str) -> anyhow::Result<UploadInvoiceResult> {
+    let file = reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?;
+    let form = reqwest::multipart::Form::new().part("file", file).text("type", "sales").text("notes", notes.to_string());
+    let response = reqwest::Client::new()
+        .post(format!("{}/app/invoices", cf_worker_url!()))
+        .header("CF-Access-Client-Id", cf_client_id!())
+        .header("CF-Access-Client-Secret", cf_client_secret!())
+        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
+        .header("X-User-Id", &app_user.id)
+        .header("Accept", "application/json")
+        .multipart(form)
+        .send()
+        .await?;
+    if response.status() == reqwest::StatusCode::CONFLICT {
+        let body: serde_json::Value = response.json().await?;
+        return Ok(UploadInvoiceResult::AlreadyExists(
+            body["error"].as_str().unwrap_or("Invoice already exists").to_owned()
+        ));
+    }
+    let response = ensure_success(response, "Invoice uploaded").await?;
+    let body: serde_json::Value = response.json().await?;
+    if body["success"].as_bool() != Some(true) {
+        anyhow::bail!("Invoice upload failed: {}", body["error"].as_str().unwrap_or("unknown error"));
+    }
+    Ok(UploadInvoiceResult::Uploaded(body["id"].as_str().unwrap().to_owned()))
+}
+
 pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyhow::Result<KsefSubmissionReferences> {
-    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let form = reqwest::multipart::Form::new().part(
         "file",
         reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?
@@ -246,7 +267,7 @@ pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyho
         .post(format!("{}/ksef/sales", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", api_key)
+        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .multipart(form)
@@ -260,34 +281,7 @@ pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyho
     Ok(serde_json::from_value(body["result"].clone())?)
 }
 
-pub async fn save_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &str) -> anyhow::Result<()> {
-    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
-    let form = reqwest::multipart::Form::new().part(
-        "file",
-        reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?
-        )
-        .text("type", "sales")
-        .text("notes", notes.to_string());
-    let response = reqwest::Client::new()
-        .post(format!("{}/app/invoices", cf_worker_url!()))
-        .header("CF-Access-Client-Id", cf_client_id!())
-        .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", api_key)
-        .header("X-User-Id", &app_user.id)
-        .header("Accept", "application/json")
-        .multipart(form)
-        .send()
-        .await?;
-    let response = ensure_success(response, "Invoice archive save").await?;
-    let body: serde_json::Value = response.json().await?;
-    if body["success"].as_bool() != Some(true) {
-        anyhow::bail!("Invoice archive save failed: {}",body["error"].as_str().unwrap_or("unknown error"));
-    }
-    Ok(())
-}
-
 pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> anyhow::Result<PathBuf> {
-    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let session_reference_number = invoice.session_reference_number.as_deref().ok_or_else(|| anyhow::anyhow!("This invoice was not submitted to KSeF yet"))?;
     let invoice_reference_number = invoice.invoice_reference_number.as_deref().ok_or_else(|| anyhow::anyhow!("This invoice was not submitted to KSeF yet"))?;
     let mut url = reqwest::Url::parse(&format!("{}/ksef/sales/receipt", cf_worker_url!()))?;
@@ -297,7 +291,7 @@ pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> any
     let response = reqwest::Client::new().get(url)
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", api_key)
+        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/xml")
         .send()

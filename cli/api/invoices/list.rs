@@ -50,7 +50,6 @@ pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String
 }
 
 async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: String, to: String) -> anyhow::Result<Vec<serde_json::Value>> {
-    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let json: serde_json::Value = reqwest::Client::new()
         .get(format!("{}/ksef/{endpoint}", cf_worker_url!()))
         .query(&[
@@ -59,7 +58,7 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: String,
         ])
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", api_key)
+        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .send()

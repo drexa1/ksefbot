@@ -14,12 +14,11 @@ pub struct AppContractor {
 }
 
 pub async fn load_contractors(app_user: &AppUser) -> anyhow::Result<Vec<AppContractor>> {
-    let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let response = reqwest::Client::new()
         .get(format!("{}/app/contractors", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", api_key)
+        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .send()
