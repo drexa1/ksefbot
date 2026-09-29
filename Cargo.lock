@@ -1051,6 +1051,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6654738b8024300cf062d04a1c13c10c8e2cea598ec1c47dc9b6641159429756"
 dependencies = [
  "bitflags 2.13.1",
+ "chrono",
  "crossterm",
  "dyn-clone",
  "fuzzy-matcher",
@@ -1179,6 +1180,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
+ "chrono",
  "crossterm",
  "dotenvy",
  "inquire",
@@ -1191,6 +1193,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "strum",
+ "time",
  "tokio",
  "url",
  "webbrowser",

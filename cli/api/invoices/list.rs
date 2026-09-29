@@ -26,13 +26,7 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: NaiveDate, to: NaiveD
         let seller = invoice["Seller"]["IdentificationData"]["Name"].as_str().unwrap();
         let total = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
         let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
-        println!("  {}. {:<invoice_number_width$} - {:<seller_width$} - {:.2} {}",
-            i + 1,
-            invoice_number,
-            seller,
-            total,
-            currency
-        );
+        println!("  {}. {:<invoice_number_width$} - {:<seller_width$} - {:.2} {}", i + 1, invoice_number, seller, total, currency);
     }
     Ok(())
 }

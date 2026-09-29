@@ -3,7 +3,7 @@ use crate::api::users::AppUser;
 use crate::api::{customers, invoices, settings};
 use crate::login::AuthUser;
 use anyhow::Result;
-use chrono::NaiveDate;
+use chrono::{Local, NaiveDate};
 use crossterm::{
     cursor::MoveTo,
     execute,
@@ -99,8 +99,14 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
 }
 
 pub fn request_invoice_dates() -> Result<(NaiveDate, NaiveDate)> {
-    let from = DateSelect::new("From date:").prompt()?;
-    let to = DateSelect::new("To date:").prompt()?;
+    let today = Local::now().date_naive();
+    let from = DateSelect::new("From date:")
+        .with_starting_date(today)
+        .prompt()?;
+    let to = DateSelect::new("To date:")
+        .with_starting_date(today.max(from))
+        .with_min_date(from)
+        .prompt()?;
     Ok((from, to))
 }
 
