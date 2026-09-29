@@ -307,11 +307,7 @@ export class KsefClient extends KsefClientBase {
         const dateRange = { dateType: "Issue" as const, from: from.toISOString(), to: to.toISOString() };
         const response = await fetch(`${this.env.KSEF_URL}/invoices/query/metadata?pageOffset=0&pageSize=100`, {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${this.token}`,
-                "Content-Type": "application/json",
-                "X-Error-Format": "problem-details",
-            },
+            headers: { "Authorization": `Bearer ${this.token}`, "Content-Type": "application/json" },
             body: JSON.stringify({ subjectType, dateRange })
         });
         if (!response.ok) {

@@ -30,7 +30,7 @@ export async function getInvoices(req: Request, env: Env, subjectType: "Subject1
     } catch (error: any) {
         if (String(error).includes("Too Many Requests"))
             return Response.json({ success: false, error: "The limit of 20 requests per hour has been exceeded." }, { status: 429 });
-        throw error;
+        return Response.json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 502 });
     }
 }
 
