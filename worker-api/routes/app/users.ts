@@ -12,8 +12,8 @@ export async function get(req: Request, env: Env): Promise<Response> {
     for (const [key, value] of url.searchParams.entries()) {
         filters[key] = value;
     }
-    // 🐣 Allow checking if a user exists by phone without assuming any users yet
-    const isNewLookup = !!filters.phone;
+    // 🐣 Allow checking if a user exists by phone/main without assuming any users yet
+    const isNewLookup = filters.onboarding === "true";
     const appUser = isNewLookup ? undefined : await getAuthUser(req, env);
     // Allow to fetch users only to superadmin
     if (!isNewLookup && appUser!.tier !== 0)

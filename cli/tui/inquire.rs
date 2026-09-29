@@ -1,4 +1,6 @@
-use crate::{MainMenuAction, customers, invoices, settings};
+use crate::api::{customers, invoices, settings};
+use crate::login::AuthUser;
+use crate::MainMenuAction;
 use anyhow::Result;
 use crossterm::{
     cursor::MoveTo,
@@ -8,7 +10,6 @@ use crossterm::{
 use inquire::{Select, Text};
 use std::io::{self};
 use strum::IntoEnumIterator;
-use crate::login::AuthUser;
 
 pub async fn login_loop() -> Result<AuthUser> {
     loop {
@@ -18,8 +19,7 @@ pub async fn login_loop() -> Result<AuthUser> {
             crate::login::LoginMethod::Microsoft => crate::login::login_with_microsoft().await?,
             crate::login::LoginMethod::Email => crate::login::login_with_email_loop().await?
         };
-        println!("Login successful.");
-        println!();
+        // Check if application user exists, or trigger onboarding
         return Ok(logged_user)
     }
 }

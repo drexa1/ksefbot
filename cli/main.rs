@@ -1,6 +1,6 @@
+use crate::tui::inquire::{login_loop, main_loop};
 use anyhow::Result;
 use strum::{Display, EnumIter};
-use crate::tui::inquire::{login_loop, main_loop};
 
 mod tui {
     pub mod inquire;
@@ -8,9 +8,11 @@ mod tui {
 }
 
 mod login;
-mod invoices;
-mod customers;
-mod settings;
+mod api {
+    pub mod customers;
+    pub mod invoices;
+    pub mod settings;
+}
 mod obfstr;
 
 #[derive(Clone, Display, EnumIter)]

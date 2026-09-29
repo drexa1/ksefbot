@@ -69,6 +69,7 @@
 - [x] CLI: Google SSO  
 - [ ] Move Google SSO to the backend  
 - [ ] CLI: Microsoft SSO  
+- [ ] CLI: Microsoft SSO verify organization  
 - [ ] CLI: login with email  
 - [ ] First time frontend workflow  
 - [ ] CLI: list customers  

@@ -1,7 +1,7 @@
 use inquire::DateSelect;
 use std::env::var;
 use strum::{Display};
-use crate::{cf_client_id, cf_client_secret};
+use crate::{cf_worker_url, api_key, cf_client_id, cf_client_secret};
 
 #[derive(Clone, Display)]
 pub enum InvoiceType {
@@ -47,11 +47,11 @@ async fn list_invoices(endpoint: &InvoiceType) -> anyhow::Result<Vec<serde_json:
     let from = DateSelect::new("From date:").prompt()?.and_hms_opt(0, 0, 0).unwrap().and_utc();
     let to = DateSelect::new("To date:").prompt()?.and_hms_opt(23, 59, 59).unwrap().and_utc();
     let json: serde_json::Value = reqwest::Client::new()
-        .get(format!("{}/ksef/{endpoint}", var("CF_WORKER_URL")?))
+        .get(format!("{}/ksef/{endpoint}", cf_worker_url!()))
         .query(&[("from", from.format("%Y/%m/%d").to_string()), ("to", to.format("%Y/%m/%d").to_string())])
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", var("APP_API_KEY")?)  // FIXME: this should be available from logged user
+        .header("X-API-Key", api_key!())  // FIXME: this should be available from logged user
         .header("X-User-Id", var("APP_USER_ID")?)  // FIXME: this should be available from logged user
         .header("Accept", "application/json")
         .send().await?.json().await?;

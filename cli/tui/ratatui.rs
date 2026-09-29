@@ -1,10 +1,13 @@
-use crate::{MainMenuAction, login, customers, invoices, settings};
+use crate::api::{customers, invoices, settings};
+use crate::login::AuthUser;
+use crate::{MainMenuAction, login};
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use ratatui::widgets::Paragraph;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -13,9 +16,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState},
 };
 use std::io;
-use ratatui::widgets::Paragraph;
 use strum::IntoEnumIterator;
-use crate::login::AuthUser;
 
 type Tui = Terminal<CrosstermBackend<io::Stdout>>;
 
