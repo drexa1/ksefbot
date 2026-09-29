@@ -62,12 +62,12 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
  */
 export async function getAuthUser(req: Request, env: Env): Promise<AppUser> {
     const whoamiResponse = await whoami(req, env);
-    const { userId, origin } = await whoamiResponse.json() as { userId: string, origin?: "Cf-Access-Jwt" };
-    const appUser = origin === "Cf-Access-Jwt"
-        // If it is directly connected via specific CF Zero Trust policy use email (or the policy method),
-        ? await getRepo(env).get<AppUser>("users", { email: userId })
-        // ...otherwise find by PK (tax identifier)
-        : await getRepo(env).get<AppUser>("users", { id: userId });
+    const { userId, origin } = await whoamiResponse.json() as { userId: string, origin?: "X-User-Id" };
+    const appUser = origin === "X-User-Id"
+        // Find by PK (tax identifier)
+        ? await getRepo(env).get<AppUser>("users", { id: userId })
+        // It is directly connected via specific CF Zero Trust policy use email (or the policy method)
+        : await getRepo(env).get<AppUser>("users", { email: userId });
     //❌ This should never trigger, either have created a specific access policy in Zero Trust or either the client made it through
     if (!appUser) throw new AuthError("Authenticated user not found in app", 404, { userId });
     return appUser;
@@ -88,7 +88,7 @@ export async function whoami(req: Request, env: Env): Promise<Response> {
     const userId = req.headers.get("X-User-Id") ?? (jwt ? decodeJWT(jwt).email : undefined);
     if (!userId) throw new AuthError("Unauthenticated user", 401);
     console.info("[Whoami] requester:", userId);
-    return Response.json({ userId, ...(jwt ? { origin: "Cf-Access-Jwt" } : {}) });
+    return Response.json({ userId, ...(req.headers.has("X-User-Id") ? { origin: "X-User-Id" } : {}) });
 }
 
 function decodeJWT(jwt: string): { name: string, email: string } {
