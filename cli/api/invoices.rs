@@ -11,11 +11,9 @@ pub enum InvoiceType {
 
 pub async fn list_sales_invoices(app_user: &AppUser) -> anyhow::Result<()> {
     let invoices = list_invoices(&app_user, &InvoiceType::Sales).await?;
-
     let max_width = |get: fn(&serde_json::Value) -> &str| invoices.iter().map(get).map(str::len).max().unwrap_or(0);
     let invoice_number_width = max_width(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap());
     let seller_width = max_width(|i| i["Seller"]["IdentificationData"]["Name"].as_str().unwrap());
-
     for (i, invoice) in invoices.iter().enumerate() {
         let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
         let seller = invoice["Seller"]["IdentificationData"]["Name"].as_str().unwrap();
@@ -28,11 +26,9 @@ pub async fn list_sales_invoices(app_user: &AppUser) -> anyhow::Result<()> {
 
 pub async fn list_purchase_invoices(app_user: &AppUser) -> anyhow::Result<()> {
     let invoices = list_invoices(&app_user, &InvoiceType::Purchases).await?;
-
     let max_width = |get: fn(&serde_json::Value) -> &str| invoices.iter().map(get).map(str::len).max().unwrap_or(0);
     let invoice_number_width = max_width(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap());
     let seller_width = max_width(|i| i["Seller"]["IdentificationData"]["Name"].as_str().unwrap());
-
     for (i, invoice) in invoices.iter().enumerate() {
         let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
         let seller = invoice["Seller"]["IdentificationData"]["Name"].as_str().unwrap();
