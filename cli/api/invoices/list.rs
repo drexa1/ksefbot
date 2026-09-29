@@ -1,6 +1,5 @@
 use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
-use chrono::NaiveDate;
 use strum::Display;
 
 #[path = "create.rs"]
@@ -14,7 +13,7 @@ pub enum InvoiceType {
     Purchases
 }
 
-pub async fn list_sales_invoices(app_user: &AppUser, from: NaiveDate, to: NaiveDate) -> anyhow::Result<()> {
+pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
     let invoices = list_invoices(app_user, &InvoiceType::Sales, from, to).await?;
     let max_width = |get: fn(&serde_json::Value) -> &str| {
         invoices.iter().map(get).map(str::len).max().unwrap_or(0)
@@ -31,11 +30,7 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: NaiveDate, to: NaiveD
     Ok(())
 }
 
-pub async fn list_purchase_invoices(
-    app_user: &AppUser,
-    from: NaiveDate,
-    to: NaiveDate,
-) -> anyhow::Result<()> {
+pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
     let invoices = list_invoices(app_user, &InvoiceType::Purchases, from, to).await?;
     let max_width = |get: fn(&serde_json::Value) -> &str| {
         invoices.iter().map(get).map(str::len).max().unwrap_or(0)
@@ -54,13 +49,13 @@ pub async fn list_purchase_invoices(
     Ok(())
 }
 
-async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: NaiveDate, to: NaiveDate) -> anyhow::Result<Vec<serde_json::Value>> {
+async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: String, to: String) -> anyhow::Result<Vec<serde_json::Value>> {
     let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let json: serde_json::Value = reqwest::Client::new()
         .get(format!("{}/ksef/{endpoint}", cf_worker_url!()))
         .query(&[
-            ("from", from.format("%Y/%m/%d").to_string()),
-            ("to", to.format("%Y/%m/%d").to_string()),
+            ("from", from),
+            ("to", to),
         ])
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

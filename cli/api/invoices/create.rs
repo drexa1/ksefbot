@@ -3,12 +3,14 @@ use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
 use anyhow::Context;
 use chrono::{Datelike, Duration, Local, NaiveDate, SecondsFormat, Utc};
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
 const DEFAULT_VAT_RATE: f64 = 0.23;
 const DEFAULT_PAYMENT_TYPE: &str = "6";
 const DEFAULT_PAYMENT_TERM_DAYS: i64 = 7;
+const INVOICE_TEMPLATE: &str = include_str!("../../../public/schemas/invoice-template.xml");
 
 pub struct SalesInvoiceParties {
     pub seller: AppContractor,
@@ -75,7 +77,7 @@ pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer
     }
     let api_key = app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("The application user has no API key configured"))?;
     let invoice = InvoiceData::with_defaults(app_user, hours_worked)?;
-    let xml = invoice.to_xml(seller, customer, app_user.bank_account_number.as_deref());
+    let xml = invoice.to_xml(seller, customer, app_user.bank_account_number.as_deref())?;
     let submitted = submit_invoice(api_key, &app_user.id, &xml).await?;
     let notes = format!("{} invoice for {}", app_user.id, invoice.issue_date.format("%B %Y"));
     save_invoice(api_key, &app_user.id, &xml, &notes).await.context(format!(
@@ -143,60 +145,57 @@ impl InvoiceData {
         })
     }
 
-    fn to_xml(&self, seller: &AppContractor, customer: &AppContractor, bank_account: Option<&str>) -> String {
-        let mut xml = String::new();
-        let seller_nip = seller.nip.as_deref().unwrap_or_default();
-        let customer_nip = customer.nip.as_deref().unwrap_or_default();
-        let _ = write!(xml,
-            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
-             <Faktura xmlns=\"http://crd.gov.pl/wzor/2025/06/25/13775/\">\n\
-             <Naglowek><KodFormularza kodSystemowy=\"FA (3)\" wersjaSchemy=\"1-0E\">FA</KodFormularza>\
-             <WariantFormularza>3</WariantFormularza><DataWytworzeniaFa>{}</DataWytworzeniaFa>\
-             <SystemInfo>e-mikrofirma</SystemInfo></Naglowek>\
-             <Podmiot1><DaneIdentyfikacyjne><NIP>{}</NIP><Nazwa>{}</Nazwa></DaneIdentyfikacyjne>\
-             <Adres><KodKraju>{}</KodKraju><AdresL1>{}</AdresL1></Adres></Podmiot1>\
-             <Podmiot2><DaneIdentyfikacyjne><NIP>{}</NIP><Nazwa>{}</Nazwa></DaneIdentyfikacyjne>\
-             <Adres><KodKraju>{}</KodKraju><AdresL1>{}</AdresL1></Adres><JST>2</JST><GV>2</GV></Podmiot2>\
-             <Fa><KodWaluty>PLN</KodWaluty><P_1>{}</P_1><P_1M></P_1M><P_2>{}</P_2><P_6>{}</P_6>\
-             <P_13_1>{:.2}</P_13_1><P_14_1>{:.2}</P_14_1><P_15>{:.2}</P_15>\
-             <Adnotacje><P_16>2</P_16><P_17>2</P_17><P_18>2</P_18><P_18A>2</P_18A>\
-             <Zwolnienie><P_19N>1</P_19N></Zwolnienie>\
-             <NoweSrodkiTransportu><P_22N>1</P_22N></NoweSrodkiTransportu>\
-             <P_23>2</P_23><PMarzy><P_PMarzyN>1</P_PMarzyN></PMarzy></Adnotacje>\
-             <RodzajFaktury>VAT</RodzajFaktury>\
-             <FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>{}</P_7><P_8A>hour</P_8A>\
+    fn to_xml(&self, seller: &AppContractor, customer: &AppContractor, bank_account: Option<&str>) -> anyhow::Result<String> {
+        let mut invoice_line = String::new();
+        let _ = write!(invoice_line,
+            "<FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>{}</P_7><P_8A>hour</P_8A>\
              <P_8B>{}</P_8B><P_9A>{:.2}</P_9A><P_11>{:.2}</P_11><P_11Vat>{:.2}</P_11Vat>\
-             <P_12>23</P_12></FaWiersz>\
-             <Platnosc><TerminPlatnosci><Termin>{}</Termin></TerminPlatnosci>\
-             <FormaPlatnosci>{}</FormaPlatnosci>",
-            Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
-            xml_escape(seller_nip),
-            xml_escape(&seller.name),
-            xml_escape(&seller.country_code),
-            xml_escape(&seller.address_l1),
-            xml_escape(customer_nip),
-            xml_escape(&customer.name),
-            xml_escape(&customer.country_code),
-            xml_escape(&customer.address_l1),
-            self.issue_date,
-            xml_escape(&self.number),
-            self.delivery_date,
-            self.total_net,
-            self.total_vat,
-            self.total_gross,
+             <P_12>23</P_12></FaWiersz>",
             xml_escape(&self.item_name),
             self.hours_worked,
             self.hourly_rate,
             self.total_net,
-            self.total_vat,
-            self.payment_deadline,
-            DEFAULT_PAYMENT_TYPE
+            self.total_vat
         );
-        if let Some(bank_account) = bank_account.filter(|account| !account.trim().is_empty()) {
-            let _ = write!(xml, "<RachunekBankowy><NrRB>{}</NrRB></RachunekBankowy>", xml_escape(bank_account));
-        }
-        xml.push_str("</Platnosc></Fa></Faktura>");
-        xml
+        let bank_account = bank_account
+            .filter(|account| !account.trim().is_empty())
+            .map(|account| format!("<RachunekBankowy><NrRB>{}</NrRB></RachunekBankowy>", xml_escape(account)))
+            .unwrap_or_default();
+        let values = [
+            ("FORM_CODE", "FA".to_string()),
+            ("GENERATION_DATE", Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
+            ("SYSTEM_INFO", "KSeF Bot".to_string()),
+            ("CONTRACTOR_NIP", xml_escape(seller.nip.as_deref().unwrap_or_default())),
+            ("CONTRACTOR_NAME", xml_escape(&seller.name)),
+            ("COUNTRY_CODE", xml_escape(&seller.country_code)),
+            ("CONTRACTOR_ADDRESS", xml_escape(&seller.address_l1)),
+            ("CUSTOMER_NIP", xml_escape(customer.nip.as_deref().unwrap_or_default())),
+            ("CUSTOMER_NAME", xml_escape(&customer.name)),
+            ("COUNTRY_CODE", xml_escape(&customer.country_code)),
+            ("CUSTOMER_ADDRESS", xml_escape(&customer.address_l1)),
+            ("JST", "2".to_string()),
+            ("GV", "2".to_string()),
+            ("ISSUE_DATE", self.issue_date.to_string()),
+            ("ISSUE_PLACE", String::new()),
+            ("INVOICE_NUMBER", xml_escape(&self.number)),
+            ("DELIVERY_DATE", self.delivery_date.to_string()),
+            ("TOTAL_NET", format!("{:.2}", self.total_net)),
+            ("TOTAL_VAT", format!("{:.2}", self.total_vat)),
+            ("TOTAL_GROSS", format!("{:.2}", self.total_gross)),
+            ("CASH_ACCOUNTING", "2".to_string()),
+            ("SELF_BILLING", "2".to_string()),
+            ("REVERSE_CHARGE", "2".to_string()),
+            ("MANDATORY_SPLIT_PAYMENT", "2".to_string()),
+            ("VAT_EXEMPTION_NA", "1".to_string()),
+            ("NEW_MEANS_TRANSPORT_NA", "1".to_string()),
+            ("TRIANGULAR_TRANSACTION", "2".to_string()),
+            ("MARGIN_SCHEME_NA", "1".to_string()),
+            ("INVOICE_LINES", invoice_line),
+            ("PAYMENT_DEADLINE", self.payment_deadline.to_string()),
+            ("PAYMENT_TYPE", DEFAULT_PAYMENT_TYPE.to_string()),
+            ("BANK_ACCOUNT", bank_account),
+        ];
+        fill_placeholders(INVOICE_TEMPLATE, &values)
     }
 }
 
@@ -211,6 +210,36 @@ fn xml_escape(value: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
+}
+
+fn fill_placeholders(template: &str, values: &[(&str, String)]) -> anyhow::Result<String> {
+    let mut replacements: HashMap<&str, Vec<&String>> = HashMap::new();
+    for (name, value) in values {
+        replacements.entry(name).or_default().push(value);
+    }
+    let mut next_occurrence: HashMap<&str, usize> = HashMap::new();
+    let mut xml = String::with_capacity(template.len());
+    let mut remaining = template;
+    while let Some(start) = remaining.find("{{") {
+        xml.push_str(&remaining[..start]);
+        let name_start = start + 2;
+        let name_end = remaining[name_start..].find("}}").ok_or_else(|| anyhow::anyhow!("Unterminated placeholder"))? + name_start;
+        let name = &remaining[name_start..name_end];
+        let occurrence = next_occurrence.entry(name).or_default();
+        let replacement = replacements.get(name)
+            .and_then(|values| values.get(*occurrence))
+            .ok_or_else(|| anyhow::anyhow!("No value provided for placeholder {{{{{name}}}}}"))?;
+        xml.push_str(replacement);
+        *occurrence += 1;
+        remaining = &remaining[name_end + 2..];
+    }
+    xml.push_str(remaining);
+    for (name, values) in replacements {
+        if next_occurrence.get(name).copied().unwrap_or_default() != values.len() {
+            anyhow::bail!("Template does not contain all occurrences of placeholder {{{{{name}}}}}");
+        }
+    }
+    Ok(xml)
 }
 
 async fn submit_invoice(api_key: &str, user_id: &str, xml: &str) -> anyhow::Result<SubmissionReferences> {
@@ -231,7 +260,7 @@ async fn submit_invoice(api_key: &str, user_id: &str, xml: &str) -> anyhow::Resu
     let response = ensure_success(response, "KSeF submission").await?;
     let body: serde_json::Value = response.json().await?;
     if body["success"].as_bool() != Some(true) {
-        anyhow::bail!("KSeF submission failed: {}",body["error"].as_str().unwrap_or("unknown error"));
+        anyhow::bail!("KSeF submission failed: {}", body["error"].as_str().unwrap_or("unknown error"));
     }
     Ok(serde_json::from_value(body["result"].clone())?)
 }

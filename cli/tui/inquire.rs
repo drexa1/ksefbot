@@ -31,11 +31,11 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
         match Select::new("What shall we do now?", MainMenuAction::iter().collect()).prompt()? {
             MainMenuAction::CreateSalesInvoice => prompt_create_invoice(logged_user).await?,
             MainMenuAction::ListSalesInvoices => {
-                let (from, to) = request_invoice_dates()?;
+                let (from, to) = prompt_invoice_dates()?;
                 invoices::list_sales_invoices(logged_user, from, to).await?;
             }
             MainMenuAction::ListPurchaseInvoices => {
-                let (from, to) = request_invoice_dates()?;
+                let (from, to) = prompt_invoice_dates()?;
                 invoices::list_purchase_invoices(logged_user, from, to).await?;
             }
             MainMenuAction::CreateCustomer => customers::create_customer().await?,
@@ -45,6 +45,13 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
         }
         pause()?
     }
+}
+
+pub fn prompt_invoice_dates() -> Result<(String, String)> {
+    let today = Local::now().date_naive();
+    let from = DateSelect::new("From date:").with_starting_date(today).prompt()?;
+    let to = DateSelect::new("To date:").with_starting_date(today.max(from)).with_min_date(from).prompt()?;
+    Ok((from.format("%Y/%m/%d").to_string(), to.format("%Y/%m/%d").to_string()))
 }
 
 pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
@@ -96,18 +103,6 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
         println!("Receipt saved to {}", path.display());
     }
     Ok(())
-}
-
-pub fn request_invoice_dates() -> Result<(NaiveDate, NaiveDate)> {
-    let today = Local::now().date_naive();
-    let from = DateSelect::new("From date:")
-        .with_starting_date(today)
-        .prompt()?;
-    let to = DateSelect::new("To date:")
-        .with_starting_date(today.max(from))
-        .with_min_date(from)
-        .prompt()?;
-    Ok((from, to))
 }
 
 fn pause() -> Result<()> {

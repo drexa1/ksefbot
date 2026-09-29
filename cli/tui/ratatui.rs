@@ -72,16 +72,12 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
                         crate::tui::inquire::prompt_create_invoice(app_user).await?;
                     }
                     MainMenuAction::ListSalesInvoices => {
-                        let Some((from, to)) = request_invoice_dates(terminal)? else {
-                            continue;
-                        };
+                        let (from, to) = request_invoice_dates(terminal)?;
                         restore_terminal(terminal)?;
                         invoices::list_sales_invoices(app_user, from, to).await?;
                     }
                     MainMenuAction::ListPurchaseInvoices => {
-                        let Some((from, to)) = request_invoice_dates(terminal)? else {
-                            continue;
-                        };
+                        let (from, to) = request_invoice_dates(terminal)?;
                         restore_terminal(terminal)?;
                         invoices::list_purchase_invoices(app_user, from, to).await?;
                     }
@@ -108,25 +104,17 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
     }
 }
 
-fn request_invoice_dates(terminal: &mut Tui) -> Result<Option<(NaiveDate, NaiveDate)>> {
+fn request_invoice_dates(terminal: &mut Tui) -> Result<(String, String)> {
     let today = Local::now().date_naive();
-    let Some(from) = select_date(terminal, "From date", today, None)? else {
-        return Ok(None);
-    };
-    let Some(to) = select_date(terminal, "To date", today.max(from), Some(from))? else {
-        return Ok(None);
-    };
-    Ok(Some((from, to)))
+    let from = select_date(terminal, "From date", today, None)?.ok_or_else(|| anyhow::anyhow!("Selection cancelled"))?;
+    let to = select_date(terminal, "To date", today.max(from), Some(from))?.ok_or_else(|| anyhow::anyhow!("Selection cancelled"))?;
+    Ok((from.format("%Y/%m/%d").to_string(), to.format("%Y/%m/%d").to_string()))
 }
 
 fn select_date(terminal: &mut Tui, title: &str, initial: NaiveDate, minimum: Option<NaiveDate>) -> Result<Option<NaiveDate>> {
     let mut selected = initial;
     loop {
-        let date = time::Date::from_calendar_date(
-            selected.year(),
-            (selected.month() as u8).try_into()?,
-            selected.day() as u8
-        )?;
+        let date = time::Date::from_calendar_date(selected.year(), (selected.month() as u8).try_into()?, selected.day() as u8)?;
         terminal.draw(|frame| {
             let area = centered_rect(frame.area(), 90, 90);
             let sections = Layout::vertical([Constraint::Length(11), Constraint::Min(3)]).split(area);

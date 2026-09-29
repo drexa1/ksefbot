@@ -14,7 +14,7 @@ const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(e
 export async function get(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
-    // Allow to fetch only owned invoices (except for superadmin)
+    // Allow fetching only owned invoices (except for superadmin)
     const filters: Record<string, any> = appUser.tier === 0 ? {} : { ownerId: appUser.id };
     for (const [key, value] of url.searchParams.entries()) {
         filters[key] = value;
