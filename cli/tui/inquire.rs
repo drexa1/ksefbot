@@ -3,7 +3,7 @@ use crate::api::users::AppUser;
 use crate::api::{customers, invoices, settings};
 use crate::login::AuthUser;
 use anyhow::Result;
-use chrono::{Local, NaiveDate};
+use chrono::{Local};
 use crossterm::{
     cursor::MoveTo,
     execute,
