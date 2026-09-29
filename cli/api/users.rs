@@ -46,7 +46,7 @@ pub async fn get_app_user(logged_user: &AuthUser) -> anyhow::Result<Option<AppUs
     let response = reqwest::Client::new()
         .get(format!("{}/app/users", cf_worker_url!()))
         .query(&[("email", logged_user.email.as_str())])
-        .query(&[("onboarding", None::<&str>)])
+        .query(&[("onboarding", "true")])
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
         .header("X-API-Key", api_key!())
@@ -57,11 +57,7 @@ pub async fn get_app_user(logged_user: &AuthUser) -> anyhow::Result<Option<AppUs
         return Ok(None);
     }
     let response = response.error_for_status()?;
-    let json: serde_json::Value = response.json().await?;
-    if json["success"].as_bool() != Some(true) {
-        return Ok(None);
-    }
-    let users: Vec<AppUser> = serde_json::from_value(json["result"].clone())?;
+    let users: Vec<AppUser> = response.json().await?;
     Ok(users.into_iter().next())
 }
 

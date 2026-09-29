@@ -5,7 +5,7 @@
 #[macro_export]
 macro_rules! cf_worker_url {
     () => {
-        obfstr::obfstr!("http://127.0.0.1:3001")
+        obfstr::obfstr!("https://ksefbot-api.druizbarbero.workers.dev")
     };
 }
 
