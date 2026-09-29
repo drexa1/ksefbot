@@ -10,6 +10,7 @@ use crossterm::{
 use inquire::{Select, Text};
 use std::io::{self};
 use strum::IntoEnumIterator;
+use crate::api::users::AppUser;
 
 pub async fn login_loop() -> Result<AuthUser> {
     loop {
@@ -24,7 +25,7 @@ pub async fn login_loop() -> Result<AuthUser> {
     }
 }
 
-pub async fn main_loop(logged_user: &AuthUser) -> Result<()> {
+pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
     println!("Logged user: {}", logged_user.email);
     loop {
         match Select::new("What shall we do now?", MainMenuAction::iter().collect()).prompt()? {

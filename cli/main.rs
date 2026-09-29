@@ -1,14 +1,15 @@
 use crate::tui::inquire::{login_loop, main_loop};
 use anyhow::Result;
 use strum::{Display, EnumIter};
+use crate::api::users::{get_app_user, init_app_user};
 
 mod tui {
     pub mod inquire;
     pub mod ratatui;
 }
-
 mod login;
 mod api {
+    pub mod users;
     pub mod customers;
     pub mod invoices;
     pub mod settings;
@@ -32,12 +33,16 @@ async fn main() -> Result<()> {
     match std::env::var("TUI").as_deref() {
         Ok("inquire") => {
             let logged_user = login_loop().await?;
-            main_loop(&logged_user).await?;
+            let app_user = match get_app_user(&logged_user).await? {
+                Some(app_user) => app_user,
+                None => init_app_user(&logged_user).await?,
+            };
+            main_loop(&app_user).await?;
         }
         Ok("ratatui") | Err(_) => {
             tui::ratatui::run().await?;
         }
-        Ok(tui) => anyhow::bail!("Unknown TUI implementation: {tui}"),
+        Ok(tui) => anyhow::bail!("Unknown TUI implementation: {tui}")
     }
     Ok(())
 }
