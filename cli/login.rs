@@ -26,7 +26,8 @@ pub enum LoginMethod {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct AuthUser {
     pub name: Option<String>,
-    pub email: String
+    pub email: Option<String>,
+    pub phone: Option<String>
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -267,7 +268,8 @@ fn login_with_email(email: &str, password: &str) -> Result<AuthUser> {
     println!("  [API] Response: authentication successful");
     let user = AuthUser {
         name: Some("Dummy User".to_owned()),
-        email: "dummy@example.com".to_owned()
+        email: Some("dummy@example.com".to_owned()),
+        phone: None,
     };
     Ok(user)
 }

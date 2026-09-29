@@ -59,7 +59,7 @@ async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
 }
 
 async fn main_loop(terminal: &mut Tui, logged_user: &AuthUser) -> Result<()> {
-    println!("Logged user: {}", logged_user.email);
+    println!("Logged user: {:?}", logged_user.email);
     let actions: Vec<MainMenuAction> = MainMenuAction::iter().collect();
     let mut selected = 0usize;
     loop {
