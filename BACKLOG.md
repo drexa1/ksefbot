@@ -64,6 +64,7 @@
 - [x] Method to check if whatsapp user is new
 - [x] CLI: Google SSO
 - [x] CLI: Microsoft SSO  
+- [ ] Move invoiceToXml completely to worker  
 - [ ] Fix tests failing after refactor  
 - [ ] Schedule daily tests  
 - [ ] CLI: login with email  
