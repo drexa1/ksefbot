@@ -15,22 +15,19 @@ codegen-units = 1
 
 [dependencies]
 anyhow = "1.0.104"
-chrono = "0.4"
+base64 = "0.23.1"
 crossterm = "0.29.0"
 dotenvy = "0.15"
-inquire = { version = "0.9.4", features = ["date"] }
+inquire = "0.9.4"
 oauth2 = { version = "5.0.0", features = ["reqwest-blocking"] }
 obfstr = "0.4.6"
+rand = "0.10.3"
 reqwest = { version = "0.13.5", features = ["json", "query", "blocking", "form", "multipart"] }
-strum = { version = "0.28.0", features = ["derive"] }
-tokio = { version = "1.53.1", features = ["rt", "rt-multi-thread", "macros"] }
 serde_json = "1.0.151"
-ratatui = { version = "0.30.2", features = ["widget-calendar"] }
-time = "0.3"
+sha2 = "0.11.0"
+strum = { version = "0.28.0", features = ["derive"] }
+ratatui = "0.30.2"
+tokio = { version = "1.53.1", features = ["rt", "rt-multi-thread", "macros"] }
 url = "2.5.8"
 webbrowser = "1.2.4"
 serde = { version = "1.0.229", features = ["derive"] }
-jsonwebtoken = "11.1.0"
-base64 = "0.23.1"
-rand = "0.10.3"
-sha2 = "0.11.0"
