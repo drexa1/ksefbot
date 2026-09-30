@@ -27,5 +27,6 @@ export async function loadUserProfile(userId: string): Promise<AppUser> {
     });
     if (!response.ok)
         throw new Error(`Failed to fetch user profile: ${response.status}`);
-    return await response.json();
+    const users: AppUser[] = await response.json();
+    return users[0];
 }

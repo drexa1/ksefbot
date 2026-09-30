@@ -71,7 +71,7 @@ async function initContractorData(userProfile: AppUser) {
     customers.length > 0
         ? console.info(`${customers.length} customers(s) found`)
         : console.warn(`No customers found for this user`);  // Possible
-	return { userContractor, customers };
+    return { userContractor, customers };
 }
 
 /// Autocomplete by contractor name ------------------------------------------------------------------------------------
