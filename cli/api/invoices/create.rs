@@ -13,21 +13,14 @@ const DEFAULT_PAYMENT_TERM_DAYS: i64 = 7;
 #[derive(Clone, Copy, Default, strum::Display)]
 #[allow(dead_code)]
 enum PaymentType {
-    #[strum(to_string = "1")]
-    Cash,
-    #[strum(to_string = "2")]
-    Card,
-    #[strum(to_string = "3")]
-    Voucher,
-    #[strum(to_string = "4")]
-    Check,
-    #[strum(to_string = "5")]
-    Credit,
+    #[strum(to_string = "1")] Cash,
+    #[strum(to_string = "2")] Card,
+    #[strum(to_string = "3")] Voucher,
+    #[strum(to_string = "4")] Check,
+    #[strum(to_string = "5")] Credit,
     #[default]
-    #[strum(to_string = "6")]
-    Transfer,
-    #[strum(to_string = "7")]
-    Mobile
+    #[strum(to_string = "6")] Transfer,
+    #[strum(to_string = "7")] Mobile
 }
 
 pub struct InvoiceParties {
@@ -194,16 +187,16 @@ impl InvoiceData {
         set_text(annotations, "P_17", "2");
         set_text(annotations, "P_18", "2");
         set_text(annotations, "P_18A", "2");
-        set_text(annotations, "P_19N", "1");
-        set_text(annotations, "P_22N", "1");
+        set_text(annotations.get_mut_child("Zwolnienie").unwrap(), "P_19N", "1");
+        set_text(annotations.get_mut_child("NoweSrodkiTransportu").unwrap(), "P_22N", "1");
         set_text(annotations, "P_23", "2");
-        set_text(annotations, "P_PMarzyN", "1");
+        set_text(annotations.get_mut_child("PMarzy").unwrap(), "P_PMarzyN", "1");
 
         let invoice_line = invoice_line(self);
         insert_at_placeholder(fa, "{{INVOICE_LINES}}", invoice_line);
 
         let payment = fa.get_mut_child("Platnosc").unwrap();
-        set_text(payment, "Termin", &self.payment_deadline.to_string());
+        set_text(payment.get_mut_child("TerminPlatnosci").unwrap(), "Termin", &self.payment_deadline.to_string());
         set_text(payment, "FormaPlatnosci", &PaymentType::default().to_string());
         if let Some(account) = bank_account.filter(|account| !account.trim().is_empty()) {
             let mut bank = Element::new("RachunekBankowy");
@@ -264,6 +257,41 @@ fn remove_placeholder(parent: &mut Element, placeholder: &str) {
         matches!(node, XMLNode::Text(text) if text.contains(placeholder))
     }).unwrap();
     parent.children.remove(index);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invoice_xml_updates_nested_template_fields() {
+        let invoice = InvoiceData {
+            number: "eFA/2026/09/1".to_string(),
+            issue_date: NaiveDate::from_ymd_opt(2026, 9, 30).unwrap(),
+            delivery_date: NaiveDate::from_ymd_opt(2026, 9, 30).unwrap(),
+            payment_deadline: NaiveDate::from_ymd_opt(2026, 10, 7).unwrap(),
+            item_name: "Consulting".to_string(),
+            hours_worked: 1,
+            hourly_rate: 160.0,
+            total_net: 160.0,
+            total_vat: 36.8,
+            total_gross: 196.8
+        };
+        let contractor = AppContractor {
+            id: "seller".to_string(),
+            name: "Seller".to_string(),
+            nip: Some("1234567890".to_string()),
+            country_code: "PL".to_string(),
+            address_l1: "Kraków, 30-000, Street 1".to_string()
+        };
+
+        let xml = invoice.to_xml(&contractor, &contractor, None).unwrap();
+
+        assert!(xml.contains("<P_19N>1</P_19N>"));
+        assert!(xml.contains("<P_22N>1</P_22N>"));
+        assert!(xml.contains("<P_PMarzyN>1</P_PMarzyN>"));
+        assert!(xml.contains("<Termin>2026-10-07</Termin>"));
+    }
 }
 
 fn round_money(amount: f64) -> f64 {
