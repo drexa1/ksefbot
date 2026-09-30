@@ -617,9 +617,15 @@ export const getOpenApiSpec = () => ({
                 summary: "List invoices - Restricted to resources owned by the authenticated user.",
                 tags: ["App invoices"],
                 security: [{ ApiKeyAuth: [] }],
-                parameters: [{ name: "id", in: "query", required: false, schema: { type: "string" } }],
+                parameters: [
+                    { name: "id", in: "query", required: false, schema: { type: "string" } },
+                    { name: "format", in: "query", required: false, description: "Set to xml to download the raw invoice XML. Requires id.", schema: {
+                            type: "string", enum: ["xml"]
+                        }
+                    }
+                ],
                 responses: {
-                    "200": { description: "Invoice records" },
+                    "200": { description: "Invoice records or raw XML when format=xml" },
                     "401": { description: "Unauthorized" },
                     "404": { description: "Invoice not found" }
                 }
