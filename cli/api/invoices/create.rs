@@ -68,6 +68,22 @@ pub struct KsefSubmissionReferences {
     pub invoice_reference_number: String
 }
 
+impl SalesInvoice {
+    pub fn from_xml(xml: String) -> anyhow::Result<Self> {
+        let root = Element::parse(xml.as_bytes())?;
+        let fa = root.get_child("Fa").unwrap();
+        let invoice_number = fa.get_child("P_2").unwrap().get_text().unwrap().to_string();
+        let issue_date = NaiveDate::parse_from_str(&fa.get_child("P_1").unwrap().get_text().unwrap(), "%Y-%m-%d")?;
+        Ok(Self {
+            invoice_number,
+            month_name: issue_date.format("%B").to_string().to_lowercase(),
+            year: issue_date.year(),
+            xml,
+            submission: None
+        })
+    }
+}
+
 pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<InvoiceParties> {
     let contractors = load_contractors(app_user).await?;
     let user_contractor = contractors.iter()
@@ -314,7 +330,7 @@ pub async fn upload_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &
     if response.status() == reqwest::StatusCode::CONFLICT {
         let body: serde_json::Value = response.json().await?;
         return Ok(UploadInvoiceResult::AlreadyExists(
-            body["error"].as_str().unwrap_or("✅ Invoice already existed").to_owned()
+            body["error"].as_str().unwrap_or("✅ Invoice already exists").to_owned()
         ));
     }
     let response = ensure_success(response, "📤 Invoice uploaded").await?;
