@@ -61,17 +61,17 @@ pub fn prompt_invoice_dates() -> Result<(String, String)> {
 }
 
 pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
+    // Import previously generated (but not submitted) .xml
     let generated_files = generated_invoice_files()?;
-    let import_invoice = !generated_files.is_empty()
-        && Select::new("Create a new invoice or import a generated XML?", vec![
-            "📄 Create a new invoice",
-            "📂 Import a generated XML"
-        ]).prompt()? == "📂 Import a generated XML";
+    let import_invoice = !generated_files.is_empty() && Select::new("Create a new invoice or import a generated XML?", vec![
+        "📄 Create a new invoice",
+        "📂 Import a generated XML"
+    ]).prompt()? == "📂 Import a generated XML";
     let mut new_invoice = if import_invoice {
-            let Some(invoice) = import_generated_invoice(&generated_files)? else {
-                return Ok(false);
-            };
-            invoice
+        let Some(invoice) = import_generated_invoice(&generated_files)? else {
+            return Ok(false);
+        };
+        invoice
     } else {
         // Fetch invoice counterparties
         let invoice_parties = load_invoice_parties(app_user).await?;
