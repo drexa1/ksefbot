@@ -108,7 +108,8 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
         let home = std::env::var_os("USERPROFILE").unwrap();
         let app_folder = std::path::PathBuf::from(home).join(".ksefbot");
         std::fs::create_dir_all(&app_folder)?;
-        let original_path = app_folder.join(format!("{}.xml", new_invoice.month_name));
+        let file_stem = format!("{}-{}", new_invoice.month_name, new_invoice.year);
+        let original_path = app_folder.join(format!("{file_stem}.xml"));
         let path = if original_path.exists() {
             let choice = Select::new(
                 "An invoice file for this month already exists. What shall we do?",
@@ -119,7 +120,7 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
                 "2. Save a new file" => {
                     let mut suffix = 2;
                     let path = loop {
-                        let candidate = app_folder.join(format!("{}-{suffix}.xml", new_invoice.month_name));
+                        let candidate = app_folder.join(format!("{file_stem}-{suffix}.xml"));
                         if !candidate.exists() {
                             break candidate;
                         }

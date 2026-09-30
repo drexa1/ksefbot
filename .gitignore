@@ -8,4 +8,5 @@ target
 tests/api/collection.bru
 tests/testresources/ksef
 .dev.vars
+AGENTS.md
 API_KEYS

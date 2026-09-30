@@ -2,9 +2,8 @@ use crate::api::customers::{AppContractor, load_contractors};
 use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
 use chrono::{Datelike, Duration, Local, NaiveDate, SecondsFormat, Utc};
-use std::collections::HashMap;
-use std::fmt::Write as _;
 use std::path::PathBuf;
+use xmltree::{Element, EmitterConfig, XMLNode};
 
 const DEFAULT_VAT_RATE: f64 = 0.23;
 const DEFAULT_PAYMENT_TYPE: &str = "6";
@@ -19,6 +18,7 @@ pub struct InvoiceParties {
 pub struct SalesInvoice {
     pub invoice_number: String,
     pub month_name: String,
+    pub year: i32,
     pub xml: String,
     pub session_reference_number: Option<String>,
     pub invoice_reference_number: Option<String>
@@ -95,6 +95,7 @@ pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer
     Ok(SalesInvoice {
         invoice_number: invoice.number,
         month_name: invoice.issue_date.format("%B").to_string().to_lowercase(),
+        year: invoice.issue_date.year(),
         xml,
         session_reference_number: None,
         invoice_reference_number: None
@@ -113,24 +114,16 @@ impl InvoiceData {
         }
         let net_unrounded = hourly_rate * f64::from(hours_worked);
         let vat_unrounded = net_unrounded * DEFAULT_VAT_RATE;
-        if !net_unrounded.is_finite() || !vat_unrounded.is_finite() || net_unrounded.abs() > f64::MAX / 100.0 || vat_unrounded.abs() > f64::MAX / 100.0 {
-            anyhow::bail!("Invoice total is too large");
-        }
         let total_net = round_money(net_unrounded);
         let total_vat = round_money(vat_unrounded);
         let total_gross = round_money(total_net + total_vat);
-        if !total_gross.is_finite() {
-            anyhow::bail!("Invoice total is too large");
-        }
         let year = today.year();
         let month = today.month();
         let posting_date = NaiveDate::from_ymd_opt(year, month, 1)
             .and_then(|date| date.checked_add_months(chrono::Months::new(1)))
             .and_then(|date| date.pred_opt())
-            .ok_or_else(|| anyhow::anyhow!("Could not determine the current month's end date"))?;
-        let payment_deadline = posting_date.checked_add_signed(Duration::days(DEFAULT_PAYMENT_TERM_DAYS)).ok_or_else(|| {
-            anyhow::anyhow!("Payment deadline is outside the supported date range")
-        })?;
+            .unwrap();
+        let payment_deadline = posting_date.checked_add_signed(Duration::days(DEFAULT_PAYMENT_TERM_DAYS)).unwrap();
         Ok(Self {
             number: format!("eFA/{year}/{month:02}/1"),
             issue_date: today,
@@ -146,95 +139,117 @@ impl InvoiceData {
     }
 
     fn to_xml(&self, seller: &AppContractor, customer: &AppContractor, bank_account: Option<&str>) -> anyhow::Result<String> {
-        let mut invoice_line = String::new();
-        let _ = write!(invoice_line,
-            "<FaWiersz><NrWierszaFa>1</NrWierszaFa><P_7>{}</P_7><P_8A>hour</P_8A>\
-             <P_8B>{}</P_8B><P_9A>{:.2}</P_9A><P_11>{:.2}</P_11><P_11Vat>{:.2}</P_11Vat>\
-             <P_12>23</P_12></FaWiersz>",
-            xml_escape(&self.item_name),
-            self.hours_worked,
-            self.hourly_rate,
-            self.total_net,
-            self.total_vat
-        );
-        let bank_account = bank_account
-            .filter(|account| !account.trim().is_empty())
-            .map(|account| format!("<RachunekBankowy><NrRB>{}</NrRB></RachunekBankowy>", xml_escape(account)))
-            .unwrap_or_default();
-        let values = [
-            ("FORM_CODE", "FA".to_string()),
-            ("GENERATION_DATE", Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
-            ("SYSTEM_INFO", "KSeF Bot".to_string()),
-            ("CONTRACTOR_NIP", xml_escape(seller.nip.as_deref().unwrap_or_default())),
-            ("CONTRACTOR_NAME", xml_escape(&seller.name)),
-            ("COUNTRY_CODE", xml_escape(&seller.country_code)),
-            ("CONTRACTOR_ADDRESS", xml_escape(&seller.address_l1)),
-            ("CUSTOMER_NIP", xml_escape(customer.nip.as_deref().unwrap_or_default())),
-            ("CUSTOMER_NAME", xml_escape(&customer.name)),
-            ("COUNTRY_CODE", xml_escape(&customer.country_code)),
-            ("CUSTOMER_ADDRESS", xml_escape(&customer.address_l1)),
-            ("JST", "2".to_string()),
-            ("GV", "2".to_string()),
-            ("ISSUE_DATE", self.issue_date.to_string()),
-            ("ISSUE_PLACE", String::new()),
-            ("INVOICE_NUMBER", xml_escape(&self.number)),
-            ("DELIVERY_DATE", self.delivery_date.to_string()),
-            ("TOTAL_NET", format!("{:.2}", self.total_net)),
-            ("TOTAL_VAT", format!("{:.2}", self.total_vat)),
-            ("TOTAL_GROSS", format!("{:.2}", self.total_gross)),
-            ("CASH_ACCOUNTING", "2".to_string()),
-            ("SELF_BILLING", "2".to_string()),
-            ("REVERSE_CHARGE", "2".to_string()),
-            ("MANDATORY_SPLIT_PAYMENT", "2".to_string()),
-            ("VAT_EXEMPTION_NA", "1".to_string()),
-            ("NEW_MEANS_TRANSPORT_NA", "1".to_string()),
-            ("TRIANGULAR_TRANSACTION", "2".to_string()),
-            ("MARGIN_SCHEME_NA", "1".to_string()),
-            ("INVOICE_LINES", invoice_line),
-            ("PAYMENT_DEADLINE", self.payment_deadline.to_string()),
-            ("PAYMENT_TYPE", DEFAULT_PAYMENT_TYPE.to_string()),
-            ("BANK_ACCOUNT", bank_account),
-        ];
-        fill_placeholders(INVOICE_TEMPLATE, &values)
+        let mut root = Element::parse(INVOICE_TEMPLATE.as_bytes())?;
+        let header = root.get_mut_child("Naglowek").unwrap();
+        set_text(header, "KodFormularza", "FA");
+        set_text(header, "DataWytworzeniaFa", &Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true));
+        set_text(header, "SystemInfo", "KSeF Bot");
+
+        let seller_element = root.get_mut_child("Podmiot1").unwrap();
+        let seller_identification = seller_element.get_mut_child("DaneIdentyfikacyjne").unwrap();
+        set_text(seller_identification, "NIP", seller.nip.as_deref().unwrap_or_default());
+        set_text(seller_identification, "Nazwa", &seller.name);
+        let seller_address = seller_element.get_mut_child("Adres").unwrap();
+        set_text(seller_address, "KodKraju", &seller.country_code);
+        set_text(seller_address, "AdresL1", &seller.address_l1);
+
+        let buyer = root.get_mut_child("Podmiot2").unwrap();
+        let buyer_identification = buyer.get_mut_child("DaneIdentyfikacyjne").unwrap();
+        set_text(buyer_identification, "NIP", customer.nip.as_deref().unwrap_or_default());
+        set_text(buyer_identification, "Nazwa", &customer.name);
+        let buyer_address = buyer.get_mut_child("Adres").unwrap();
+        set_text(buyer_address, "KodKraju", &customer.country_code);
+        set_text(buyer_address, "AdresL1", &customer.address_l1);
+
+        let fa = root.get_mut_child("Fa").unwrap();
+        set_text(fa, "P_1", &self.issue_date.to_string());
+        set_text(fa, "P_1M", seller.address_l1.split(',').next().unwrap_or_default().trim());
+        set_text(fa, "P_2", &self.number);
+        set_text(fa, "P_6", &self.delivery_date.to_string());
+        set_text(fa, "P_13_1", &format!("{:.2}", self.total_net));
+        set_text(fa, "P_14_1", &format!("{:.2}", self.total_vat));
+        set_text(fa, "P_15", &format!("{:.2}", self.total_gross));
+        set_text(fa, "RodzajFaktury", "VAT");
+
+        let annotations = fa.get_mut_child("Adnotacje").unwrap();
+        set_text(annotations, "P_16", "2");
+        set_text(annotations, "P_17", "2");
+        set_text(annotations, "P_18", "2");
+        set_text(annotations, "P_18A", "2");
+        set_text(annotations, "P_19N", "1");
+        set_text(annotations, "P_22N", "1");
+        set_text(annotations, "P_23", "2");
+        set_text(annotations, "P_PMarzyN", "1");
+
+        let invoice_line = invoice_line(self);
+        insert_at_placeholder(fa, "{{INVOICE_LINES}}", invoice_line);
+
+        let payment = fa.get_mut_child("Platnosc").unwrap();
+        set_text(payment, "Termin", &self.payment_deadline.to_string());
+        set_text(payment, "FormaPlatnosci", DEFAULT_PAYMENT_TYPE);
+        if let Some(account) = bank_account.filter(|account| !account.trim().is_empty()) {
+            let mut bank = Element::new("RachunekBankowy");
+            bank.children.push(XMLNode::Element(text_element("NrRB", account)));
+            insert_at_placeholder(payment, "{{BANK_ACCOUNT}}", bank);
+        } else {
+            remove_placeholder(payment, "{{BANK_ACCOUNT}}");
+        }
+
+        let mut xml = Vec::new();
+        root.write_with_config(
+            &mut xml,
+            EmitterConfig::new().perform_indent(true).write_document_declaration(true)
+        )?;
+        Ok(String::from_utf8(xml)?)
     }
+}
+
+fn set_text(parent: &mut Element, name: &str, value: &str) {
+    let element = parent.get_mut_child(name).unwrap();
+    element.children.clear();
+    element.children.push(XMLNode::Text(value.to_string()));
+}
+
+fn text_element(name: &str, value: &str) -> Element {
+    let mut element = Element::new(name);
+    element.children.push(XMLNode::Text(value.to_string()));
+    element
+}
+
+fn invoice_line(invoice: &InvoiceData) -> Element {
+    let mut line = Element::new("FaWiersz");
+    for (name, value) in [
+        ("NrWierszaFa", "1".to_string()),
+        ("P_7", invoice.item_name.clone()),
+        ("P_8A", "hour".to_string()),
+        ("P_8B", invoice.hours_worked.to_string()),
+        ("P_9A", format!("{:.2}", invoice.hourly_rate)),
+        ("P_11", format!("{:.2}", invoice.total_net)),
+        ("P_11Vat", format!("{:.2}", invoice.total_vat)),
+        ("P_12", "23".to_string()),
+    ] {
+        line.children.push(XMLNode::Element(text_element(name, &value)));
+    }
+    line
+}
+
+fn insert_at_placeholder(parent: &mut Element, placeholder: &str, element: Element) {
+    let index = parent.children.iter().position(|node| {
+        matches!(node, XMLNode::Text(text) if text.contains(placeholder))
+    }).unwrap();
+    parent.children.remove(index);
+    parent.children.insert(index, XMLNode::Element(element));
+}
+
+fn remove_placeholder(parent: &mut Element, placeholder: &str) {
+    let index = parent.children.iter().position(|node| {
+        matches!(node, XMLNode::Text(text) if text.contains(placeholder))
+    }).unwrap();
+    parent.children.remove(index);
 }
 
 fn round_money(amount: f64) -> f64 {
     (amount * 100.0).round() / 100.0
-}
-
-fn xml_escape(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
-}
-
-fn fill_placeholders(template: &str, values: &[(&str, String)]) -> anyhow::Result<String> {
-    let mut placeholders: HashMap<&str, Vec<&String>> = HashMap::new();
-    for (name, value) in values {
-        placeholders.entry(name).or_default().push(value);
-    }
-    let mut next_occurrence: HashMap<&str, usize> = HashMap::new();
-    let mut xml = String::with_capacity(template.len());
-    let mut remaining = template;
-    while let Some(start) = remaining.find("{{") {
-        xml.push_str(&remaining[..start]);
-        let name_start = start + 2;
-        let name_end = remaining[name_start..].find("}}").ok_or_else(|| anyhow::anyhow!("Unterminated placeholder"))? + name_start;
-        let name = &remaining[name_start..name_end];
-        let occurrence = next_occurrence.entry(name).or_default();
-        let replacement = placeholders.get(name)
-            .and_then(|values| values.get(*occurrence))
-            .ok_or_else(|| anyhow::anyhow!("No value for placeholder {{{name}}}"))?;
-        xml.push_str(replacement);
-        *occurrence += 1;
-        remaining = &remaining[name_end + 2..];
-    }
-    xml.push_str(remaining);
-    Ok(xml)
 }
 
 pub async fn upload_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &str) -> anyhow::Result<UploadInvoiceResult> {
