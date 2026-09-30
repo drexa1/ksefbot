@@ -1,9 +1,10 @@
 use crate::MainMenuAction;
+use crate::api::invoices::create::{SalesInvoice, UploadInvoiceResult, create_invoice, download_receipt, load_invoice_parties, preview_sales_invoice, submit_invoice, upload_invoice};
 use crate::api::users::AppUser;
 use crate::api::{customers, invoices, settings};
 use crate::login::AuthUser;
 use anyhow::Result;
-use chrono::{Local};
+use chrono::Local;
 use crossterm::{
     cursor::MoveTo,
     execute,
@@ -11,9 +12,10 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 use inquire::{Confirm, DateSelect, Select, Text};
+use std::fs::{create_dir_all, read_dir, read_to_string, write};
 use std::io::{self};
+use std::path::PathBuf;
 use strum::IntoEnumIterator;
-use crate::api::invoices::create::{create_invoice, download_receipt, load_invoice_parties, preview_sales_invoice, submit_invoice, upload_invoice, UploadInvoiceResult};
 
 pub async fn login_loop() -> Result<AuthUser> {
     loop {
@@ -29,8 +31,9 @@ pub async fn login_loop() -> Result<AuthUser> {
 
 pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
     loop {
+        let mut pause_after_action = true;
         match Select::new("What shall we do now?", MainMenuAction::iter().collect()).prompt()? {
-            MainMenuAction::CreateSalesInvoice => prompt_create_invoice(logged_user).await?,
+            MainMenuAction::CreateSalesInvoice => pause_after_action = prompt_create_invoice(logged_user).await?,
             MainMenuAction::ListSalesInvoices => {
                 let (from, to) = prompt_invoice_dates()?;
                 invoices::list_sales_invoices(logged_user, from, to).await?;
@@ -44,7 +47,9 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
             MainMenuAction::UserSettings => settings::edit_profile().await?,
             MainMenuAction::Exit => return Ok(()),
         }
-        pause()?
+        if pause_after_action {
+            pause()?;
+        }
     }
 }
 
@@ -55,15 +60,18 @@ pub fn prompt_invoice_dates() -> Result<(String, String)> {
     Ok((from.format("%Y/%m/%d").to_string(), to.format("%Y/%m/%d").to_string()))
 }
 
-pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
+pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
     let generated_files = generated_invoice_files()?;
     let import_invoice = !generated_files.is_empty()
         && Select::new("Create a new invoice or import a generated XML?", vec![
-            "Create a new invoice",
-            "Import a generated XML"
-        ]).prompt()? == "Import a generated XML";
+            "📄 Create a new invoice",
+            "📂 Import a generated XML"
+        ]).prompt()? == "📂 Import a generated XML";
     let mut new_invoice = if import_invoice {
-        import_generated_invoice(&generated_files)?
+            let Some(invoice) = import_generated_invoice(&generated_files)? else {
+                return Ok(false);
+            };
+            invoice
     } else {
         // Fetch invoice counterparties
         let invoice_parties = load_invoice_parties(app_user).await?;
@@ -113,8 +121,8 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
         // Save .xml to application folder
         if Confirm::new("Save invoice .xml to application folder?").with_default(true).prompt()? {
             let home = std::env::var_os("USERPROFILE").unwrap();
-            let app_folder = std::path::PathBuf::from(home).join(".ksefbot").join("generated");
-            std::fs::create_dir_all(&app_folder)?;
+            let app_folder = PathBuf::from(home).join(".ksefbot").join("generated");
+            create_dir_all(&app_folder)?;
             let file_stem = format!("{}-{}", new_invoice.month_name, new_invoice.year);
             let original_path = app_folder.join(format!("{file_stem}.xml"));
             let path = if original_path.exists() {
@@ -141,7 +149,7 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
                 Some(original_path)
             };
             if let Some(path) = path {
-                std::fs::write(&path, &new_invoice.xml)?;
+                write(&path, &new_invoice.xml)?;
                 println!("  📂 Invoice .xml saved to {}", path.display().to_string().dark_yellow());
             }
         }
@@ -163,29 +171,33 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
     } else {
         println!("  Invoice created but not submitted.");
     }
-    Ok(())
+    Ok(true)
 }
 
-fn generated_invoice_files() -> Result<Vec<std::path::PathBuf>> {
+fn generated_invoice_files() -> Result<Vec<PathBuf>> {
     let home = std::env::var_os("USERPROFILE").unwrap();
-    let generated_folder = std::path::PathBuf::from(home).join(".ksefbot").join("generated");
-    std::fs::create_dir_all(&generated_folder)?;
-    let mut files: Vec<_> = std::fs::read_dir(&generated_folder)?
+    let generated_folder = PathBuf::from(home).join(".ksefbot").join("generated");
+    create_dir_all(&generated_folder)?;
+    let mut files: Vec<_> = read_dir(&generated_folder)?
         .map(|entry| entry.map(|entry| entry.path()))
-        .collect::<std::io::Result<Vec<_>>>()?;
+        .collect::<io::Result<Vec<_>>>()?;
     files.retain(|path| path.is_file() && path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("xml")));
     files.sort();
     Ok(files)
 }
 
-fn import_generated_invoice(files: &[std::path::PathBuf]) -> Result<crate::api::invoices::create::SalesInvoice> {
-    let choices: Vec<String> = files.iter()
+fn import_generated_invoice(files: &[PathBuf]) -> Result<Option<SalesInvoice>> {
+    let mut choices: Vec<String> = files.iter()
         .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
         .collect();
+    choices.push("Back ↩️".to_string());
     let selected = Select::new("Select a generated invoice XML", choices).prompt()?;
+    if selected == "Back ↩️" {
+        return Ok(None);
+    }
     let index = files.iter().position(|path| path.file_name().unwrap().to_string_lossy() == selected).unwrap();
-    let xml = std::fs::read_to_string(&files[index])?;
-    Ok(crate::api::invoices::create::SalesInvoice::from_xml(xml)?)
+    let xml = read_to_string(&files[index])?;
+    Ok(Some(SalesInvoice::from_xml(xml)?))
 }
 
 fn pause() -> Result<()> {
