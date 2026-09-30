@@ -178,7 +178,7 @@ impl InvoiceData {
         set_text(seller_identification, "Nazwa", &seller.name);
         let seller_address = seller_element.get_mut_child("Adres").unwrap();
         set_text(seller_address, "KodKraju", &seller.country_code);
-        set_text(seller_address, "AdresL1", &seller.address_l1);
+        set_text(seller_address, "AdresL1", &seller_invoice_address(&seller.address_l1));
 
         let buyer = root.get_mut_child("Podmiot2").unwrap();
         let buyer_identification = buyer.get_mut_child("DaneIdentyfikacyjne").unwrap();
@@ -187,15 +187,17 @@ impl InvoiceData {
         let buyer_address = buyer.get_mut_child("Adres").unwrap();
         set_text(buyer_address, "KodKraju", &customer.country_code);
         set_text(buyer_address, "AdresL1", &customer.address_l1);
+        set_text(buyer, "JST", "2");
+        set_text(buyer, "GV", "2");
 
         let fa = root.get_mut_child("Fa").unwrap();
         set_text(fa, "P_1", &self.issue_date.to_string());
         set_text(fa, "P_1M", seller.address_l1.split(',').next().unwrap_or_default().trim());
         set_text(fa, "P_2", &self.number);
         set_text(fa, "P_6", &self.delivery_date.to_string());
-        set_text(fa, "P_13_1", &format!("{:.2}", self.total_net));
-        set_text(fa, "P_14_1", &format!("{:.2}", self.total_vat));
-        set_text(fa, "P_15", &format!("{:.2}", self.total_gross));
+        set_text(fa, "P_13_1", &format_amount(self.total_net));
+        set_text(fa, "P_14_1", &format_amount(self.total_vat));
+        set_text(fa, "P_15", &format_amount(self.total_gross));
         set_text(fa, "RodzajFaktury", "VAT");
 
         let annotations = fa.get_mut_child("Adnotacje").unwrap();
@@ -248,11 +250,11 @@ fn invoice_line(invoice: &InvoiceData) -> Element {
     for (name, value) in [
         ("NrWierszaFa", "1".to_string()),
         ("P_7", invoice.item_name.clone()),
-        ("P_8A", "hour".to_string()),
+        ("P_8A", "szt".to_string()),
         ("P_8B", invoice.hours_worked.to_string()),
-        ("P_9A", format!("{:.2}", invoice.hourly_rate)),
-        ("P_11", format!("{:.2}", invoice.total_net)),
-        ("P_11Vat", format!("{:.2}", invoice.total_vat)),
+        ("P_9A", format_amount(invoice.hourly_rate)),
+        ("P_11", format_amount(invoice.total_net)),
+        ("P_11Vat", format_amount(invoice.total_vat)),
         ("P_12", DEFAULT_VAT_RATE.to_string()),
     ] {
         line.children.push(XMLNode::Element(text_element(name, &value)));
@@ -298,11 +300,20 @@ mod tests {
             name: "Seller".to_string(),
             nip: Some("1234567890".to_string()),
             country_code: "PL".to_string(),
-            address_l1: "Kraków, 30-000, Street 1".to_string()
+            address_l1: "Kraków, 30-638, 15/32".to_string()
         };
 
         let xml = invoice.to_xml(&contractor, &contractor, None).unwrap();
 
+        assert!(!xml.contains("{{"));
+        assert!(xml.contains("<AdresL1>Kraków, 30-638, /</AdresL1>"));
+        assert!(xml.contains("<JST>2</JST>"));
+        assert!(xml.contains("<GV>2</GV>"));
+        assert!(xml.contains("<P_13_1>160</P_13_1>"));
+        assert!(xml.contains("<P_14_1>36.8</P_14_1>"));
+        assert!(xml.contains("<P_15>196.8</P_15>"));
+        assert!(xml.contains("<P_8A>szt</P_8A>"));
+        assert!(xml.contains("<P_9A>160</P_9A>"));
         assert!(xml.contains("<P_19N>1</P_19N>"));
         assert!(xml.contains("<P_22N>1</P_22N>"));
         assert!(xml.contains("<P_PMarzyN>1</P_PMarzyN>"));
@@ -312,6 +323,18 @@ mod tests {
 
 fn round_money(amount: f64) -> f64 {
     (amount * 100.0).round() / 100.0
+}
+
+fn format_amount(amount: f64) -> String {
+    format!("{amount:.2}").trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+fn seller_invoice_address(address: &str) -> String {
+    let mut parts = address.split(", ");
+    let town = parts.next().unwrap_or_default();
+    let postal_code = parts.next().unwrap_or_default();
+    let building = parts.next().and_then(|street_and_building| street_and_building.rsplit_once(' ').map(|(_, building)| building)).unwrap_or_default();
+    format!("{town}, {postal_code}, {building}/")
 }
 
 pub async fn upload_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &str) -> anyhow::Result<UploadInvoiceResult> {
