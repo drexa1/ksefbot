@@ -5,10 +5,30 @@ use chrono::{Datelike, Duration, Local, NaiveDate, SecondsFormat, Utc};
 use std::path::PathBuf;
 use xmltree::{Element, EmitterConfig, XMLNode};
 
-const DEFAULT_VAT_RATE: f64 = 0.23;
-const DEFAULT_PAYMENT_TYPE: &str = "6";
-const DEFAULT_PAYMENT_TERM_DAYS: i64 = 7;
 const INVOICE_TEMPLATE: &str = include_str!("../../../public/schemas/invoice-template.xml");
+
+const DEFAULT_VAT_RATE: u32 = 23;
+const DEFAULT_PAYMENT_TERM_DAYS: i64 = 7;
+
+#[derive(Clone, Copy, Default, strum::Display)]
+#[allow(dead_code)]
+enum PaymentType {
+    #[strum(to_string = "1")]
+    Cash,
+    #[strum(to_string = "2")]
+    Card,
+    #[strum(to_string = "3")]
+    Voucher,
+    #[strum(to_string = "4")]
+    Check,
+    #[strum(to_string = "5")]
+    Credit,
+    #[default]
+    #[strum(to_string = "6")]
+    Transfer,
+    #[strum(to_string = "7")]
+    Mobile
+}
 
 pub struct InvoiceParties {
     pub user_contractor: AppContractor,
@@ -20,8 +40,7 @@ pub struct SalesInvoice {
     pub month_name: String,
     pub year: i32,
     pub xml: String,
-    pub session_reference_number: Option<String>,
-    pub invoice_reference_number: Option<String>
+    pub submission: Option<KsefSubmissionReferences>
 }
 
 pub struct SalesInvoicePreview {
@@ -97,8 +116,7 @@ pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer
         month_name: invoice.issue_date.format("%B").to_string().to_lowercase(),
         year: invoice.issue_date.year(),
         xml,
-        session_reference_number: None,
-        invoice_reference_number: None
+        submission: None
     })
 }
 
@@ -113,7 +131,7 @@ impl InvoiceData {
             anyhow::bail!("Default hourly rate must be greater than zero");
         }
         let net_unrounded = hourly_rate * f64::from(hours_worked);
-        let vat_unrounded = net_unrounded * DEFAULT_VAT_RATE;
+        let vat_unrounded = net_unrounded * f64::from(DEFAULT_VAT_RATE) / 100.0;
         let total_net = round_money(net_unrounded);
         let total_vat = round_money(vat_unrounded);
         let total_gross = round_money(total_net + total_vat);
@@ -186,7 +204,7 @@ impl InvoiceData {
 
         let payment = fa.get_mut_child("Platnosc").unwrap();
         set_text(payment, "Termin", &self.payment_deadline.to_string());
-        set_text(payment, "FormaPlatnosci", DEFAULT_PAYMENT_TYPE);
+        set_text(payment, "FormaPlatnosci", &PaymentType::default().to_string());
         if let Some(account) = bank_account.filter(|account| !account.trim().is_empty()) {
             let mut bank = Element::new("RachunekBankowy");
             bank.children.push(XMLNode::Element(text_element("NrRB", account)));
@@ -226,7 +244,7 @@ fn invoice_line(invoice: &InvoiceData) -> Element {
         ("P_9A", format!("{:.2}", invoice.hourly_rate)),
         ("P_11", format!("{:.2}", invoice.total_net)),
         ("P_11Vat", format!("{:.2}", invoice.total_vat)),
-        ("P_12", "23".to_string()),
+        ("P_12", DEFAULT_VAT_RATE.to_string()),
     ] {
         line.children.push(XMLNode::Element(text_element(name, &value)));
     }
@@ -305,8 +323,8 @@ pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyho
 pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> anyhow::Result<PathBuf> {
     let mut url = reqwest::Url::parse(&format!("{}/ksef/sales/receipt", cf_worker_url!()))?;
     url.query_pairs_mut()
-        .append_pair("sessionReferenceNumber", invoice.session_reference_number.as_deref().unwrap())
-        .append_pair("invoiceReferenceNumber", invoice.invoice_reference_number.as_deref().unwrap());
+        .append_pair("sessionReferenceNumber", &invoice.submission.as_ref().unwrap().session_reference_number)
+        .append_pair("invoiceReferenceNumber", &invoice.submission.as_ref().unwrap().invoice_reference_number);
     let response = reqwest::Client::new().get(url)
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

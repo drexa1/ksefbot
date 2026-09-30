@@ -141,12 +141,12 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
     // Submit to KSeF
     if Confirm::new("Submit this invoice to KSeF?").with_default(false).prompt()? {
         let submission = submit_invoice(app_user, &new_invoice).await?;
-        new_invoice.session_reference_number = Some(submission.session_reference_number);
-        new_invoice.invoice_reference_number = Some(submission.invoice_reference_number);
+        new_invoice.submission = Some(submission);
         println!("  Invoice submitted to KSeF.");
         println!("  Invoice number: {}", new_invoice.invoice_number);
-        println!("  Invoice reference: {}", new_invoice.invoice_reference_number.as_deref().unwrap());
-        println!("  KSeF session: {}", new_invoice.session_reference_number.as_deref().unwrap());
+        let submission = new_invoice.submission.as_ref().unwrap();
+        println!("  Invoice reference: {}", submission.invoice_reference_number);
+        println!("  KSeF session: {}", submission.session_reference_number);
         if Confirm::new("Download the KSeF receipt?").with_default(true).prompt()? {
             let save_path = download_receipt(app_user, &new_invoice).await?;
             println!("  📂 Submission receipt saved to {}", save_path.display().to_string().dark_yellow());
