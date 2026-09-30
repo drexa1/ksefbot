@@ -17,7 +17,7 @@ pub enum InvoiceType {
 }
 
 pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
-    let invoices = list_invoices(app_user, &InvoiceType::Sales, from, to).await?;
+    let invoices = list_invoices(app_user, &InvoiceType::Sales, from.clone(), to.clone()).await?;
     if invoices.is_empty() {
         return Ok(());
     }
@@ -35,7 +35,7 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
     let index = selected.split_once(". ").unwrap().0.parse::<usize>().unwrap() - 1;
     let invoice_number = invoices[index]["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
     if Confirm::new(&format!("Download invoice {invoice_number}?")).with_default(true).prompt()? {
-        let path = download_sales_invoice(app_user, invoice_number).await?;
+        let path = download_sales_invoice(app_user, invoice_number, &from, &to).await?;
         println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
     }
     Ok(())
@@ -85,10 +85,12 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: String,
     Ok(invoices)
 }
 
-async fn download_sales_invoice(app_user: &AppUser, invoice_number: &str) -> anyhow::Result<PathBuf> {
-    let mut url = reqwest::Url::parse(&format!("{}/app/invoices", cf_worker_url!()))?;
+async fn download_sales_invoice(app_user: &AppUser, invoice_number: &str, from: &str, to: &str) -> anyhow::Result<PathBuf> {
+    let mut url = reqwest::Url::parse(&format!("{}/ksef/sales", cf_worker_url!()))?;
     url.query_pairs_mut()
-        .append_pair("id", invoice_number)
+        .append_pair("from", from)
+        .append_pair("to", to)
+        .append_pair("invoiceNumber", invoice_number)
         .append_pair("format", "xml");
     let response = reqwest::Client::new()
         .get(url)
