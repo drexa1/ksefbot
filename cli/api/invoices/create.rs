@@ -409,9 +409,9 @@ pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> any
         }
     }).collect();
     let home = std::env::var_os("USERPROFILE").unwrap();
-    let app_folder = PathBuf::from(home).join(".ksefbot");
-    std::fs::create_dir_all(&app_folder)?;
-    let path = app_folder.join(format!("{safe_number}-UPO.xml"));
+    let submitted_folder = PathBuf::from(home).join(".ksefbot").join("submitted");
+    std::fs::create_dir_all(&submitted_folder)?;
+    let path = submitted_folder.join(format!("{safe_number}-UPO.xml"));
     std::fs::write(&path, response.bytes().await?)?;
     Ok(path)
 }

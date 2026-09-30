@@ -14,7 +14,7 @@ use crossterm::{
 use inquire::{Confirm, DateSelect, Select, Text};
 use std::fs::{create_dir_all, read_dir, read_to_string, write};
 use std::io::{self};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use strum::IntoEnumIterator;
 
 pub async fn login_loop() -> Result<AuthUser> {
@@ -67,11 +67,11 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
         "📄 Create a new invoice",
         "📂 Import a generated XML"
     ]).prompt()? == "📂 Import a generated XML";
-    let mut new_invoice = if import_invoice {
-        let Some(invoice) = import_generated_invoice(&generated_files)? else {
+    let (mut new_invoice, imported_path) = if import_invoice {
+        let Some((invoice, path)) = import_generated_invoice(&generated_files)? else {
             return Ok(false);
         };
-        invoice
+        (invoice, Some(path))
     } else {
         // Fetch invoice counterparties
         let invoice_parties = load_invoice_parties(app_user).await?;
@@ -153,12 +153,16 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
                 println!("  📂 Invoice .xml saved to {}", path.display().to_string().dark_yellow());
             }
         }
-        new_invoice
+        (new_invoice, None)
     };
     // Submit to KSeF
     if Confirm::new("Submit this invoice to KSeF?").with_default(false).prompt()? {
         let submission = submit_invoice(app_user, &new_invoice).await?;
         new_invoice.submission = Some(submission);
+        if let Some(path) = imported_path {
+            let submitted_path = move_to_submitted(&path)?;
+            println!("  📂 Invoice XML moved to {}", submitted_path.display().to_string().dark_yellow());
+        }
         println!("  Invoice submitted to KSeF.");
         println!("  Invoice number: {}", new_invoice.invoice_number);
         let submission = new_invoice.submission.as_ref().unwrap();
@@ -186,7 +190,7 @@ fn generated_invoice_files() -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn import_generated_invoice(files: &[PathBuf]) -> Result<Option<SalesInvoice>> {
+fn import_generated_invoice(files: &[PathBuf]) -> Result<Option<(SalesInvoice, PathBuf)>> {
     let mut choices: Vec<String> = files.iter()
         .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
         .collect();
@@ -197,7 +201,31 @@ fn import_generated_invoice(files: &[PathBuf]) -> Result<Option<SalesInvoice>> {
     }
     let index = files.iter().position(|path| path.file_name().unwrap().to_string_lossy() == selected).unwrap();
     let xml = read_to_string(&files[index])?;
-    Ok(Some(SalesInvoice::from_xml(xml)?))
+    Ok(Some((SalesInvoice::from_xml(xml)?, files[index].clone())))
+}
+
+fn move_to_submitted(source: &Path) -> Result<PathBuf> {
+    let home = std::env::var_os("USERPROFILE").unwrap();
+    let submitted_folder = PathBuf::from(home).join(".ksefbot").join("submitted");
+    create_dir_all(&submitted_folder)?;
+    let file_name = source.file_name().unwrap();
+    let target = submitted_folder.join(file_name);
+    let target = if target.exists() {
+        let stem = source.file_stem().unwrap().to_string_lossy();
+        let extension = source.extension().unwrap().to_string_lossy();
+        let mut suffix = 2;
+        loop {
+            let candidate = submitted_folder.join(format!("{stem}-{suffix}.{extension}"));
+            if !candidate.exists() {
+                break candidate;
+            }
+            suffix += 1;
+        }
+    } else {
+        target
+    };
+    std::fs::rename(source, &target)?;
+    Ok(target)
 }
 
 fn pause() -> Result<()> {
