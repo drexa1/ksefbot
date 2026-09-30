@@ -82,7 +82,7 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<()> {
     };
     // Preview on screen
     let preview = preview_sales_invoice(app_user, hours_worked)?;
-    println!("  Invoice for [{} hours at {:.2} PLN/h]: {} PLN net + {:.2} PLN VAT = {:.2} PLN gross",
+    println!("  🔎 Invoice for [{} hours at {:.2} PLN/h]: {} PLN net + {:.2} PLN VAT = {:.2} PLN gross",
         hours_worked,
         preview.hourly_rate,
         format!("{:.2}", preview.total_net).green(),

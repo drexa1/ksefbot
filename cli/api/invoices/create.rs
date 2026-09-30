@@ -314,10 +314,10 @@ pub async fn upload_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &
     if response.status() == reqwest::StatusCode::CONFLICT {
         let body: serde_json::Value = response.json().await?;
         return Ok(UploadInvoiceResult::AlreadyExists(
-            body["error"].as_str().unwrap_or("Invoice already exists").to_owned()
+            body["error"].as_str().unwrap_or("✅ Invoice already existed").to_owned()
         ));
     }
-    let response = ensure_success(response, "Invoice uploaded").await?;
+    let response = ensure_success(response, "📤 Invoice uploaded").await?;
     let body: serde_json::Value = response.json().await?;
     if body["success"].as_bool() != Some(true) {
         anyhow::bail!("Invoice upload failed: {}", body["error"].as_str().unwrap_or("unknown error"));
