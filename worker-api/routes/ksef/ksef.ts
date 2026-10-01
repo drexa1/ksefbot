@@ -12,10 +12,14 @@ export async function getInvoices(req: Request, env: Env, subjectType: "Subject1
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
     try {
-        // Download XML for specific invoice
-        if (url.searchParams.has("ksefNumber")) {
+        // Download XML for specific invoice, by business invoice number (exact match, KSeF's max lookback window)
+        if (url.searchParams.has("invoiceNumber")) {
+            const from = new Date(Date.now() - 100 * 86_400_000);
             const ksefClient = new KsefClient(env);
-            const invoiceXml = await ksefClient.downloadInvoice(url.searchParams.get("ksefNumber")!);
+            await ksefClient.authenticate(appUser);
+            const metadataResult = await ksefClient.queryInvoiceMetadata(subjectType, from, undefined, url.searchParams.get("invoiceNumber")!);
+            const ksefNumber = metadataResult.invoices[0]?.ksefNumber;
+            const invoiceXml = ksefNumber ? await ksefClient.downloadInvoice(ksefNumber) : undefined;
             return invoiceXml
                 ? new Response(invoiceXml, { status: 200, headers: { "Content-Type": "application/xml; charset=utf-8" } })
                 : Response.json({ success: false, error: "Invoice not found at KSeF." }, { status: 404 });

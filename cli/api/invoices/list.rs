@@ -18,19 +18,19 @@ pub enum InvoiceType {
 }
 
 pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
+    let invoices = list_invoices(app_user, &InvoiceType::Sales, &from, &to).await?;
+    if invoices.is_empty() {
+        return Ok(());
+    }
+    let mut invoice_choices: Vec<String> = invoices.iter().enumerate().map(|(index, invoice)| {
+        let number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
+        let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
+        let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
+        format!("{}. {} - {:.2} {}", index + 1, number, amount, currency)
+    }).collect();
+    invoice_choices.push("Back ↩️".to_string());
     loop {
-        let invoices = list_invoices(app_user, &InvoiceType::Sales, &from, &to).await?;
-        if invoices.is_empty() {
-            return Ok(());
-        }
-        let mut invoice_choices: Vec<String> = invoices.iter().enumerate().map(|(index, invoice)| {
-            let number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
-            let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
-            let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
-            format!("{}. {} - {:.2} {}", index + 1, number, amount, currency)
-        }).collect();
-        invoice_choices.push("Back ↩️".to_string());
-        let selected = Select::new("Select a sales invoice", invoice_choices).prompt()?;
+        let selected = Select::new("Select a sales invoice", invoice_choices.clone()).prompt()?;
         if selected == "Back ↩️" {
             return Ok(());
         }
@@ -46,7 +46,7 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
             match action {
                 "🔎 Preview" => println!("{}", serde_json::to_string_pretty(invoice)?),
                 "📂 Download XML" => {
-                    let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number, &from, &to).await?;
+                    let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number).await?;
                     println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
                 }
                 _ => break,
@@ -99,19 +99,14 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, t
     Ok(invoices)
 }
 
-async fn download_invoice_xml(
-    app_user: &AppUser,
+async fn download_invoice_xml(app_user: &AppUser,
     invoice_type: &InvoiceType,
     invoice: &serde_json::Value,
     invoice_number: &str,
-    from: &str,
-    to: &str,
 ) -> anyhow::Result<PathBuf> {
     let mut url = reqwest::Url::parse(&format!("{}/ksef/{invoice_type}", cf_worker_url!()))?;
     url.query_pairs_mut()
-        .append_pair("from", from)
-        .append_pair("to", to)
-        .append_pair("code", invoice_number);
+        .append_pair("invoiceNumber", invoice_number);
     let response = reqwest::Client::new()
         .get(url)
         .header("CF-Access-Client-Id", cf_client_id!())

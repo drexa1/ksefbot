@@ -303,12 +303,13 @@ export class KsefClient extends KsefClientBase {
         }));
     }
 
-    private async queryInvoiceMetadata(subjectType: "Subject1" | "Subject2", from: Date, to: Date): Promise<KsefInvoiceQueryResult> {
-        const dateRange = { dateType: "Issue" as const, from: from.toISOString(), to: to.toISOString() };
+    /// Query invoice metadata; pass invoiceNumber to narrow to a single invoice (exact match). "to" is optional per KSeF.
+    async queryInvoiceMetadata(subjectType: "Subject1" | "Subject2", from: Date, to?: Date, invoiceNumber?: string): Promise<KsefInvoiceQueryResult> {
+        const dateRange = { dateType: "Issue" as const, from: from.toISOString(), ...(to && { to: to.toISOString() }) };
         const response = await fetch(`${this.env.KSEF_URL}/invoices/query/metadata?pageOffset=0&pageSize=100`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${this.token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ subjectType, dateRange })
+            body: JSON.stringify({ subjectType, dateRange, ...(invoiceNumber && { invoiceNumber }) })
         });
         if (!response.ok) {
             const errorBody = await response.text();

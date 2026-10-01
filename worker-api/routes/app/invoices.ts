@@ -17,18 +17,9 @@ export async function get(req: Request, env: Env): Promise<Response> {
     // Allow fetching only owned invoices (except for superadmin)
     const filters: Record<string, any> = appUser.tier === 0 ? {} : { ownerId: appUser.id };
     for (const [key, value] of url.searchParams.entries()) {
-        if (key === "format") continue;
         filters[key] = value;
     }
-    const format = url.searchParams.get("format");
-    if (format === "xml" && !filters.id)
-        return Response.json({ success: false, error: "Invoice ID is required for XML download" }, { status: 400 });
     const rows = await getRepo(env).getAll<(AppInvoice & { rawXml: string })>("invoices", filters);
-    if (format === "xml") {
-        return rows.length === 0
-            ? Response.json({ success: false, error: "No invoice found", filters }, { status: 404 })
-            : new Response(rows[0].rawXml, { status: 200, headers: { "Content-Type": "application/xml; charset=utf-8" } });
-    }
     return rows.length === 0
         ? Response.json({ success: false, error: "No invoice found", filters }, { status: 404 })
         : Response.json(rows.map(row => JSON.parse(row.jsonData)), { status: 200 });
