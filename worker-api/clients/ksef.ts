@@ -317,7 +317,7 @@ export class KsefClient extends KsefClientBase {
         return await response.json() as KsefInvoiceQueryResult;
     }
 
-    private async downloadInvoice(ksefNumber: string): Promise<string> {
+    async downloadInvoice(ksefNumber: string): Promise<string> {
         const response = await fetch(`${this.env.KSEF_URL}/invoices/ksef/${ksefNumber}`, { headers: {
             Authorization: `Bearer ${this.token}`,
             Accept: "application/xml"

@@ -11,15 +11,22 @@ const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(e
 export async function getInvoices(req: Request, env: Env, subjectType: "Subject1" | "Subject2"): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
-    const fromParam = url.searchParams.get("from")!;
-    const toParam = url.searchParams.get("to")!;
-    const from = new Date(fromParam);
-    const to = new Date(toParam);
-    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to)
-        return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
-    if ((to.getTime() - from.getTime()) / 86_400_000 > 90)
-        return Response.json({ success: false, error: `The maximum date range supported by KSeF is 3 calendar months.` }, { status: 400 });
     try {
+        // Download XML for specific invoice
+        if (url.searchParams.has("ksefNumber")) {
+            const ksefClient = new KsefClient(env);
+            const invoiceXml = await ksefClient.downloadInvoice(url.searchParams.get("ksefNumber")!);
+            return invoiceXml
+                ? new Response(invoiceXml, { status: 200, headers: { "Content-Type": "application/xml; charset=utf-8" } })
+                : Response.json({ success: false, error: "Invoice not found at KSeF." }, { status: 404 });
+        }
+        // Download app invoices for dates range
+        const from = new Date(url.searchParams.get("from")!);
+        const to = new Date(url.searchParams.get("to")!);
+        if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to)
+            return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
+        if ((to.getTime() - from.getTime()) / 86_400_000 > 90)
+            return Response.json({ success: false, error: `The maximum date range supported by KSeF is 3 calendar months.` }, { status: 400 });
         const result = await fetchInvoices(env, appUser, subjectType, from, to);
         return Response.json({
             success: result.length > 0,
@@ -34,6 +41,7 @@ export async function getInvoices(req: Request, env: Env, subjectType: "Subject1
     }
 }
 
+/// Used also by for record computations
 export async function fetchInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from: Date, to: Date) {
     const ksefClient = new KsefClient(env);
     const invoices = await ksefClient.queryPurchaseInvoices(env, appUser, subjectType, from, to);

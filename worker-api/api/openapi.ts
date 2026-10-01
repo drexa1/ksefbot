@@ -397,6 +397,12 @@ export const getOpenApiSpec = () => ({
                         required: true,
                         description: "End date",
                         schema: { type: "string", format: "date", example: "2026-08-01" }
+                    }, {
+                        name: "ksefNumber",
+                        in: "query",
+                        required: false,
+                        description: "Invoice number. When set, returns that invoice's XML KSeF instead of the application models.",
+                        schema: { type: "string" }
                     }
                 ],
                 responses: {
@@ -544,6 +550,12 @@ export const getOpenApiSpec = () => ({
                         required: true,
                         description: "End date",
                         schema: { type: "string", format: "date", example: "2026-08-01" }
+                    }, {
+                        name: "code",
+                        in: "query",
+                        required: false,
+                        description: "Invoice number. When set, downloads that invoice's raw XML from KSeF instead of listing invoices.",
+                        schema: { type: "string" }
                     }
                 ],
                 responses: {
