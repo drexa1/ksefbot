@@ -51,10 +51,14 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
         "Back ↩️"
     ]).prompt()?;
     match action {
-        "👀 Preview" => print_invoice_preview(invoice),
+        "👀 Preview" => {
+            print_invoice_preview(invoice);
+            crate::tui::inquire::pause()?;
+        }
         "📂 Download XML" => {
             let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number, &from, &to).await?;
             println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
+            crate::tui::inquire::pause()?;
         }
         _ => {}
     }
@@ -62,6 +66,7 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
 }
 
 fn print_invoice_preview(invoice: &serde_json::Value) {
+    println!();
     let body = &invoice["InvoiceBody"];
     let buyer = &invoice["Buyer"]["IdentificationData"];
     let currency = body["CurrencyCode"].as_str().unwrap();

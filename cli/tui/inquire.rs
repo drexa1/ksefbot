@@ -237,7 +237,7 @@ fn move_to_submitted(source: &Path) -> Result<PathBuf> {
     Ok(target)
 }
 
-fn pause() -> Result<()> {
+pub fn pause() -> Result<()> {
     println!();
     Text::new("Press [Enter] to go back to the main menu...").prompt()?;
     execute!(io::stdout(), Clear(ClearType::All), MoveTo(0, 0))?;
