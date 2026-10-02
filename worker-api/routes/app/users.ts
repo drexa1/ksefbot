@@ -42,10 +42,10 @@ export async function post(req: Request, env: Env): Promise<Response> {
 
 export async function put(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
-    // Allow to update users only to superadmin
-    if (appUser.tier !== 0)
-        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     const payload = await req.json() as AppUser;
+    // Only superadmin can update others, but allow users to update their own record
+    if (appUser.tier !== 0 && appUser.id !== payload.id)
+        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     // Never allow client to change id, tier, apiKey or creation/update timestamp
     const { id, tier, apiKey, createdAt, updatedAt, ...updatePayload } = payload;
     const result = await getRepo(env).update<AppUserUpdate>("users", {

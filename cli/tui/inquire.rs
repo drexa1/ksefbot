@@ -71,8 +71,9 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 pause()?;
             }
             MainMenuAction::UserSettings => {
-                settings::edit_profile().await?;
-                pause()?;
+                if settings::edit_profile(logged_user).await? {
+                    pause()?;
+                }
             }
             MainMenuAction::Exit => return Ok(())
         }

@@ -1,7 +1,7 @@
 use crate::login::AuthUser;
 use crate::{api_key, cf_client_id, cf_client_secret, cf_worker_url};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppUser {
     // Identification data
@@ -30,13 +30,13 @@ pub struct AppUser {
     pub updated_at: Option<String>
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
     En, Pl
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SettlementType {
     Monthly, Quarterly
