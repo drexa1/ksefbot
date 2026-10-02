@@ -71,7 +71,7 @@
 - [x] CLI: edit customer  
 - [ ] Fix tests failing after refactor  
 - [ ] Move invoiceToXml completely to worker  
-- [ ] Schedule daily tests
+- [ ] Schedule daily tests  
 - [ ] CLI: login with phone  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup
@@ -94,7 +94,8 @@
 - [ ] Invoice generator frontend: import logic  
 - [ ] Create user frontend  
 - [ ] Bank client PoC  
-- [ ] Scheduling
+- [ ] Scheduling  
+- [ ] Rust client installer  
 - [ ] GIT-version on deploy  
 - [ ] Transparency disclaimer / no Ai  
 - [ ] Business plan  
