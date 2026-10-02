@@ -22,9 +22,9 @@ pub async fn login_loop() -> Result<AuthUser> {
     loop {
         let choices: Vec<String> = crate::login::LoginMethod::iter().map(|method| {
             let label = method.to_string();
-            if last_used.as_ref() == Some(&method) { format!("{label} (last used)") } else { label }
+            if last_used.as_ref() == Some(&method) { format!("{label} {}", "(last used)".green().bold()) } else { label }
         }).collect();
-        let selected = Select::new("➜🚪 Welcome to KSeF Bot. How would you like to log in?", choices).prompt()?;
+        let selected = Select::new("Welcome to KSeF Bot. How would you like to log in? ➜🚪", choices).prompt()?;
         let method = crate::login::LoginMethod::iter().find(|method| selected.starts_with(&method.to_string())).unwrap();
         if let Some(logged_user) = crate::login::try_resume_method(&method).await {
             return Ok(logged_user);

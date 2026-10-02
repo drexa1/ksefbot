@@ -71,7 +71,13 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
         let items = item_description(invoice);
         let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
         let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
-        format!("{}. {:<invoice_number_width$} - {:<counterparty_width$} - {:<item_description_width$} - {:.2} {}", index + 1, number, counterparty, items, amount, currency)
+        let amount_text = format!("{amount:.2} {currency}");
+        let amount_styled = match invoice_type {
+            InvoiceType::Sales => amount_text,
+            InvoiceType::Purchases => amount_text.dark_yellow().to_string()
+        };
+        let number_padded = format!("{number:<invoice_number_width$}");
+        format!("{}. {} - {:<counterparty_width$} - {:<item_description_width$} - {}", index + 1, number_padded.bold(), counterparty, items, amount_styled)
     }).collect();
     invoice_choices.push("Back ↩️".to_string());
     let selected = Select::new(&format!("Select a {invoice_type} invoice"), invoice_choices).prompt()?;
@@ -107,13 +113,24 @@ fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType
     let counterparty_key = match invoice_type { InvoiceType::Sales => "Buyer", InvoiceType::Purchases => "Seller" };
     let counterparty = &invoice[counterparty_key]["IdentificationData"];
     let currency = body["CurrencyCode"].as_str().unwrap();
-    println!("  InvoiceNumber: {}", body["InvoiceNumber"].as_str().unwrap());
+    let gross = format!("{:.2} {}", body["TotalGrossAmount"].as_f64().unwrap(), currency);
+    let net = format!("{:.2} {}", body["TotalNetAmount"].as_f64().unwrap(), currency);
+    let vat = format!("{:.2} {}", body["TotalVatAmount"].as_f64().unwrap(), currency);
+    let (gross, net) = match invoice_type {
+        InvoiceType::Sales => (gross.blue().to_string(), net.green().to_string()),
+        InvoiceType::Purchases => (gross.dark_yellow().to_string(), net)
+    };
+    let vat = match invoice_type {
+        InvoiceType::Purchases => vat.green().to_string(),
+        InvoiceType::Sales => vat
+    };
+    println!("  InvoiceNumber: {}", body["InvoiceNumber"].as_str().unwrap().bold());
     println!("  InvoiceType: {}", body["InvoiceType"].as_str().unwrap());
     println!("  {}: {} - {}", invoice_type.counterparty_label(), counterparty["NIP"].as_str().unwrap_or("-"), counterparty["Name"].as_str().unwrap());
     println!("  ServiceDate: {}", body["ServiceDate"].as_str().unwrap());
-    println!("  TotalGrossAmount: {:.2} {}", body["TotalGrossAmount"].as_f64().unwrap(), currency);
-    println!("  TotalNetAmount: {:.2} {}", body["TotalNetAmount"].as_f64().unwrap(), currency);
-    println!("  TotalVatAmount: {:.2} {}", body["TotalVatAmount"].as_f64().unwrap(), currency);
+    println!("  TotalGrossAmount: {gross}");
+    println!("  TotalNetAmount: {net}");
+    println!("  TotalVatAmount: {vat}");
 }
 
 async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> anyhow::Result<Vec<serde_json::Value>> {
