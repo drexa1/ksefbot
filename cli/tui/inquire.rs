@@ -31,9 +31,12 @@ pub async fn login_loop() -> Result<AuthUser> {
 
 pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
     loop {
-        let mut pause_after_action = true;
         match Select::new("What shall we do now?", MainMenuAction::iter().collect()).prompt()? {
-            MainMenuAction::CreateSalesInvoice => pause_after_action = prompt_create_invoice(logged_user).await?,
+            MainMenuAction::CreateSalesInvoice => {
+                if prompt_create_invoice(logged_user).await? {
+                    pause()?;
+                }
+            }
             MainMenuAction::ListSalesInvoices => {
                 let (from, to) = prompt_invoice_dates()?;
                 invoices::list_sales_invoices(logged_user, from, to).await?;
@@ -42,13 +45,19 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 let (from, to) = prompt_invoice_dates()?;
                 invoices::list_purchase_invoices(logged_user, from, to).await?;
             }
-            MainMenuAction::CreateCustomer => customers::create_customer().await?,
-            MainMenuAction::ListCustomers => customers::list_customers().await?,
-            MainMenuAction::UserSettings => settings::edit_profile().await?,
-            MainMenuAction::Exit => return Ok(()),
-        }
-        if pause_after_action {
-            pause()?;
+            MainMenuAction::CreateCustomer => {
+                customers::create_customer().await?;
+                pause()?;
+            }
+            MainMenuAction::ListCustomers => {
+                customers::list_customers().await?;
+                pause()?;
+            }
+            MainMenuAction::UserSettings => {
+                settings::edit_profile().await?;
+                pause()?;
+            }
+            MainMenuAction::Exit => return Ok(())
         }
     }
 }

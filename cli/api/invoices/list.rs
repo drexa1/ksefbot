@@ -17,6 +17,15 @@ pub enum InvoiceType {
     Purchases
 }
 
+impl InvoiceType {
+    fn emoji(&self) -> &'static str {
+        match self {
+            InvoiceType::Sales => "💵",
+            InvoiceType::Purchases => "🛒"
+        }
+    }
+}
+
 pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
     let invoices = list_invoices(app_user, &InvoiceType::Sales, &from, &to).await?;
     if invoices.is_empty() {
@@ -29,30 +38,40 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
         format!("{}. {} - {:.2} {}", index + 1, number, amount, currency)
     }).collect();
     invoice_choices.push("Back ↩️".to_string());
-    loop {
-        let selected = Select::new("Select a sales invoice", invoice_choices.clone()).prompt()?;
-        if selected == "Back ↩️" {
-            return Ok(());
-        }
-        let index = selected.split_once(". ").unwrap().0.parse::<usize>()? - 1;
-        let invoice = &invoices[index];
-        let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().to_string();
-        loop {
-            let action = Select::new(&format!("Invoice {invoice_number}"), vec![
-                "🔎 Preview",
-                "📂 Download XML",
-                "Back ↩️"
-            ]).prompt()?;
-            match action {
-                "🔎 Preview" => println!("{}", serde_json::to_string_pretty(invoice)?),
-                "📂 Download XML" => {
-                    let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number, &from, &to).await?;
-                    println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
-                }
-                _ => break,
-            }
-        }
+    let selected = Select::new("Select a sales invoice", invoice_choices).prompt()?;
+    if selected == "Back ↩️" {
+        return Ok(());
     }
+    let index = selected.split_once(". ").unwrap().0.parse::<usize>()? - 1;
+    let invoice = &invoices[index];
+    let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().to_string();
+    let action = Select::new(&format!("Invoice {invoice_number}"), vec![
+        "👀 Preview",
+        "📂 Download XML",
+        "Back ↩️"
+    ]).prompt()?;
+    match action {
+        "👀 Preview" => print_invoice_preview(invoice),
+        "📂 Download XML" => {
+            let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number, &from, &to).await?;
+            println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn print_invoice_preview(invoice: &serde_json::Value) {
+    let body = &invoice["InvoiceBody"];
+    let buyer = &invoice["Buyer"]["IdentificationData"];
+    let currency = body["CurrencyCode"].as_str().unwrap();
+    println!("  InvoiceNumber: {}", body["InvoiceNumber"].as_str().unwrap());
+    println!("  InvoiceType: {}", body["InvoiceType"].as_str().unwrap());
+    println!("  Customer: {} - {}", buyer["NIP"].as_str().unwrap_or("-"), buyer["Name"].as_str().unwrap());
+    println!("  ServiceDate: {}", body["ServiceDate"].as_str().unwrap());
+    println!("  TotalGrossAmount: {:.2} {}", body["TotalGrossAmount"].as_f64().unwrap(), currency);
+    println!("  TotalNetAmount: {:.2} {}", body["TotalNetAmount"].as_f64().unwrap(), currency);
+    println!("  TotalVatAmount: {:.2} {}", body["TotalVatAmount"].as_f64().unwrap(), currency);
 }
 
 pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
@@ -95,7 +114,7 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, t
         return Ok(Vec::new());
     }
     let invoices = json["result"].as_array().cloned().unwrap();
-    println!("  API Response: {} {} invoices found", endpoint, invoices.len());
+    println!("  API Response: {} invoices [{} {}] found", invoices.len(), endpoint.emoji(), endpoint);
     Ok(invoices)
 }
 
