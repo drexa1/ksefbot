@@ -9,6 +9,12 @@ use ratatui::{
     widgets::{Block, BorderType, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap},
 };
 
+pub struct TextInput {
+    value: String,
+    cursor: usize,
+    focus: usize,
+}
+
 pub const SELECTOR: &str = "❯ ";
 pub const MIN_WIDTH: u16 = 48;
 pub const MIN_HEIGHT: u16 = 24;
@@ -188,12 +194,6 @@ pub fn confirm(terminal: &mut Tui, title: &str, default: bool) -> Result<bool> {
             key => navigate(&mut selected, key, 2),
         }
     }
-}
-
-pub struct TextInput {
-    value: String,
-    cursor: usize,
-    focus: usize,
 }
 
 impl TextInput {
