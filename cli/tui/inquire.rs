@@ -50,7 +50,7 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 pause()?;
             }
             MainMenuAction::ListCustomers => {
-                customers::list_customers().await?;
+                customers::list_customers(logged_user).await?;
                 pause()?;
             }
             MainMenuAction::UserSettings => {

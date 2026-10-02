@@ -30,21 +30,20 @@ pub async fn load_contractors(app_user: &AppUser) -> anyhow::Result<Vec<AppContr
     Ok(response.json().await?)
 }
 
-pub async fn list_customers() -> anyhow::Result<()> {
-    println!("Fetching contractors...");
-    println!("  [API] Response: 3 customers found.");
+pub async fn list_customers(app_user: &AppUser) -> anyhow::Result<()> {
+    let contractors: Vec<_> = load_contractors(app_user).await?.into_iter()
+        .filter(|contractor| Some(&contractor.id) != app_user.contractor_id.as_ref())
+        .collect();
+    println!("  API Response: {} customers found", contractors.len());
+    if contractors.is_empty() {
+        return Ok(());
+    }
     println!();
-    println!("  1. ACME Sp. z o.o.");
-    println!("     NIP: 1234567890");
-    println!("     Email: billing@acme.example");
-    println!();
-    println!("  2. Example Ltd.");
-    println!("     NIP: 9876543210");
-    println!("     Email: invoices@example.com");
-    println!();
-    println!("  3. Test Company");
-    println!("     NIP: 5555555555");
-    println!("     Email: finance@test.example");
+    for (index, contractor) in contractors.iter().enumerate() {
+        println!("  {}. {}", index + 1, contractor.name);
+        println!("     NIP: {}", contractor.nip.as_deref().unwrap_or("-"));
+        println!("     Address: {}, {}", contractor.address_l1, contractor.country_code);
+    }
     Ok(())
 }
 
