@@ -25,8 +25,6 @@ use strum::IntoEnumIterator;
 
 pub type Tui = Terminal<CrosstermBackend<io::Stdout>>;
 
-/// Native-widget [`Prompter`] backed by `ratatui`. Keeps a running log of [`Prompter::info`]
-/// messages so earlier output stays visible while later prompts are drawn below it.
 pub struct RatatuiPrompter<'a> {
     terminal: &'a mut Tui,
     log: Vec<String>,

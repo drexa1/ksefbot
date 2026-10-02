@@ -16,7 +16,6 @@ use inquire::{Confirm, DateSelect, Select, Text};
 use std::io::{self};
 use strum::IntoEnumIterator;
 
-/// Console-based [`Prompter`] backed by the `inquire` crate.
 pub struct InquirePrompter;
 
 impl Prompter for InquirePrompter {
