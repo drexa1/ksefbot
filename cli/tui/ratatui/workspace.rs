@@ -7,7 +7,7 @@ use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, List, ListItem, ListState, Padding, Paragraph},
 };
 use serde_json::Value;
@@ -131,7 +131,7 @@ impl Workspace {
     }
 
     fn card_range(&mut self, width: u16) -> Range<usize> {
-        self.card_capacity = usize::from(((width + 1) / 31).max(1));
+        self.card_capacity = usize::from(((width + 1) / 39).max(1));
         let count = self.month_indices().len();
         if self.show_latest && count > 0 {
             self.selected_month = count.saturating_sub(self.card_capacity);
@@ -257,7 +257,7 @@ impl Workspace {
             widgets::modal(frame, "KSeF Bot", 48, 1, "");
             return;
         }
-        let area = Rect::new(screen.x + 1, screen.y, screen.width - 2, screen.height);
+        let area = Rect::new(screen.x + 2, screen.y, screen.width - 4, screen.height);
         let sections = Layout::vertical([
             Constraint::Length(3), Constraint::Length(1), Constraint::Length(((screen.height - 5) / 2).clamp(8, 12)),
             Constraint::Length(1), Constraint::Min(7), Constraint::Length(1),
@@ -285,9 +285,9 @@ impl Workspace {
 
     fn draw_type(&self, frame: &mut Frame, area: Rect) {
         let mut x = area.x;
-        for (kind, label, emoji) in [(InvoiceType::Sales, "[S]ales", "💵"), (InvoiceType::Purchases, "[P]urchases", "🛒")] {
+        for (kind, label, emoji) in [(InvoiceType::Sales, "[(S)ales]", "💵"), (InvoiceType::Purchases, "[(P)urchases]", "🛒")] {
             let selected = self.invoice_type == kind;
-            let text = if selected { format!("{label} {emoji}") } else { label.to_string() };
+            let text = if selected { format!("{label} {emoji} ") } else { label.to_string() };
             let width = Line::from(text.as_str()).width() as u16;
             let style = if selected { bold().bg(self.invoice_color()).fg(Color::Black) } else { Style::default() };
             let tab = Rect::new(x, area.y + 1, width.min(area.right().saturating_sub(x)), 1);
@@ -327,7 +327,7 @@ impl Workspace {
             let record_index = if selected { self.selected_invoice.min(records.len() - 1) } else { 0 };
             let invoice = &records[record_index];
             let card = cards[slot];
-            let title = format!("📅 {}", month.month.format("%b %Y"));
+            let title = format!("📅 {}: {} invoice(s)", month.month.format("%B %Y"), records.len());
             let focused = selected && self.focus == Focus::Cards;
             let inner = card_pane(frame, card, &title, focused, self.card_color(focused));
             let body = &invoice["InvoiceBody"];
@@ -337,13 +337,12 @@ impl Workspace {
             let currency = body["CurrencyCode"].as_str().unwrap_or("-");
             let gross = body["TotalGrossAmount"].as_f64().unwrap_or_default();
             let lines = vec![
-                format!("{} invoice(s) this month", records.len()), number.to_string(), party.to_string(),
+                number.to_string(), party.to_string(),
                 format!("Issued: {}", body["IssueDate"].as_str().unwrap_or("-")), format!("{gross:.2} {currency}"),
             ];
             let body_area = Rect::new(inner.x, inner.y, inner.width, inner.height.saturating_sub(1));
             frame.render_widget(Paragraph::new(lines.into_iter().map(|line| Line::from(widgets::clipped_line(&line, inner.width))).collect::<Vec<_>>()), body_area);
-            let label = format!("[Download (d)] {}/{}", record_index + 1, records.len());
-            frame.render_widget(Paragraph::new(widgets::clipped_line(&label, inner.width))
+            frame.render_widget(Paragraph::new("[(D)ownload]")
                 .style(if focused { bold() } else { Style::default() }),
                 Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1));
         }
@@ -374,17 +373,17 @@ impl Workspace {
             frame.render_widget(Paragraph::new("Loading customers..."), parts[0]);
         } else if self.customer_details {
             let lines = self.customer().map(customers::preview).unwrap_or_else(|| vec!["No customer selected.".to_string()]);
-            self.customer_height = draw_text(frame, parts[0], &lines, &mut self.customer_scroll);
+            self.customer_height = draw_fields(frame, parts[0], &lines, &mut self.customer_scroll);
         } else if self.customers.is_empty() {
             frame.render_widget(Paragraph::new("No customers found."), parts[0]);
         } else {
             let labels: Vec<_> = self.customers.iter().map(|customer| customer.name.clone()).collect();
             draw_list(frame, parts[0], &labels, &mut self.customer_selection);
         }
-        let mut buttons = vec!["New (n)"];
+        let mut buttons = vec!["(N)ew"];
         if self.customer_details {
-            if self.customer().is_some() { buttons.push("Edit (e)"); }
-            buttons.push("Back (Esc)");
+            if self.customer().is_some() { buttons.push("(E)dit"); }
+            buttons.push("(Esc) Back");
         }
         draw_buttons(frame, parts[1], &buttons);
     }
@@ -396,7 +395,7 @@ impl Workspace {
         let parts = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(inner);
         draw_list(frame, parts[0], &users::fields(&self.draft), &mut self.settings_selection);
         if self.user != self.draft {
-            draw_buttons(frame, parts[1], &["Save (w)", "Discard (x)"]);
+            draw_buttons(frame, parts[1], &["(W) Save", "(X) Discard"]);
         } else {
             frame.render_widget(Paragraph::new("Enter: edit field"), parts[1]);
         }
@@ -406,11 +405,11 @@ impl Workspace {
 fn bold() -> Style { Style::default().add_modifier(Modifier::BOLD) }
 
 fn card_pane(frame: &mut Frame, area: Rect, title: &str, focused: bool, color: Color) -> Rect {
-    frame.render_widget(Block::default().style(Style::default().bg(color).fg(Color::Black)), area);
-    let width = area.width.saturating_sub(4);
-    frame.render_widget(Paragraph::new(widgets::clipped_line(title, area.width)).style(if focused { bold() } else { Style::default() }),
-        Rect::new(area.x, area.y, area.width, 1));
-    Rect::new(area.x + 2, area.y + 2, width, area.height.saturating_sub(3))
+    frame.render_widget(Block::default().style(Style::default().bg(color).fg(Color::White)), area);
+    let width = area.width.saturating_sub(2);
+    frame.render_widget(Paragraph::new(widgets::clipped_line(title, width)).style(if focused { bold() } else { Style::default() }),
+        Rect::new(area.x + 1, area.y + 1, width, 1));
+    Rect::new(area.x + 1, area.y + 2, width, area.height.saturating_sub(3))
 }
 
 fn pane(frame: &mut Frame, area: Rect, title: &str, focused: bool) -> Rect {
@@ -435,9 +434,23 @@ fn draw_buttons(frame: &mut Frame, area: Rect, buttons: &[&str]) {
 }
 
 fn draw_text(frame: &mut Frame, area: Rect, lines: &[String], offset: &mut u16) -> u16 {
-    let lines = widgets::wrap_lines(&lines.join("\n"), area.width);
+    draw_lines(frame, area, widgets::wrap_lines(&lines.join("\n"), area.width).into_iter().map(Line::from).collect(), offset)
+}
+
+fn draw_fields(frame: &mut Frame, area: Rect, lines: &[String], offset: &mut u16) -> u16 {
+    let lines = lines.iter().flat_map(|source| {
+        let key = source.split_once(':').map(|(key, _)| format!("{key}:"));
+        widgets::wrap_lines(source, area.width).into_iter().enumerate().map(move |(index, line)| {
+            let key = key.as_deref().filter(|key| index == 0 && line.starts_with(key)).unwrap_or("");
+            Line::from(vec![Span::styled(key.to_string(), bold()), Span::raw(line[key.len()..].to_string())])
+        })
+    }).collect();
+    draw_lines(frame, area, lines, offset)
+}
+
+fn draw_lines(frame: &mut Frame, area: Rect, lines: Vec<Line<'_>>, offset: &mut u16) -> u16 {
     *offset = (*offset).min(lines.len().saturating_sub(area.height as usize).min(u16::MAX as usize) as u16);
-    frame.render_widget(Paragraph::new(lines.into_iter().map(Line::from).collect::<Vec<_>>()).scroll((*offset, 0)), area);
+    frame.render_widget(Paragraph::new(lines).scroll((*offset, 0)), area);
     area.height.max(1)
 }
 
@@ -504,12 +517,12 @@ pub async fn run(terminal: &mut Tui, user: &AppUser) -> Result<()> {
             KeyCode::Char('p' | 'P') => app.set_type(InvoiceType::Purchases),
             KeyCode::Tab => app.cycle_focus(false),
             KeyCode::BackTab => app.cycle_focus(true),
-            KeyCode::Char('n') if app.section == Section::Invoices && app.invoice_type == InvoiceType::Sales => activate(&mut app, terminal, Action::NewInvoice).await?,
-            KeyCode::Char('n') if app.focus == Focus::Customers => activate(&mut app, terminal, Action::NewCustomer).await?,
-            KeyCode::Char('e') if app.focus == Focus::Customers && app.customer_details => activate(&mut app, terminal, Action::EditCustomer).await?,
-            KeyCode::Char('w') if app.focus == Focus::Settings && app.user != app.draft => activate(&mut app, terminal, Action::Save).await?,
-            KeyCode::Char('x') if app.focus == Focus::Settings && app.user != app.draft => activate(&mut app, terminal, Action::Discard).await?,
-            KeyCode::Char('d') if app.section == Section::Invoices => activate(&mut app, terminal, Action::Download).await?,
+            KeyCode::Char('n' | 'N') if app.section == Section::Invoices && app.invoice_type == InvoiceType::Sales => activate(&mut app, terminal, Action::NewInvoice).await?,
+            KeyCode::Char('n' | 'N') if app.focus == Focus::Customers => activate(&mut app, terminal, Action::NewCustomer).await?,
+            KeyCode::Char('e' | 'E') if app.focus == Focus::Customers && app.customer_details => activate(&mut app, terminal, Action::EditCustomer).await?,
+            KeyCode::Char('w' | 'W') if app.focus == Focus::Settings && app.user != app.draft => activate(&mut app, terminal, Action::Save).await?,
+            KeyCode::Char('x' | 'X') if app.focus == Focus::Settings && app.user != app.draft => activate(&mut app, terminal, Action::Discard).await?,
+            KeyCode::Char('d' | 'D') if app.section == Section::Invoices => activate(&mut app, terminal, Action::Download).await?,
             KeyCode::Char('r') => {
                 if matches!(app.customer_state, LoadState::Failed(_)) { app.customer_state = LoadState::Pending; }
             }

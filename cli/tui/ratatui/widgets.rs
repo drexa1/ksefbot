@@ -173,13 +173,13 @@ fn buttons(frame: &mut Frame, area: Rect, labels: &[&str], selected: Option<usiz
     let columns = Layout::horizontal(vec![Constraint::Ratio(1, labels.len() as u32); labels.len()]).split(area);
     for (index, label) in labels.iter().enumerate() {
         let style = if selected == Some(index) { highlight_style() } else { Style::default() };
-        frame.render_widget(Paragraph::new(format!("[ {label} ]")).alignment(Alignment::Center).style(style), columns[index]);
+        frame.render_widget(Paragraph::new(format!("[{label}]")).alignment(Alignment::Center).style(style), columns[index]);
     }
 }
 
 pub fn draw_confirm(frame: &mut Frame, title: &str, selected: usize) {
     if let Some(area) = modal(frame, title, 64, 1, "←→: move | Enter: select | Esc: back") {
-        buttons(frame, area, &["Yes", "No"], Some(selected));
+        buttons(frame, area, &["(Y)es", "(N)o"], Some(selected));
     }
 }
 
@@ -189,7 +189,8 @@ pub fn confirm(terminal: &mut Tui, title: &str, default: bool) -> Result<bool> {
         terminal.draw(|frame| draw_confirm(frame, title, selected))?;
         match read_key()? {
             KeyCode::Enter => return Ok(selected == 0),
-            KeyCode::Esc | KeyCode::Char('q') => return Ok(false),
+            KeyCode::Char('y' | 'Y') => return Ok(true),
+            KeyCode::Esc | KeyCode::Char('q' | 'n' | 'N') => return Ok(false),
             KeyCode::Left | KeyCode::Right => selected = 1 - selected,
             _ => {}
         }
@@ -255,7 +256,7 @@ pub fn draw_input(frame: &mut Frame, title: &str, input: &TextInput) {
     let inner = field.inner(sections[0]);
     let (visible, cursor) = input.visible(inner.width);
     frame.render_widget(Paragraph::new(visible).block(field), sections[0]);
-    buttons(frame, sections[2], &["Continue", "Cancel"], input.focus.checked_sub(1));
+    buttons(frame, sections[2], &["(Enter) Continue", "(Esc) Cancel"], input.focus.checked_sub(1));
     if input.focus == 0 && inner.width > 0 && inner.height > 0 {
         frame.set_cursor_position((inner.x + cursor.min(inner.width - 1), inner.y));
     }
