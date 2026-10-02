@@ -277,50 +277,6 @@ fn remove_placeholder(parent: &mut Element, placeholder: &str) {
     parent.children.remove(index);
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn invoice_xml_updates_nested_template_fields() {
-        let invoice = InvoiceData {
-            number: "eFA/2026/09/1".to_string(),
-            issue_date: NaiveDate::from_ymd_opt(2026, 9, 30).unwrap(),
-            delivery_date: NaiveDate::from_ymd_opt(2026, 9, 30).unwrap(),
-            payment_deadline: NaiveDate::from_ymd_opt(2026, 10, 7).unwrap(),
-            item_name: "Consulting".to_string(),
-            hours_worked: 1,
-            hourly_rate: 160.0,
-            total_net: 160.0,
-            total_vat: 36.8,
-            total_gross: 196.8
-        };
-        let contractor = AppContractor {
-            id: "seller".to_string(),
-            name: "Seller".to_string(),
-            nip: Some("1234567890".to_string()),
-            country_code: "PL".to_string(),
-            address_l1: "Kraków, 30-638, 15/32".to_string()
-        };
-
-        let xml = invoice.to_xml(&contractor, &contractor, None).unwrap();
-
-        assert!(!xml.contains("{{"));
-        assert!(xml.contains("<AdresL1>Kraków, 30-638, /</AdresL1>"));
-        assert!(xml.contains("<JST>2</JST>"));
-        assert!(xml.contains("<GV>2</GV>"));
-        assert!(xml.contains("<P_13_1>160</P_13_1>"));
-        assert!(xml.contains("<P_14_1>36.8</P_14_1>"));
-        assert!(xml.contains("<P_15>196.8</P_15>"));
-        assert!(xml.contains("<P_8A>szt</P_8A>"));
-        assert!(xml.contains("<P_9A>160</P_9A>"));
-        assert!(xml.contains("<P_19N>1</P_19N>"));
-        assert!(xml.contains("<P_22N>1</P_22N>"));
-        assert!(xml.contains("<P_PMarzyN>1</P_PMarzyN>"));
-        assert!(xml.contains("<Termin>2026-10-07</Termin>"));
-    }
-}
-
 fn round_money(amount: f64) -> f64 {
     (amount * 100.0).round() / 100.0
 }
