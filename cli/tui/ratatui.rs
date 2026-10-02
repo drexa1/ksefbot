@@ -92,7 +92,10 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
                     }
                     MainMenuAction::EditCustomer => {
                         restore_terminal(terminal)?;
-                        customers::edit_customer(app_user).await?;
+                        if !customers::edit_customer(app_user).await? {
+                            setup_terminal_in_place(terminal)?;
+                            continue;
+                        }
                     }
                     MainMenuAction::ListCustomers => {
                         restore_terminal(terminal)?;

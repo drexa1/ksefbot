@@ -4,7 +4,7 @@ use crossterm::style::Stylize;
 use inquire::{Confirm, Select, Text};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppContractor {
     pub id: String,
@@ -111,11 +111,7 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     let street = prompt_optional(&format!("Street ({}):", "optional".grey()), "Jagiellońska")?;
     let building_number = prompt_required("Building number:", "74")?;
     let apartment_number = prompt_optional(&format!("Apartment number ({}):", "optional".grey()), "3")?;
-    let address_l1 = format!(
-        "{city}, {postal_code}, {}{building_number}{}",
-        street.map(|street| format!("{street} ")).unwrap_or_default(),
-        apartment_number.map(|apartment_number| format!("/{apartment_number}")).unwrap_or_default()
-    );
+    let address_l1 = assemble_address_l1(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
     println!();
     println!("  {}", "Contact & notes".bold());
     let notes = prompt_optional(&format!("Notes ({}, up to 256 characters):", "optional".grey()), "")?;
@@ -145,32 +141,39 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<()> {
+pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
     let mut contractors = other_contractors(app_user).await?;
     if contractors.is_empty() {
         println!("  API Response: No customers found.");
         println!();
-        return Ok(());
+        return Ok(true);
     }
     let choices: Vec<String> = contractors.iter().enumerate().map(|(index, contractor)| format!("{}. {}", index + 1, contractor.name)).collect();
     let mut choices = choices;
     choices.push("Back ↩️".to_string());
     let selected = Select::new("Select a customer to edit:", choices.clone()).with_page_size(15).prompt()?;
     if selected == "Back ↩️" {
-        return Ok(());
+        return Ok(false);
     }
     let index = choices.iter().position(|choice| choice == &selected).unwrap();
     let mut contractor = contractors.remove(index);
+    let original = contractor.clone();
+    let (mut city, mut postal_code, mut street, mut building_number, mut apartment_number) = parse_address_l1(&contractor.address_l1);
     loop {
+        contractor.address_l1 = assemble_address_l1(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
         println!();
-        let keys = ["Name", "NIP", "PESEL", "REGON", "Internal identifier", "Address", "Notes"];
+        let keys = ["Name", "NIP", "PESEL", "REGON", "Internal identifier", "City", "Postal code", "Street", "Building number", "Apartment number", "Notes"];
         let values = [
             contractor.name.clone(),
             contractor.nip.clone().unwrap_or_default(),
             contractor.pesel.clone().unwrap_or_default(),
             contractor.regon.clone().unwrap_or_default(),
             contractor.internal_identifier.clone().unwrap_or_default(),
-            contractor.address_l1.clone(),
+            city.clone(),
+            postal_code.clone(),
+            street.clone().unwrap_or_default(),
+            building_number.clone(),
+            apartment_number.clone().unwrap_or_default(),
             contractor.notes.clone().unwrap_or_default(),
         ];
         let mut fields: Vec<String> = keys.iter().zip(values.iter())
@@ -186,15 +189,24 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<()> {
             "PESEL" => contractor.pesel = Some(edit_digits("PESEL:", contractor.pesel.as_deref(), 11)?),
             "REGON" => contractor.regon = edit_optional_digits("REGON:", contractor.regon.as_deref(), 9)?,
             "Internal identifier" => contractor.internal_identifier = Some(edit_required("Internal identifier:", contractor.internal_identifier.as_deref().unwrap_or(""))?),
-            "Address" => contractor.address_l1 = edit_required("Address:", &contractor.address_l1)?,
+            "City" => city = edit_required("City:", &city)?,
+            "Postal code" => postal_code = edit_required("Postal code:", &postal_code)?,
+            "Street" => street = edit_optional("Street:", street.as_deref())?,
+            "Building number" => building_number = edit_required("Building number:", &building_number)?,
+            "Apartment number" => apartment_number = edit_optional("Apartment number:", apartment_number.as_deref())?,
             "Notes" => contractor.notes = edit_optional("Notes:", contractor.notes.as_deref())?,
             _ if field.starts_with("✅") => break,
-            _ => return Ok(()),
+            _ => return Ok(true),
         }
     }
+    contractor.address_l1 = assemble_address_l1(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
     println!();
+    if contractor == original {
+        println!("  No changes made.");
+        return Ok(true);
+    }
     if !Confirm::new("Save changes to this contractor?").with_default(true).prompt()? {
-        return Ok(());
+        return Ok(true);
     }
     let update = ContractorUpdate {
         id: contractor.id.clone(),
@@ -224,7 +236,31 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<()> {
     }
     println!();
     println!("  ✅ Contractor updated successfully.");
-    Ok(())
+    Ok(true)
+}
+
+fn assemble_address_l1(city: &str, postal_code: &str, street: Option<&str>, building_number: &str, apartment_number: Option<&str>) -> String {
+    format!(
+        "{city}, {postal_code}, {}{building_number}{}",
+        street.map(|street| format!("{street} ")).unwrap_or_default(),
+        apartment_number.map(|apartment_number| format!("/{apartment_number}")).unwrap_or_default()
+    )
+}
+
+fn parse_address_l1(address_l1: &str) -> (String, String, Option<String>, String, Option<String>) {
+    let mut parts = address_l1.splitn(3, ", ");
+    let city = parts.next().unwrap_or_default().to_string();
+    let postal_code = parts.next().unwrap_or_default().to_string();
+    let street_and_building = parts.next().unwrap_or_default();
+    let (street_and_building, apartment_number) = match street_and_building.split_once('/') {
+        Some((street_and_building, apartment_number)) => (street_and_building, Some(apartment_number.to_string())),
+        None => (street_and_building, None),
+    };
+    let (street, building_number) = match street_and_building.rsplit_once(' ') {
+        Some((street, building_number)) => (Some(street.to_string()), building_number.to_string()),
+        None => (None, street_and_building.to_string()),
+    };
+    (city, postal_code, street, building_number, apartment_number)
 }
 
 fn prompt_required(message: &str, placeholder: &str) -> anyhow::Result<String> {

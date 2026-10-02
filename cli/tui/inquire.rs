@@ -62,8 +62,9 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 pause()?;
             }
             MainMenuAction::EditCustomer => {
-                customers::edit_customer(logged_user).await?;
-                pause()?;
+                if customers::edit_customer(logged_user).await? {
+                    pause()?;
+                }
             }
             MainMenuAction::ListCustomers => {
                 customers::list_customers(logged_user).await?;
