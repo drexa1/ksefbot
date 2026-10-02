@@ -45,7 +45,7 @@ pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
                 let user = match method {
                     login::LoginMethod::Google => login::login_with_google().await?,
                     login::LoginMethod::Microsoft => login::login_with_microsoft().await?,
-                    login::LoginMethod::Email => login::login_with_email_loop().await?,
+                    login::LoginMethod::Phone => login::login_with_phone_loop().await?,
                 };
                 setup_terminal_in_place(terminal)?;
                 return Ok(user);

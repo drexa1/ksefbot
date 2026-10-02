@@ -9,13 +9,13 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
     let original = user.clone();
     loop {
         println!();
-        let keys = ["Email", "Phone", "Language", "Default item name", "Default hourly rate", "Settlement type", "Bank name", "Bank account number"];
+        let keys = ["Email", "Phone", "Language", "Default hourly rate", "Default item name", "Settlement type", "Bank name", "Bank account number"];
         let values = [
             user.email.clone(),
             user.phone.clone().unwrap_or_default(),
             language_label(&user.language).to_string(),
-            user.default_item_name.clone().unwrap_or_default(),
             user.default_hourly_rate.map(|rate| rate.to_string()).unwrap_or_default(),
+            user.default_item_name.clone().unwrap_or_default(),
             settlement_type_label(&user.settlement_type).to_string(),
             user.bank_name.clone().unwrap_or_default(),
             user.bank_account_number.clone().unwrap_or_default(),

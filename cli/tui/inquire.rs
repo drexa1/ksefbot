@@ -32,7 +32,7 @@ pub async fn login_loop() -> Result<AuthUser> {
         let logged_user = match method {
             crate::login::LoginMethod::Google => crate::login::login_with_google().await?,
             crate::login::LoginMethod::Microsoft => crate::login::login_with_microsoft().await?,
-            crate::login::LoginMethod::Email => crate::login::login_with_email_loop().await?,
+            crate::login::LoginMethod::Phone => crate::login::login_with_phone_loop().await?,
         };
         return Ok(logged_user);
     }

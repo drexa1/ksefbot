@@ -20,7 +20,7 @@ pub enum LoginMethod {
     #[strum(to_string = "Sign in with Google account")]
     Google,
     #[strum(to_string = "Created account with your e-mail")]
-    Email
+    Phone
 }
 
 impl LoginMethod {
@@ -28,7 +28,7 @@ impl LoginMethod {
         match self {
             LoginMethod::Microsoft => Some("microsoft"),
             LoginMethod::Google => Some("google"),
-            LoginMethod::Email => None
+            LoginMethod::Phone => None
         }
     }
 }
@@ -328,55 +328,55 @@ pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
 // Login with email
 // -------------------------------------------------------------------------------------------------
 
-pub async fn login_with_email_loop() -> Result<AuthUser> {
-    let email = Text::new("Email address").with_placeholder("you@example.com").prompt()?;
-    if account_exists(&email)? {
+pub async fn login_with_phone_loop() -> Result<AuthUser> {
+    let phone = Text::new("Phone number").with_placeholder("+48111222333").prompt()?;
+    if account_exists(&phone)? {
         println!("Account found.");
         let password = Password::new("Password").prompt()?;
-        return login_with_email(&email, &password);
+        return login_with_phone(&phone, &password);
     }
-    println!("No account found for {email}.");
+    println!("No account found for {phone}.");
     let create = Confirm::new("Would you like to create an account?")
         .with_default(true)
         .with_help_message("Create an account with this email")
         .prompt()?;
     if create {
-        create_account(&email)?;
+        create_account(&phone)?;
         println!("Account created successfully");
-        println!("We've sent a verification link to: {email} - Please verify your email and continue to log in.");
-        anyhow::bail!("Email verification required");
+        println!("We've sent a verification code to: {phone} - Please verify your phone and continue to log in.");
+        anyhow::bail!("Phone verification required");
     } else {
         anyhow::bail!("Account creation cancelled");
     }
 }
 
-fn account_exists(email: &str) -> Result<bool> {
+fn account_exists(phone: &str) -> Result<bool> {
     println!("  [API] GET /auth/account-exists");
-    println!("  [API] email = {email}");
+    println!("  [API] phone = {phone}");
     println!("  [API] Response: account not found");
     // Change to true to test the password flow.
     Ok(false)
 }
 
-fn create_account(email: &str) -> Result<()> {
+fn create_account(phone: &str) -> Result<()> {
     println!("Creating account...");
     println!("  [API] POST /auth/register");
-    println!("  [API] email = {email}");
+    println!("  [API] phone = {phone}");
     println!("  [API] Creating account record...");
-    println!("  [EMAIL] Verification email sent.");
+    println!("  [EMAIL] Verification code sent.");
     Ok(())
 }
 
-fn login_with_email(email: &str, password: &str) -> Result<AuthUser> {
+fn login_with_phone(phone: &str, password: &str) -> Result<AuthUser> {
     let _ = password;
     println!("  [API] POST /auth/login");
-    println!("  [API] email = {email}");
+    println!("  [API] phone = {phone}");
     println!("  [API] password = ********");
     println!("  [API] Response: authentication successful");
     let user = AuthUser {
         name: Some("Dummy User".to_owned()),
         email: Some("dummy@example.com".to_owned()),
-        phone: None
+        phone: Some(phone.to_owned())
     };
     Ok(user)
 }
