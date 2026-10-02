@@ -7,7 +7,6 @@ use inquire::{Confirm, Select, Text};
 pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
     let mut user = app_user.clone();
     let original = user.clone();
-
     loop {
         println!();
         let keys = ["Email", "Phone", "Language", "Default item name", "Default hourly rate", "Settlement type", "Bank name", "Bank account number"];
@@ -27,7 +26,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
         if user != original {
             fields.push("✅ Save changes".to_string());
         }
-        fields.push("Back ↩️".to_string());
+        fields.push("❌ Cancel".to_string());
         let field = Select::new("Select a field to edit:", fields.clone()).with_page_size(fields.len()).prompt()?;
         let selected_index = fields.iter().position(|choice| choice == &field).unwrap();
         match keys.get(selected_index).copied().unwrap_or_default() {
@@ -43,7 +42,6 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
             _ => return Ok(false),
         }
     }
-
     println!();
     if !Confirm::new("Save changes to your profile?").with_default(true).prompt()? {
         return Ok(true);
