@@ -44,19 +44,34 @@ pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String
 async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: String, to: String) -> anyhow::Result<()> {
     let invoices = list_invoices(app_user, invoice_type, &from, &to).await?;
     if invoices.is_empty() {
-        println!();
+        crate::tui::inquire::pause()?;
         return Ok(());
     }
     let counterparty_key = match invoice_type { InvoiceType::Sales => "Buyer", InvoiceType::Purchases => "Seller" };
-    let counterparty_label = invoice_type.counterparty_label();
+    let capitalize = |text: &str| -> String {
+        let mut chars = text.chars();
+        match chars.next() {
+            Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+            None => String::new()
+        }
+    };
+    let item_description = |invoice: &serde_json::Value| -> String {
+        invoice["InvoiceBody"]["InvoiceLines"].as_array().into_iter().flatten()
+            .filter_map(|line| line["ItemDescription"].as_str())
+            .map(&capitalize)
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
     let invoice_number_width = invoices.iter().map(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().len()).max().unwrap_or(0);
     let counterparty_width = invoices.iter().map(|i| i[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap().len()).max().unwrap_or(0);
+    let item_description_width = invoices.iter().map(item_description).map(|d| d.len()).max().unwrap_or(0);
     let mut invoice_choices: Vec<String> = invoices.iter().enumerate().map(|(index, invoice)| {
         let number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
         let counterparty = invoice[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap();
+        let items = item_description(invoice);
         let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
         let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
-        format!("{}. {:<invoice_number_width$} - {}: {:<counterparty_width$} - {:.2} {}", index + 1, number, counterparty_label, counterparty, amount, currency)
+        format!("{}. {:<invoice_number_width$} - {:<counterparty_width$} - {:<item_description_width$} - {:.2} {}", index + 1, number, counterparty, items, amount, currency)
     }).collect();
     invoice_choices.push("Back ↩️".to_string());
     let selected = Select::new(&format!("Select a {invoice_type} invoice"), invoice_choices).prompt()?;

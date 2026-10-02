@@ -4,7 +4,7 @@ use crate::api::users::AppUser;
 use crate::api::{customers, invoices, settings};
 use crate::login::AuthUser;
 use anyhow::Result;
-use chrono::Local;
+use chrono::{Datelike, Local, NaiveDate};
 use crossterm::{
     cursor::MoveTo,
     execute,
@@ -65,9 +65,30 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
 
 pub fn prompt_invoice_dates() -> Result<(String, String)> {
     let today = Local::now().date_naive();
-    let from = DateSelect::new("From date:").with_starting_date(today).prompt()?;
-    let to = DateSelect::new("To date:").with_starting_date(today.max(from)).with_min_date(from).prompt()?;
-    Ok((from.format("%Y/%m/%d").to_string(), to.format("%Y/%m/%d").to_string()))
+    let (last_month_start, last_month_end) = month_range(today, 1);
+    let (prev_month_start, prev_month_end) = month_range(today, 2);
+    let specific_dates = "Specific dates (max. allowed by KSeF: 3 months span)".to_string();
+    let last_month_choice = last_month_start.format("%B").to_string();
+    let prev_month_choice = prev_month_start.format("%B").to_string();
+    let choices = vec![prev_month_choice.clone(), last_month_choice.clone(), specific_dates.clone()];
+    let selected = Select::new("Invoice date range:", choices).prompt()?;
+    if selected == prev_month_choice {
+        Ok((prev_month_start.format("%Y/%m/%d").to_string(), prev_month_end.format("%Y/%m/%d").to_string()))
+    } else if selected == last_month_choice {
+        Ok((last_month_start.format("%Y/%m/%d").to_string(), last_month_end.format("%Y/%m/%d").to_string()))
+    } else {
+        let from = DateSelect::new("From date:").with_starting_date(today).prompt()?;
+        let to = DateSelect::new("To date:").with_starting_date(today.max(from)).with_min_date(from).prompt()?;
+        Ok((from.format("%Y/%m/%d").to_string(), to.format("%Y/%m/%d").to_string()))
+    }
+}
+
+fn month_range(today: NaiveDate, months_ago: i32) -> (NaiveDate, NaiveDate) {
+    let total_months = today.year() * 12 + today.month0() as i32 - months_ago;
+    let (year, month) = (total_months.div_euclid(12), total_months.rem_euclid(12) as u32 + 1);
+    let start = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
+    let next_month_start = if month == 12 { NaiveDate::from_ymd_opt(year + 1, 1, 1) } else { NaiveDate::from_ymd_opt(year, month + 1, 1) }.unwrap();
+    (start, next_month_start.pred_opt().unwrap())
 }
 
 pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
