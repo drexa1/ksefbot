@@ -30,7 +30,7 @@ mod history;
 
 pub struct Tui {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
-    backdrop: Option<Buffer>,
+    backdrop: Option<Buffer>
 }
 
 impl Tui {
