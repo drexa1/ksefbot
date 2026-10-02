@@ -24,10 +24,11 @@ use strum::IntoEnumIterator;
 pub type Tui = Terminal<CrosstermBackend<io::Stdout>>;
 
 pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
+    let last_used = login::last_used_method();
     let methods: Vec<login::LoginMethod> = login::LoginMethod::iter().collect();
     let mut selected = 0usize;
     loop {
-        terminal.draw(|frame| draw_login(frame, &methods, selected))?;
+        terminal.draw(|frame| draw_login(frame, &methods, selected, last_used.as_ref()))?;
         match read_key()? {
             KeyCode::Up | KeyCode::Char('k') => selected = selected.saturating_sub(1),
             KeyCode::Down | KeyCode::Char('j') => {
@@ -36,8 +37,12 @@ pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
                 }
             }
             KeyCode::Enter => {
+                let method = methods[selected].clone();
+                if let Some(user) = login::try_resume_method(&method).await {
+                    return Ok(user);
+                }
                 restore_terminal(terminal)?;
-                let user = match methods[selected].clone() {
+                let user = match method {
                     login::LoginMethod::Google => login::login_with_google().await?,
                     login::LoginMethod::Microsoft => login::login_with_microsoft().await?,
                     login::LoginMethod::Email => login::login_with_email_loop().await?,
@@ -209,9 +214,12 @@ fn restore_terminal(terminal: &mut Tui) -> Result<()> {
     Ok(())
 }
 
-fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], selected: usize) {
+fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], selected: usize, last_used: Option<&login::LoginMethod>) {
     let area = centered_rect(frame.area(), 60, 50);
-    let items = methods.iter().map(|method| ListItem::new(method.to_string())).collect::<Vec<_>>();
+    let items = methods.iter().map(|method| {
+        let label = if last_used == Some(method) { format!("{method} (last used)") } else { method.to_string() };
+        ListItem::new(label)
+    }).collect::<Vec<_>>();
     let list = List::new(items)
         .block(Block::default().title("➜🚪 Welcome to KSeF Bot. How would you like to log in?").borders(Borders::ALL))
         .highlight_symbol("> ")

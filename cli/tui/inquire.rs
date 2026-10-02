@@ -18,8 +18,17 @@ use std::path::{Path, PathBuf};
 use strum::IntoEnumIterator;
 
 pub async fn login_loop() -> Result<AuthUser> {
+    let last_used = crate::login::last_used_method();
     loop {
-        let method = Select::new("➜🚪 Welcome to KSeF Bot. How would you like to log in?", crate::login::LoginMethod::iter().collect()).prompt()?;
+        let choices: Vec<String> = crate::login::LoginMethod::iter().map(|method| {
+            let label = method.to_string();
+            if last_used.as_ref() == Some(&method) { format!("{label} (last used)") } else { label }
+        }).collect();
+        let selected = Select::new("➜🚪 Welcome to KSeF Bot. How would you like to log in?", choices).prompt()?;
+        let method = crate::login::LoginMethod::iter().find(|method| selected.starts_with(&method.to_string())).unwrap();
+        if let Some(logged_user) = crate::login::try_resume_method(&method).await {
+            return Ok(logged_user);
+        }
         let logged_user = match method {
             crate::login::LoginMethod::Google => crate::login::login_with_google().await?,
             crate::login::LoginMethod::Microsoft => crate::login::login_with_microsoft().await?,

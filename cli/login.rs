@@ -3,16 +3,17 @@ use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use inquire::{Confirm, Password, Text};
 use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, RefreshToken, Scope,
     TokenResponse, TokenUrl, basic::BasicClient,
 };
 use rand::Rng;
 use sha2::{Digest, Sha256};
-use strum::{Display, EnumIter};
+use std::path::PathBuf;
+use strum::{Display, EnumIter, IntoEnumIterator};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-#[derive(Clone, Display, EnumIter)]
+#[derive(Clone, Display, EnumIter, PartialEq)]
 pub enum LoginMethod {
     #[strum(to_string = "Sign in with Microsoft account")]
     Microsoft,
@@ -20,6 +21,16 @@ pub enum LoginMethod {
     Google,
     #[strum(to_string = "Created account with your e-mail")]
     Email
+}
+
+impl LoginMethod {
+    fn session_key(&self) -> Option<&'static str> {
+        match self {
+            LoginMethod::Microsoft => Some("microsoft"),
+            LoginMethod::Google => Some("google"),
+            LoginMethod::Email => None
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -30,13 +41,20 @@ pub struct AuthUser {
     pub phone: Option<String>
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct StoredSession {
+    method: String,
+    refresh_token: String
+}
+
 // -------------------------------------------------------------------------------------------------
 // Login with SSO
 // -------------------------------------------------------------------------------------------------
 
 #[derive(serde::Deserialize)]
 struct MSTokenResponse {
-    id_token: String
+    id_token: String,
+    refresh_token: Option<String>
 }
 
 pub async fn login_with_microsoft() -> Result<AuthUser> {
@@ -63,7 +81,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
         .append_pair("response_type", "code")
         .append_pair("redirect_uri", &redirect_uri)
         .append_pair("response_mode", "query")
-        .append_pair("scope", "openid profile email User.Read")
+        .append_pair("scope", "openid profile email User.Read offline_access")
         .append_pair("state", &state)
         .append_pair("code_challenge", &code_challenge)
         .append_pair("code_challenge_method", "S256");
@@ -114,7 +132,35 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
         .json()
         .await
         .context("Failed to parse Microsoft token response")?;
-    let token_parts: Vec<&str> = token.id_token.split('.').collect();
+    if let Some(refresh_token) = &token.refresh_token {
+        save_session("microsoft", refresh_token)?;
+    }
+    decode_ms_id_token(&token.id_token)
+}
+
+async fn refresh_microsoft(refresh_token: &str) -> Result<AuthUser> {
+    let token: MSTokenResponse = reqwest::Client::new().post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token").form(&[
+            ("client_id", microsoft_client_id!()),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+            ("scope", "openid profile email User.Read offline_access"),
+        ])
+        .send()
+        .await
+        .context("Failed to refresh Microsoft token")?
+        .error_for_status()
+        .context("Microsoft token refresh failed")?
+        .json()
+        .await
+        .context("Failed to parse Microsoft token response")?;
+    if let Some(refresh_token) = &token.refresh_token {
+        save_session("microsoft", refresh_token)?;
+    }
+    decode_ms_id_token(&token.id_token)
+}
+
+fn decode_ms_id_token(id_token: &str) -> Result<AuthUser> {
+    let token_parts: Vec<&str> = id_token.split('.').collect();
     if token_parts.len() != 3 {
         anyhow::bail!("Invalid Microsoft ID token");
     }
@@ -185,7 +231,32 @@ pub async fn login_with_google() -> Result<AuthUser> {
         .request_async(&http_client)
         .await
         .context("Failed to exchange authorization code for Google token")?;
-    let access_token = token.access_token().secret();
+    if let Some(refresh_token) = token.refresh_token() {
+        save_session("google", refresh_token.secret())?;
+    }
+    fetch_google_user(token.access_token().secret()).await
+}
+
+async fn refresh_google(refresh_token: &str) -> Result<AuthUser> {
+    let client = BasicClient::new(ClientId::new(google_client_id!().to_owned()))
+        .set_client_secret(ClientSecret::new(google_client_secret!().to_owned()))
+        .set_auth_uri(AuthUrl::new("https://accounts.google.com/o/oauth2/auth".to_owned())?)
+        .set_token_uri(TokenUrl::new("https://oauth2.googleapis.com/token".to_owned())?);
+    let http_client = oauth2::reqwest::ClientBuilder::new()
+        .redirect(oauth2::reqwest::redirect::Policy::none())
+        .build()
+        .context("Failed to create OAuth HTTP client")?;
+    let token = client.exchange_refresh_token(&RefreshToken::new(refresh_token.to_owned()))
+        .request_async(&http_client)
+        .await
+        .context("Failed to refresh Google token")?;
+    if let Some(refresh_token) = token.refresh_token() {
+        save_session("google", refresh_token.secret())?;
+    }
+    fetch_google_user(token.access_token().secret()).await
+}
+
+async fn fetch_google_user(access_token: &str) -> Result<AuthUser> {
     let user: AuthUser = reqwest::Client::new().get("https://openidconnect.googleapis.com/v1/userinfo")
         .bearer_auth(access_token)
         .send()
@@ -197,6 +268,60 @@ pub async fn login_with_google() -> Result<AuthUser> {
         .await
         .context("Failed to parse Google user information")?;
     Ok(user)
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// SSO persistence
+// -------------------------------------------------------------------------------------------------
+
+fn session_path() -> PathBuf {
+    let home = std::env::var_os("USERPROFILE").unwrap();
+    PathBuf::from(home).join(".ksefbot").join("session.json")
+}
+
+fn load_session() -> Option<StoredSession> {
+    let content = std::fs::read_to_string(session_path()).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+fn save_session(method: &str, refresh_token: &str) -> Result<()> {
+    let path = session_path();
+    std::fs::create_dir_all(path.parent().unwrap())?;
+    std::fs::write(path, serde_json::to_string(&StoredSession { method: method.to_string(), refresh_token: refresh_token.to_string() })?)?;
+    Ok(())
+}
+
+fn clear_session() {
+    let _ = std::fs::remove_file(session_path());
+}
+
+/// Returns the login method whose session was last persisted, if any.
+pub fn last_used_method() -> Option<LoginMethod> {
+    let session = load_session()?;
+    LoginMethod::iter().find(|method| method.session_key() == Some(session.method.as_str()))
+}
+
+/// Tries to silently resume the given method's previous session via its stored refresh token.
+/// Returns `None` if there is no stored session for this method (or resuming failed), so the
+/// caller can fall back to the regular interactive login flow.
+pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
+    let session = load_session()?;
+    if Some(session.method.as_str()) != method.session_key() {
+        return None;
+    }
+    let result = match session.method.as_str() {
+        "microsoft" => refresh_microsoft(&session.refresh_token).await,
+        "google" => refresh_google(&session.refresh_token).await,
+        _ => return None
+    };
+    match result {
+        Ok(user) => Some(user),
+        Err(_) => {
+            clear_session();
+            None
+        }
+    }
 }
 
 // -------------------------------------------------------------------------------------------------
