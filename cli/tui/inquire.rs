@@ -40,8 +40,10 @@ pub async fn login_loop() -> Result<AuthUser> {
 
 pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
     println!();
+    let menu_actions: Vec<MainMenuAction> = MainMenuAction::iter().collect();
+    let page_size = menu_actions.len();
     loop {
-        match Select::new("What shall we do now?:", MainMenuAction::iter().collect()).prompt()? {
+        match Select::new("What shall we do now?:", menu_actions.clone()).with_page_size(page_size).prompt()? {
             MainMenuAction::CreateSalesInvoice => {
                 if prompt_create_invoice(logged_user).await? {
                     pause()?;
@@ -57,6 +59,10 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
             }
             MainMenuAction::CreateCustomer => {
                 customers::create_customer(logged_user).await?;
+                pause()?;
+            }
+            MainMenuAction::EditCustomer => {
+                customers::edit_customer(logged_user).await?;
                 pause()?;
             }
             MainMenuAction::ListCustomers => {
@@ -121,7 +127,7 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
             let customer_choices: Vec<String> = invoice_parties.customers.iter().enumerate().map(|(index, customer)| {
                 format!("{}. {} (NIP: {})", index + 1, customer.name, customer.nip.as_deref().unwrap())
             }).collect();
-            let selected: String = Select::new("Select customer", customer_choices).prompt()?;
+            let selected: String = Select::new("Select customer", customer_choices).with_page_size(15).prompt()?;
             let customer_index = selected.split_once(". ")
                 .map(|(index, _)| index.parse::<usize>().unwrap() - 1)
                 .unwrap();

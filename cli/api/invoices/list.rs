@@ -81,7 +81,7 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
         format!("{}. {} - {:<counterparty_width$} - {:<item_description_width$} - {}", index + 1, number_padded.bold(), counterparty, items, amount_styled)
     }).collect();
     invoice_choices.push("Back ↩️".to_string());
-    let selected = Select::new(&format!("Select a {invoice_type} invoice"), invoice_choices).prompt()?;
+    let selected = Select::new(&format!("Select a {invoice_type} invoice"), invoice_choices).with_page_size(15).prompt()?;
     if selected == "Back ↩️" {
         return Ok(());
     }
