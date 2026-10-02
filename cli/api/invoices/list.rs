@@ -24,21 +24,42 @@ impl InvoiceType {
             InvoiceType::Purchases => "🛒"
         }
     }
+
+    fn counterparty_label(&self) -> &'static str {
+        match self {
+            InvoiceType::Sales => "Customer",
+            InvoiceType::Purchases => "Seller"
+        }
+    }
 }
 
 pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
-    let invoices = list_invoices(app_user, &InvoiceType::Sales, &from, &to).await?;
+    browse_invoices(app_user, &InvoiceType::Sales, from, to).await
+}
+
+pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
+    browse_invoices(app_user, &InvoiceType::Purchases, from, to).await
+}
+
+async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: String, to: String) -> anyhow::Result<()> {
+    let invoices = list_invoices(app_user, invoice_type, &from, &to).await?;
     if invoices.is_empty() {
+        println!();
         return Ok(());
     }
+    let counterparty_key = match invoice_type { InvoiceType::Sales => "Buyer", InvoiceType::Purchases => "Seller" };
+    let counterparty_label = invoice_type.counterparty_label();
+    let invoice_number_width = invoices.iter().map(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().len()).max().unwrap_or(0);
+    let counterparty_width = invoices.iter().map(|i| i[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap().len()).max().unwrap_or(0);
     let mut invoice_choices: Vec<String> = invoices.iter().enumerate().map(|(index, invoice)| {
         let number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
+        let counterparty = invoice[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap();
         let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
         let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
-        format!("{}. {} - {:.2} {}", index + 1, number, amount, currency)
+        format!("{}. {:<invoice_number_width$} - {}: {:<counterparty_width$} - {:.2} {}", index + 1, number, counterparty_label, counterparty, amount, currency)
     }).collect();
     invoice_choices.push("Back ↩️".to_string());
-    let selected = Select::new("Select a sales invoice", invoice_choices).prompt()?;
+    let selected = Select::new(&format!("Select a {invoice_type} invoice"), invoice_choices).prompt()?;
     if selected == "Back ↩️" {
         return Ok(());
     }
@@ -52,11 +73,11 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
     ]).prompt()?;
     match action {
         "👀 Preview" => {
-            print_invoice_preview(invoice);
+            print_invoice_preview(invoice, invoice_type);
             crate::tui::inquire::pause()?;
         }
         "📂 Download XML" => {
-            let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number, &from, &to).await?;
+            let path = download_invoice_xml(app_user, invoice_type, invoice, &invoice_number, &from, &to).await?;
             println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
             crate::tui::inquire::pause()?;
         }
@@ -65,37 +86,19 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
     Ok(())
 }
 
-fn print_invoice_preview(invoice: &serde_json::Value) {
+fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType) {
     println!();
     let body = &invoice["InvoiceBody"];
-    let buyer = &invoice["Buyer"]["IdentificationData"];
+    let counterparty_key = match invoice_type { InvoiceType::Sales => "Buyer", InvoiceType::Purchases => "Seller" };
+    let counterparty = &invoice[counterparty_key]["IdentificationData"];
     let currency = body["CurrencyCode"].as_str().unwrap();
     println!("  InvoiceNumber: {}", body["InvoiceNumber"].as_str().unwrap());
     println!("  InvoiceType: {}", body["InvoiceType"].as_str().unwrap());
-    println!("  Customer: {} - {}", buyer["NIP"].as_str().unwrap_or("-"), buyer["Name"].as_str().unwrap());
+    println!("  {}: {} - {}", invoice_type.counterparty_label(), counterparty["NIP"].as_str().unwrap_or("-"), counterparty["Name"].as_str().unwrap());
     println!("  ServiceDate: {}", body["ServiceDate"].as_str().unwrap());
     println!("  TotalGrossAmount: {:.2} {}", body["TotalGrossAmount"].as_f64().unwrap(), currency);
     println!("  TotalNetAmount: {:.2} {}", body["TotalNetAmount"].as_f64().unwrap(), currency);
     println!("  TotalVatAmount: {:.2} {}", body["TotalVatAmount"].as_f64().unwrap(), currency);
-}
-
-pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
-    let invoices = list_invoices(app_user, &InvoiceType::Purchases, &from, &to).await?;
-    let max_width = |get: fn(&serde_json::Value) -> &str| {
-        invoices.iter().map(get).map(str::len).max().unwrap_or(0)
-    };
-    let invoice_number_width = max_width(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap());
-    let seller_width = max_width(|i| i["Seller"]["IdentificationData"]["Name"].as_str().unwrap());
-    for (i, invoice) in invoices.iter().enumerate() {
-        let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
-        let seller = invoice["Seller"]["IdentificationData"]["Name"]
-            .as_str()
-            .unwrap();
-        let total = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
-        let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
-        println!("  {}. {:<invoice_number_width$} - {:<seller_width$} - {:.2} {}", i + 1, invoice_number, seller, total, currency);
-    }
-    Ok(())
 }
 
 async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> anyhow::Result<Vec<serde_json::Value>> {

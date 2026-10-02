@@ -213,7 +213,7 @@ fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], select
     let area = centered_rect(frame.area(), 60, 50);
     let items = methods.iter().map(|method| ListItem::new(method.to_string())).collect::<Vec<_>>();
     let list = List::new(items)
-        .block(Block::default().title("Welcome to KSeF Bot. How would you like to log in?").borders(Borders::ALL))
+        .block(Block::default().title("➜🚪 Welcome to KSeF Bot. How would you like to log in?").borders(Borders::ALL))
         .highlight_symbol("> ")
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
     let mut state = ListState::default();

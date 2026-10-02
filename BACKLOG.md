@@ -64,20 +64,20 @@
 - [x] Method to check if whatsapp user is new
 - [x] CLI: Google SSO
 - [x] CLI: Microsoft SSO  
-- [ ] Move invoiceToXml completely to worker  
+- [x] CLI: list customers
+- [x] CLI: adapt sales/purchase invoices summary  
+- [x] CLI: create invoice  
 - [ ] Fix tests failing after refactor  
+- [ ] Move invoiceToXml completely to worker  
 - [ ] Schedule daily tests  
 - [ ] CLI: login with email  
 - [ ] CLI: login with phone  
-- [ ] Whatsapp: get PROD number display name working
+- [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup
 - [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
-- [ ] First time frontend workflow  
-- [ ] CLI: list customers  
-- [ ] CLI: adapt sales/purchase invoices summary  
+- [ ] First time frontend workflow
 - [ ] CLI: create customer  
-- [ ] CLI: create invoice
 - [ ] CLI: edit user settings  
 - [ ] CLI: first time flow  
 - [ ] Review security architecture  

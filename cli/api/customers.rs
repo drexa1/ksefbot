@@ -32,7 +32,7 @@ pub async fn load_contractors(app_user: &AppUser) -> anyhow::Result<Vec<AppContr
 
 pub async fn list_customers(app_user: &AppUser) -> anyhow::Result<()> {
     let contractors: Vec<_> = load_contractors(app_user).await?.into_iter()
-        .filter(|contractor| Some(&contractor.id) != app_user.contractor_id.as_ref())
+        .filter(|contractor| contractor.nip.as_deref() != Some(app_user.id.as_str()))
         .collect();
     println!("  API Response: {} customers found", contractors.len());
     if contractors.is_empty() {
