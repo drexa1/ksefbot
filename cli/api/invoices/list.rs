@@ -1,7 +1,8 @@
-﻿use crate::api::users::AppUser;
-use crate::tui::prompt::Prompter;
+use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
 use chrono::NaiveDate;
+use crossterm::style::Stylize;
+use inquire::Select;
 use std::path::PathBuf;
 use strum::Display;
 
@@ -19,8 +20,8 @@ pub enum InvoiceType {
 impl InvoiceType {
     fn emoji(&self) -> &'static str {
         match self {
-            InvoiceType::Sales => "ðŸ’µ",
-            InvoiceType::Purchases => "ðŸ›’"
+            InvoiceType::Sales => "💵",
+            InvoiceType::Purchases => "🛒"
         }
     }
 
@@ -32,18 +33,18 @@ impl InvoiceType {
     }
 }
 
-pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String, prompter: &mut impl Prompter) -> anyhow::Result<()> {
-    browse_invoices(app_user, &InvoiceType::Sales, from, to, prompter).await
+pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
+    browse_invoices(app_user, &InvoiceType::Sales, from, to).await
 }
 
-pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String, prompter: &mut impl Prompter) -> anyhow::Result<()> {
-    browse_invoices(app_user, &InvoiceType::Purchases, from, to, prompter).await
+pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
+    browse_invoices(app_user, &InvoiceType::Purchases, from, to).await
 }
 
-async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: String, to: String, prompter: &mut impl Prompter) -> anyhow::Result<()> {
-    let invoices = list_invoices(app_user, invoice_type, &from, &to, prompter).await?;
+async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: String, to: String) -> anyhow::Result<()> {
+    let invoices = list_invoices(app_user, invoice_type, &from, &to).await?;
     if invoices.is_empty() {
-        prompter.pause()?;
+        crate::tui::inquire::pause()?;
         return Ok(());
     }
     let counterparty_key = match invoice_type { InvoiceType::Sales => "Buyer", InvoiceType::Purchases => "Seller" };
@@ -72,38 +73,43 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
         let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
         let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
         let amount_text = format!("{amount:.2} {currency}");
+        let amount_styled = match invoice_type {
+            InvoiceType::Sales => amount_text.blue().to_string(),
+            InvoiceType::Purchases => amount_text.dark_yellow().to_string()
+        };
         let number_padded = format!("{number:<invoice_number_width$}");
-        format!("{}. {number_padded} - {:<counterparty_width$} - {:<item_description_width$} - {amount_text}", index + 1, counterparty, items)
+        format!("{}. {} - {:<counterparty_width$} - {:<item_description_width$} - {}", index + 1, number_padded.bold(), counterparty, items, amount_styled)
     }).collect();
-    invoice_choices.push("Back â†©ï¸".to_string());
-    let selected = prompter.select(&format!("Select a {invoice_type} invoice"), &invoice_choices)?;
-    if selected == "Back â†©ï¸" {
+    invoice_choices.push("Back ↩️".to_string());
+    let selected = Select::new(&format!("Select a {invoice_type} invoice"), invoice_choices).with_page_size(15).prompt()?;
+    if selected == "Back ↩️" {
         return Ok(());
     }
     let index = selected.split_once(". ").unwrap().0.parse::<usize>()? - 1;
     let invoice = &invoices[index];
     let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().to_string();
-    let action = prompter.select(&format!("Invoice {invoice_number}"), &[
-        "ðŸ‘€ Preview".to_string(),
-        "ðŸ“‚ Download XML".to_string(),
-        "Back â†©ï¸".to_string()
-    ])?;
-    match action.as_str() {
-        "ðŸ‘€ Preview" => {
-            print_invoice_preview(invoice, invoice_type, prompter)?;
-            prompter.pause()?;
+    let action = Select::new(&format!("Invoice {}", invoice_number.clone().bold()), vec![
+        "👀 Preview",
+        "📂 Download XML",
+        "Back ↩️"
+    ]).prompt()?;
+    match action {
+        "👀 Preview" => {
+            print_invoice_preview(invoice, invoice_type);
+            crate::tui::inquire::pause()?;
         }
-        "ðŸ“‚ Download XML" => {
+        "📂 Download XML" => {
             let path = download_invoice_xml(app_user, invoice_type, invoice, &invoice_number, &from, &to).await?;
-            prompter.info(&format!("ðŸ“‚ Invoice XML saved to {}", path.display()))?;
-            prompter.pause()?;
+            println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
+            crate::tui::inquire::pause()?;
         }
         _ => {}
     }
     Ok(())
 }
 
-fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType, prompter: &mut impl Prompter) -> anyhow::Result<()> {
+fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType) {
+    println!();
     let body = &invoice["InvoiceBody"];
     let counterparty_key = match invoice_type { InvoiceType::Sales => "Buyer", InvoiceType::Purchases => "Seller" };
     let counterparty = &invoice[counterparty_key]["IdentificationData"];
@@ -111,17 +117,24 @@ fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType
     let gross = format!("{:.2} {}", body["TotalGrossAmount"].as_f64().unwrap(), currency);
     let net = format!("{:.2} {}", body["TotalNetAmount"].as_f64().unwrap(), currency);
     let vat = format!("{:.2} {}", body["TotalVatAmount"].as_f64().unwrap(), currency);
-    prompter.info(&format!("InvoiceNumber: {}", body["InvoiceNumber"].as_str().unwrap()))?;
-    prompter.info(&format!("InvoiceType: {}", body["InvoiceType"].as_str().unwrap()))?;
-    prompter.info(&format!("{}: {} - {}", invoice_type.counterparty_label(), counterparty["NIP"].as_str().unwrap_or("-"), counterparty["Name"].as_str().unwrap()))?;
-    prompter.info(&format!("ServiceDate: {}", body["ServiceDate"].as_str().unwrap()))?;
-    prompter.info(&format!("TotalGrossAmount: {gross}"))?;
-    prompter.info(&format!("TotalNetAmount: {net}"))?;
-    prompter.info(&format!("TotalVatAmount: {vat}"))?;
-    Ok(())
+    let (gross, net) = match invoice_type {
+        InvoiceType::Sales => (gross.blue().to_string(), net.green().to_string()),
+        InvoiceType::Purchases => (gross.dark_yellow().to_string(), net)
+    };
+    let vat = match invoice_type {
+        InvoiceType::Purchases => vat.green().to_string(),
+        InvoiceType::Sales => vat
+    };
+    println!("  InvoiceNumber: {}", body["InvoiceNumber"].as_str().unwrap().bold());
+    println!("  InvoiceType: {}", body["InvoiceType"].as_str().unwrap());
+    println!("  {}: {} - {}", invoice_type.counterparty_label(), counterparty["NIP"].as_str().unwrap_or("-"), counterparty["Name"].as_str().unwrap());
+    println!("  ServiceDate: {}", body["ServiceDate"].as_str().unwrap());
+    println!("  TotalGrossAmount: {gross}");
+    println!("  TotalNetAmount: {net}");
+    println!("  TotalVatAmount: {vat}");
 }
 
-async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str, prompter: &mut impl Prompter) -> anyhow::Result<Vec<serde_json::Value>> {
+async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> anyhow::Result<Vec<serde_json::Value>> {
     let mut json: serde_json::Value = crate::api::client::http_client()
         .get(format!("{}/ksef/{endpoint}", cf_worker_url!()))
         .query(&[
@@ -138,14 +151,14 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, t
         .json()
         .await?;
     if json["success"].as_bool() != Some(true) {
-        prompter.info(&format!("API Response: {}", json["error"].as_str().unwrap_or("unknown error")))?;
+        println!("  API Response: {}", json["error"].as_str().unwrap_or("unknown error"));
         return Ok(Vec::new());
     }
     let invoices = match json["result"].take() {
         serde_json::Value::Array(array) => array,
         _ => Vec::new()
     };
-    prompter.info(&format!("API Response: {} invoices [{} {}] found", invoices.len(), endpoint.emoji(), endpoint))?;
+    println!("  API Response: {} invoices [{} {}] found", invoices.len(), endpoint.emoji(), endpoint);
     Ok(invoices)
 }
 

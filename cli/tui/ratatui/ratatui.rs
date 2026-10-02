@@ -1,8 +1,6 @@
-﻿use crate::api::users::{self, AppUser};
+use crate::api::users::{self, AppUser};
 use crate::api::{customers, invoices};
 use crate::login::AuthUser;
-use crate::tui::flows;
-use crate::tui::prompt::Prompter;
 use crate::{MainMenuAction, login};
 use anyhow::Result;
 use chrono::{Datelike, Local, Months, NaiveDate};
@@ -11,7 +9,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::widgets::{Paragraph, Wrap};
+use ratatui::widgets::Paragraph;
 use ratatui::widgets::calendar::{CalendarEventStore, Monthly};
 use ratatui::{
     Terminal,
@@ -24,120 +22,6 @@ use std::io;
 use strum::IntoEnumIterator;
 
 pub type Tui = Terminal<CrosstermBackend<io::Stdout>>;
-
-pub struct RatatuiPrompter<'a> {
-    terminal: &'a mut Tui,
-    log: Vec<String>,
-}
-
-impl<'a> RatatuiPrompter<'a> {
-    pub fn new(terminal: &'a mut Tui) -> Self {
-        Self { terminal, log: Vec::new() }
-    }
-
-    fn draw(&mut self, body: impl FnOnce(&mut ratatui::Frame, Rect)) -> Result<()> {
-        let log = self.log.join("\n");
-        self.terminal.draw(|frame| {
-            let area = frame.area();
-            let sections = Layout::vertical([Constraint::Min(3), Constraint::Length(6)]).split(area);
-            let visible = sections[0].height.saturating_sub(2);
-            let scroll = (self.log.len() as u16).saturating_sub(visible);
-            let paragraph = Paragraph::new(log)
-                .wrap(Wrap { trim: false })
-                .scroll((scroll, 0))
-                .block(Block::default().title("KSeF Bot").borders(Borders::ALL));
-            frame.render_widget(paragraph, sections[0]);
-            body(frame, sections[1]);
-        })?;
-        Ok(())
-    }
-}
-
-impl Prompter for RatatuiPrompter<'_> {
-    fn info(&mut self, message: &str) -> Result<()> {
-        self.log.push(message.to_string());
-        self.draw(|_, _| {})
-    }
-
-    fn select(&mut self, title: &str, choices: &[String]) -> Result<String> {
-        let mut selected = 0usize;
-        loop {
-            let items: Vec<ListItem> = choices.iter().map(|choice| ListItem::new(choice.as_str())).collect();
-            self.draw(|frame, area| {
-                let list = List::new(items)
-                    .block(Block::default().title(title.to_string()).borders(Borders::ALL))
-                    .highlight_symbol("> ")
-                    .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-                let mut state = ListState::default();
-                state.select(Some(selected));
-                frame.render_stateful_widget(list, area, &mut state);
-            })?;
-            match read_key()? {
-                KeyCode::Up | KeyCode::Char('k') => selected = selected.saturating_sub(1),
-                KeyCode::Down | KeyCode::Char('j') => {
-                    if selected + 1 < choices.len() {
-                        selected += 1;
-                    }
-                }
-                KeyCode::Enter => return Ok(choices[selected].clone()),
-                _ => {}
-            }
-        }
-    }
-
-    fn text(&mut self, title: &str, initial: &str) -> Result<String> {
-        let mut value = initial.to_string();
-        loop {
-            self.draw(|frame, area| {
-                let paragraph = Paragraph::new(format!("{value}_"))
-                    .block(Block::default().title(title.to_string()).borders(Borders::ALL));
-                frame.render_widget(paragraph, area);
-            })?;
-            match read_key()? {
-                KeyCode::Enter => return Ok(value),
-                KeyCode::Backspace => {
-                    value.pop();
-                }
-                KeyCode::Char(character) => value.push(character),
-                _ => {}
-            }
-        }
-    }
-
-    fn confirm(&mut self, title: &str, default: bool) -> Result<bool> {
-        let choices = ["Yes".to_string(), "No".to_string()];
-        let mut selected = if default { 0 } else { 1 };
-        loop {
-            let items: Vec<ListItem> = choices.iter().map(|choice| ListItem::new(choice.as_str())).collect();
-            self.draw(|frame, area| {
-                let list = List::new(items)
-                    .block(Block::default().title(title.to_string()).borders(Borders::ALL))
-                    .highlight_symbol("> ")
-                    .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-                let mut state = ListState::default();
-                state.select(Some(selected));
-                frame.render_stateful_widget(list, area, &mut state);
-            })?;
-            match read_key()? {
-                KeyCode::Up | KeyCode::Down | KeyCode::Char('k') | KeyCode::Char('j') => selected = 1 - selected,
-                KeyCode::Enter => return Ok(selected == 0),
-                _ => {}
-            }
-        }
-    }
-
-    fn pause(&mut self) -> Result<()> {
-        loop {
-            self.draw(|frame, area| {
-                frame.render_widget(Paragraph::new("Press [Enter] to go back to the main menu...").block(Block::default().title("Done").borders(Borders::ALL)), area);
-            })?;
-            match read_key()? {
-                KeyCode::Enter | KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
-                _ => {}
-            }
-        }
-    }
-}
 
 pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
     let last_used = login::last_used_method();
@@ -189,30 +73,45 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
             KeyCode::Enter => {
                 match actions[selected].clone() {
                     MainMenuAction::CreateSalesInvoice => {
-                        flows::prompt_create_invoice(app_user, &mut RatatuiPrompter::new(terminal)).await?;
+                        restore_terminal(terminal)?;
+                        crate::tui::inquire::prompt_create_invoice(app_user).await?;
                     }
                     MainMenuAction::ListSalesInvoices => {
                         let (from, to) = request_invoice_dates(terminal)?;
-                        invoices::list_sales_invoices(app_user, from, to, &mut RatatuiPrompter::new(terminal)).await?;
+                        restore_terminal(terminal)?;
+                        invoices::list_sales_invoices(app_user, from, to).await?;
                     }
                     MainMenuAction::ListPurchaseInvoices => {
                         let (from, to) = request_invoice_dates(terminal)?;
-                        invoices::list_purchase_invoices(app_user, from, to, &mut RatatuiPrompter::new(terminal)).await?;
+                        restore_terminal(terminal)?;
+                        invoices::list_purchase_invoices(app_user, from, to).await?;
                     }
                     MainMenuAction::CreateCustomer => {
-                        customers::create::create_customer(app_user, &mut RatatuiPrompter::new(terminal)).await?;
+                        restore_terminal(terminal)?;
+                        customers::create::create_customer(app_user).await?;
                     }
                     MainMenuAction::EditCustomer => {
-                        customers::edit::edit_customer(app_user, &mut RatatuiPrompter::new(terminal)).await?;
+                        restore_terminal(terminal)?;
+                        if !customers::edit::edit_customer(app_user).await? {
+                            setup_terminal_in_place(terminal)?;
+                            continue;
+                        }
                     }
                     MainMenuAction::ListCustomers => {
-                        customers::list_customers(app_user, &mut RatatuiPrompter::new(terminal)).await?;
+                        restore_terminal(terminal)?;
+                        customers::list_customers(app_user).await?;
                     }
                     MainMenuAction::UserSettings => {
-                        users::update::edit_profile(app_user, &mut RatatuiPrompter::new(terminal)).await?;
+                        restore_terminal(terminal)?;
+                        if !users::update::edit_profile(app_user).await? {
+                            setup_terminal_in_place(terminal)?;
+                            continue;
+                        }
                     }
                     MainMenuAction::Exit => return Ok(()),
                 }
+                setup_terminal_in_place(terminal)?;
+                pause(terminal)?;
             }
             KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
             _ => {}
@@ -272,6 +171,17 @@ fn move_calendar_date(selected: NaiveDate, key: KeyCode, minimum: Option<NaiveDa
         .unwrap_or(selected)
 }
 
+fn pause(terminal: &mut Tui) -> Result<()> {
+    loop {
+        terminal.draw(draw_pause)?;
+        match read_key()? {
+            KeyCode::Enter => return Ok(()),
+            KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
+            _ => {}
+        }
+    }
+}
+
 fn read_key() -> Result<KeyCode> {
     loop {
         if let Event::Key(key) = event::read()? {
@@ -321,7 +231,7 @@ fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], select
         ListItem::new(label)
     }).collect::<Vec<_>>();
     let list = List::new(items)
-        .block(Block::default().title("Welcome to KSeF Bot. How would you like to log in? âžœðŸšª").borders(Borders::ALL))
+        .block(Block::default().title("Welcome to KSeF Bot. How would you like to log in? ➜🚪").borders(Borders::ALL))
         .highlight_symbol("> ")
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
     let mut state = ListState::default();
@@ -352,4 +262,10 @@ fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage((100 - width) / 2), Constraint::Percentage(width), Constraint::Percentage((100 - width) / 2)])
         .split(vertical[1])[1]
+}
+
+fn draw_pause(frame: &mut ratatui::Frame) {
+    let area = centered_rect(frame.area(), 60, 20);
+    let paragraph = Paragraph::new("Press [Enter] to go back to the main menu...").block(Block::default().title("Done").borders(Borders::ALL));
+    frame.render_widget(paragraph, area);
 }

@@ -1,6 +1,6 @@
-﻿use crate::api::users::AppUser;
-use crate::tui::prompt::Prompter;
+use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
+use crossterm::style::Stylize;
 use serde::Deserialize;
 
 #[path = "create.rs"]
@@ -39,15 +39,19 @@ pub async fn load_contractors(app_user: &AppUser) -> anyhow::Result<Vec<AppContr
     Ok(response.json().await?)
 }
 
-pub async fn list_customers(app_user: &AppUser, prompter: &mut impl Prompter) -> anyhow::Result<()> {
+pub async fn list_customers(app_user: &AppUser) -> anyhow::Result<()> {
     let contractors = other_contractors(app_user).await?;
-    prompter.info(&format!("API Response: {} customers found", contractors.len()))?;
-    for (index, contractor) in contractors.iter().enumerate() {
-        prompter.info(&format!("{}. {}", index + 1, contractor.name))?;
-        prompter.info(&format!("   NIP: {}", contractor.nip.as_deref().unwrap_or("-")))?;
-        prompter.info(&format!("   Address: {}, {}", contractor.address_l1, contractor.country_code))?;
+    println!("  API Response: {} customers found", contractors.len());
+    if contractors.is_empty() {
+        return Ok(());
     }
-    prompter.pause()
+    println!();
+    for (index, contractor) in contractors.iter().enumerate() {
+        println!("  {}. {}", index + 1, contractor.name.clone().bold());
+        println!("     NIP: {}", contractor.nip.as_deref().unwrap_or("-"));
+        println!("     Address: {}, {}", contractor.address_l1, contractor.country_code);
+    }
+    Ok(())
 }
 
 pub(super) async fn other_contractors(app_user: &AppUser) -> anyhow::Result<Vec<AppContractor>> {

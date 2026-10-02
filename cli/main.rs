@@ -4,10 +4,8 @@ use anyhow::Result;
 use strum::{Display, EnumIter};
 
 mod tui {
-    pub mod flows;
     #[path = "inquire/inquire.rs"]
     pub mod inquire;
-    pub mod prompt;
     #[path = "ratatui/ratatui.rs"]
     pub mod ratatui;
 }
