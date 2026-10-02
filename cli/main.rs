@@ -1,4 +1,4 @@
-use crate::api::users::{get_app_user, init_app_user};
+use crate::api::users::{create::init_app_user, get_app_user};
 use crate::tui::{inquire, ratatui};
 use anyhow::Result;
 use strum::{Display, EnumIter};
@@ -9,10 +9,11 @@ mod tui {
 }
 mod login;
 mod api {
+    #[path = "customers/list.rs"]
     pub mod customers;
     #[path = "invoices/list.rs"]
     pub mod invoices;
-    pub mod settings;
+    #[path = "users/read.rs"]
     pub mod users;
 }
 mod obfstr;

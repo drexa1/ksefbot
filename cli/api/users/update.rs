@@ -1,4 +1,4 @@
-use crate::api::users::{AppUser, Language, SettlementType};
+use super::{AppUser, Language, SettlementType};
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
 use anyhow::Result;
 use crossterm::style::Stylize;

@@ -1,6 +1,11 @@
 use crate::login::AuthUser;
 use crate::{api_key, cf_client_id, cf_client_secret, cf_worker_url};
 
+#[path = "create.rs"]
+pub mod create;
+#[path = "update.rs"]
+pub mod update;
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppUser {
@@ -59,27 +64,4 @@ pub async fn get_app_user(logged_user: &AuthUser) -> anyhow::Result<Option<AppUs
     let response = response.error_for_status()?;
     let users: Vec<AppUser> = response.json().await?;
     Ok(users.into_iter().next())
-}
-
-pub async fn init_app_user(logged_user: &AuthUser) -> anyhow::Result<AppUser> {
-    let app_user = AppUser {
-        id: "dummy-nip".to_string(),
-        email: logged_user.email.clone().unwrap(),
-        tier: 0,
-        language: Some(Language::En),
-        phone: Some("000000000".to_string()),
-        company_logo: None,
-        contractor_id: Some("dummy-contractor-id".to_string()),
-        api_key: None,
-        ksef_api_token: None,
-        default_item_name: Some("Dummy item".to_string()),
-        default_hourly_rate: Some(100.0),
-        settlement_type: Some(SettlementType::Monthly),
-        bank_name: None,
-        bank_account_number: None,
-        bank_api_token: None,
-        created_at: None,
-        updated_at: None,
-    };
-    Ok(app_user)
 }

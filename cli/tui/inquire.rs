@@ -1,7 +1,7 @@
 use crate::MainMenuAction;
 use crate::api::invoices::create::{SalesInvoice, UploadInvoiceResult, create_invoice, download_receipt, load_invoice_parties, preview_sales_invoice, submit_invoice, upload_invoice};
-use crate::api::users::AppUser;
-use crate::api::{customers, invoices, settings};
+use crate::api::users::{self, AppUser};
+use crate::api::{customers, invoices};
 use crate::login::AuthUser;
 use anyhow::Result;
 use chrono::{Datelike, Local, NaiveDate};
@@ -58,11 +58,11 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 invoices::list_purchase_invoices(logged_user, from, to).await?;
             }
             MainMenuAction::CreateCustomer => {
-                customers::create_customer(logged_user).await?;
+                customers::create::create_customer(logged_user).await?;
                 pause()?;
             }
             MainMenuAction::EditCustomer => {
-                if customers::edit_customer(logged_user).await? {
+                if customers::edit::edit_customer(logged_user).await? {
                     pause()?;
                 }
             }
@@ -71,7 +71,7 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 pause()?;
             }
             MainMenuAction::UserSettings => {
-                if settings::edit_profile(logged_user).await? {
+                if users::update::edit_profile(logged_user).await? {
                     pause()?;
                 }
             }

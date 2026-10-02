@@ -1,5 +1,5 @@
-use crate::api::users::AppUser;
-use crate::api::{customers, invoices, settings};
+use crate::api::users::{self, AppUser};
+use crate::api::{customers, invoices};
 use crate::login::AuthUser;
 use crate::{MainMenuAction, login};
 use anyhow::Result;
@@ -88,11 +88,11 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
                     }
                     MainMenuAction::CreateCustomer => {
                         restore_terminal(terminal)?;
-                        customers::create_customer(app_user).await?;
+                        customers::create::create_customer(app_user).await?;
                     }
                     MainMenuAction::EditCustomer => {
                         restore_terminal(terminal)?;
-                        if !customers::edit_customer(app_user).await? {
+                        if !customers::edit::edit_customer(app_user).await? {
                             setup_terminal_in_place(terminal)?;
                             continue;
                         }
@@ -103,7 +103,7 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
                     }
                     MainMenuAction::UserSettings => {
                         restore_terminal(terminal)?;
-                        if !settings::edit_profile(app_user).await? {
+                        if !users::update::edit_profile(app_user).await? {
                             setup_terminal_in_place(terminal)?;
                             continue;
                         }
