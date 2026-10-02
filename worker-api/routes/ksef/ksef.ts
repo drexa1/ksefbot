@@ -11,25 +11,23 @@ const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(e
 export async function getInvoices(req: Request, env: Env, subjectType: "Subject1" | "Subject2"): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
+    const from = new Date(url.searchParams.get("from")!);
+    const to = new Date(url.searchParams.get("to")!);
+    if ((from && isNaN(from.getTime())) || (to && isNaN(to.getTime())) || (from && to && from > to))
+        return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
     try {
-        // Download XML for specific invoice, by business invoice number (exact match, KSeF's max lookback window)
+        // Download XML for specific invoice
         if (url.searchParams.has("invoiceNumber")) {
-            const from = new Date(Date.now() - 100 * 86_400_000);
             const ksefClient = new KsefClient(env);
             await ksefClient.authenticate(appUser);
-            const metadataResult = await ksefClient.queryInvoiceMetadata(subjectType, from, undefined, url.searchParams.get("invoiceNumber")!);
-            const ksefNumber = metadataResult.invoices[0]?.ksefNumber;
-            const invoiceXml = ksefNumber ? await ksefClient.downloadInvoice(ksefNumber) : undefined;
+            const metadataResult = await ksefClient.queryInvoiceMetadata(subjectType, url.searchParams.get("invoiceNumber")!, from, to);
+            const invoiceXml = await ksefClient.downloadInvoice(metadataResult.invoices[0]?.ksefNumber);
             return invoiceXml
                 ? new Response(invoiceXml, { status: 200, headers: { "Content-Type": "application/xml; charset=utf-8" } })
                 : Response.json({ success: false, error: "Invoice not found at KSeF." }, { status: 404 });
         }
         // Download app invoices for dates range
-        const from = new Date(url.searchParams.get("from")!);
-        const to = new Date(url.searchParams.get("to")!);
-        if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to)
-            return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
-        if ((to.getTime() - from.getTime()) / 86_400_000 > 90)
+        if ((to.getTime() - from.getTime()) / 86_400_000 > 90)  // 3 months max span from KSeF
             return Response.json({ success: false, error: `The maximum date range supported by KSeF is 3 calendar months.` }, { status: 400 });
         const result = await fetchInvoices(env, appUser, subjectType, from, to);
         return Response.json({

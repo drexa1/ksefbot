@@ -293,7 +293,7 @@ export class KsefClient extends KsefClientBase {
         // Authentication
         await super.authenticate(appUser);
         // Query invoice metadata
-        const metadataResult = await this.queryInvoiceMetadata(subjectType, from, to);
+        const metadataResult = await this.queryInvoiceMetadata(subjectType, undefined, from, to);
         console.info("📋️️ Downloaded invoices metadata...");
         // Download invoice XML files
         return await Promise.all(metadataResult.invoices.map(async invoiceMetadata => {
@@ -303,9 +303,11 @@ export class KsefClient extends KsefClientBase {
         }));
     }
 
-    /// Query invoice metadata; pass invoiceNumber to narrow to a single invoice (exact match). "to" is optional per KSeF.
-    async queryInvoiceMetadata(subjectType: "Subject1" | "Subject2", from: Date, to?: Date, invoiceNumber?: string): Promise<KsefInvoiceQueryResult> {
-        const dateRange = { dateType: "Issue" as const, from: from.toISOString(), ...(to && { to: to.toISOString() }) };
+    async queryInvoiceMetadata(subjectType: "Subject1" | "Subject2", invoiceNumber?: string, from?: Date, to?: Date): Promise<KsefInvoiceQueryResult> {
+        const dateRange = {
+            dateType: "Issue" as const,
+            from: (from ?? new Date(Date.now() - 100 * 86_400_000)).toISOString(), ...(to && { to: to.toISOString() })
+        };
         const response = await fetch(`${this.env.KSEF_URL}/invoices/query/metadata?pageOffset=0&pageSize=100`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${this.token}`, "Content-Type": "application/json" },

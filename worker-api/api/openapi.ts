@@ -388,20 +388,20 @@ export const getOpenApiSpec = () => ({
                     {
                         name: "from",
                         in: "query",
-                        required: false,
-                        description: "Start date. Required unless invoiceNumber is set.",
+                        required: true,
+                        description: "Start date",
                         schema: { type: "string", format: "date", example: "2026-07-01" }
                     }, {
                         name: "to",
                         in: "query",
-                        required: false,
-                        description: "End date. Required unless invoiceNumber is set.",
+                        required: true,
+                        description: "End date",
                         schema: { type: "string", format: "date", example: "2026-08-01" }
                     }, {
                         name: "invoiceNumber",
                         in: "query",
                         required: false,
-                        description: "Invoice business number. When set, resolves and downloads that invoice's XML from KSeF instead of returning the application models; from/to are ignored.",
+                        description: "Invoice business number. When set, resolves and downloads that invoice's XML from KSeF within the same from/to range (KSeF's dateRange filter still applies) instead of returning the application models.",
                         schema: { type: "string" }
                     }
                 ],
@@ -541,20 +541,20 @@ export const getOpenApiSpec = () => ({
                     {
                         name: "from",
                         in: "query",
-                        required: false,
-                        description: "Start date. Required unless invoiceNumber is set.",
+                        required: true,
+                        description: "Start date",
                         schema: { type: "string", format: "date", example: "2026-07-01" }
                     }, {
                         name: "to",
                         in: "query",
-                        required: false,
-                        description: "End date. Required unless invoiceNumber is set.",
+                        required: true,
+                        description: "End date",
                         schema: { type: "string", format: "date", example: "2026-08-01" }
                     }, {
                         name: "invoiceNumber",
                         in: "query",
                         required: false,
-                        description: "Invoice business number. When set, resolves and downloads that invoice's XML from KSeF instead of returning the application models; from/to are ignored.",
+                        description: "Invoice business number. When set, resolves and downloads that invoice's XML from KSeF within the same from/to range (KSeF's dateRange filter still applies) instead of returning the application models.",
                         schema: { type: "string" }
                     }
                 ],

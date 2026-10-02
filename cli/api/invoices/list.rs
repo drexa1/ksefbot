@@ -46,7 +46,7 @@ pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -
             match action {
                 "🔎 Preview" => println!("{}", serde_json::to_string_pretty(invoice)?),
                 "📂 Download XML" => {
-                    let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number).await?;
+                    let path = download_invoice_xml(app_user, &InvoiceType::Sales, invoice, &invoice_number, &from, &to).await?;
                     println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
                 }
                 _ => break,
@@ -99,14 +99,12 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, t
     Ok(invoices)
 }
 
-async fn download_invoice_xml(app_user: &AppUser,
-    invoice_type: &InvoiceType,
-    invoice: &serde_json::Value,
-    invoice_number: &str,
-) -> anyhow::Result<PathBuf> {
+async fn download_invoice_xml(app_user: &AppUser, invoice_type: &InvoiceType, invoice: &serde_json::Value, invoice_number: &str, from: &str, to: &str) -> anyhow::Result<PathBuf> {
     let mut url = reqwest::Url::parse(&format!("{}/ksef/{invoice_type}", cf_worker_url!()))?;
     url.query_pairs_mut()
-        .append_pair("invoiceNumber", invoice_number);
+        .append_pair("invoiceNumber", invoice_number)
+        .append_pair("from", from)
+        .append_pair("to", to);
     let response = reqwest::Client::new()
         .get(url)
         .header("CF-Access-Client-Id", cf_client_id!())
