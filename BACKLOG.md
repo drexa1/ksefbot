@@ -67,6 +67,8 @@
 - [x] CLI: list customers
 - [x] CLI: adapt sales/purchase invoices summary  
 - [x] CLI: create invoice  
+- [x] CLI: create customer  
+- [x] CLI: edit customer  
 - [ ] Fix tests failing after refactor  
 - [ ] Move invoiceToXml completely to worker  
 - [ ] Schedule daily tests  
@@ -77,7 +79,6 @@
 - [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow
-- [ ] CLI: create customer  
 - [ ] CLI: edit user settings  
 - [ ] CLI: first time flow  
 - [ ] Review security architecture  
