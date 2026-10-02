@@ -119,6 +119,7 @@ pub async fn prompt_create_invoice(terminal: &mut Tui, app_user: &AppUser) -> Re
     };
     if confirm(terminal, "Submit this invoice to KSeF?", false)? {
         let submission = submit_invoice(app_user, &new_invoice).await?;
+        super::history::invalidate_sales(app_user).map_err(|error| error.context("Invoice submitted, but the local sales cache could not be invalidated"))?;
         new_invoice.submission = Some(submission);
         if let Some(path) = imported_path {
             let submitted_path = move_to_submitted(&path)?;
@@ -225,7 +226,8 @@ fn decode_invoice_list(status: reqwest::StatusCode, body: &str) -> Result<Vec<se
         let detail = serde_json::from_str::<serde_json::Value>(body).ok()
             .and_then(|json| json["error"].as_str().map(str::to_string))
             .unwrap_or_else(|| body.chars().take(300).collect());
-        anyhow::bail!("Invoice request failed (HTTP {status}): {detail}");
+        if detail.trim().is_empty() { anyhow::bail!("Invoice request failed (HTTP {status})"); }
+        return Err(anyhow::anyhow!(detail).context(format!("Invoice request failed (HTTP {status})")));
     }
     let mut json: serde_json::Value = serde_json::from_str(body)?;
     if json["success"].as_bool() != Some(true) {
@@ -234,7 +236,7 @@ fn decode_invoice_list(status: reqwest::StatusCode, body: &str) -> Result<Vec<se
             && json["error"].as_str() == Some("No invoices found for the specified date range.") {
             return Ok(Vec::new());
         }
-        anyhow::bail!("Could not load invoices: {}", json["error"].as_str().unwrap_or("unknown error"));
+        return Err(anyhow::anyhow!("{}", json["error"].as_str().unwrap_or("unknown error")).context("Could not load invoices"));
     }
 
     match json["result"].take() {
@@ -296,12 +298,22 @@ mod response_tests {
     #[test]
     fn backend_errors_keep_their_message_and_are_never_empty_successes() {
         let body = r#"{"success":false,"error":"The maximum date range supported by KSeF is 3 calendar months."}"#;
-        let error = decode_invoice_list(StatusCode::BAD_REQUEST, body).unwrap_err().to_string();
+        let error = format!("{:#}", decode_invoice_list(StatusCode::BAD_REQUEST, body).unwrap_err());
         assert!(error.contains("400") && error.contains("maximum date range"));
         assert!(decode_invoice_list(StatusCode::OK, r#"{"success":false,"result":[],"error":"Access denied"}"#).is_err());
         assert!(decode_invoice_list(StatusCode::UNAUTHORIZED,
             r#"{"success":false,"result":[],"error":"No invoices found for the specified date range."}"#).is_err());
         assert!(decode_invoice_list(StatusCode::OK, r#"{"success":true,"result":null}"#).is_err());
         assert!(decode_invoice_list(StatusCode::OK, "invalid json").is_err());
+    }
+
+    #[test]
+    fn rate_limit_message_is_separate_from_request_context() {
+        let body = r#"{"success":false,"error":"The limit of 20 requests per hour has been exceeded."}"#;
+        let error = decode_invoice_list(StatusCode::TOO_MANY_REQUESTS, body).unwrap_err()
+            .context("Could not load sales from 2026/09/30 to 2026/10/02");
+        assert_eq!(error.root_cause().to_string(), "The limit of 20 requests per hour has been exceeded.");
+        assert!(format!("{error:#}").contains("HTTP 429"));
+        assert!(decode_invoice_list(StatusCode::TOO_MANY_REQUESTS, "").unwrap_err().root_cause().to_string().contains("429"));
     }
 }

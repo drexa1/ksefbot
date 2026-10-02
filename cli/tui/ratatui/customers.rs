@@ -186,17 +186,12 @@ pub async fn edit_customer(terminal: &mut Tui, app_user: &AppUser, customer: &Ap
 
 pub fn preview(contractor: &AppContractor) -> Vec<String> {
     vec![
-        contractor.name.clone(),
-        String::new(),
-        format!("NIP: {}", contractor.nip.as_deref().unwrap_or("-")),
-        format!("PESEL: {}", contractor.pesel.as_deref().unwrap_or("-")),
-        format!("REGON: {}", contractor.regon.as_deref().unwrap_or("-")),
-        format!("Internal ID: {}", contractor.internal_identifier.as_deref().unwrap_or("-")),
-        String::new(),
-        "Address".to_string(),
-        format!("{}, {}", contractor.address_l1, contractor.country_code),
-        String::new(),
-        "Notes".to_string(),
-        contractor.notes.clone().unwrap_or_else(|| "-".to_string()),
+        format!("Name: {}", contractor.name),
+        format!("NIP: {}", contractor.nip.as_deref().unwrap_or("")),
+        format!("PESEL: {}", contractor.pesel.as_deref().unwrap_or("")),
+        format!("REGON: {}", contractor.regon.as_deref().unwrap_or("")),
+        format!("Internal ID: {}", contractor.internal_identifier.as_deref().unwrap_or("")),
+        format!("Address: {}, {}", contractor.address_l1, contractor.country_code),
+        format!("Notes: {}", contractor.notes.as_deref().unwrap_or("")),
     ]
 }

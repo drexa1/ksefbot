@@ -1,9 +1,18 @@
 use super::invoices::{InvoiceType, list_invoices};
 use crate::api::users::AppUser;
+use crate::cf_worker_url;
 use anyhow::{Context, Result, ensure};
 use chrono::{Datelike, Duration, Months, NaiveDate};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use std::fs::{self, OpenOptions};
+use std::future::Future;
+use std::io::{ErrorKind, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub struct InvoiceHistory {
@@ -62,7 +71,14 @@ impl InvoiceMonth {
 }
 
 pub fn initial_range(today: NaiveDate) -> (NaiveDate, NaiveDate) {
-    (today.with_day(1).unwrap().checked_sub_months(Months::new(11)).unwrap(), today)
+    (today.with_day(1).unwrap().checked_sub_months(Months::new(2)).unwrap(), today)
+}
+
+pub fn older_range(before: NaiveDate) -> Option<(NaiveDate, NaiveDate)> {
+    let start = before.with_day(1)?.checked_sub_months(Months::new(3))?;
+    let end = before.pred_opt()?;
+    validate_range(start, end).ok()?;
+    Some((start, end))
 }
 
 fn validate_range(start: NaiveDate, end: NaiveDate) -> Result<()> {
@@ -132,26 +148,195 @@ pub fn from_rows(start: NaiveDate, end: NaiveDate, sales: Vec<Value>, purchases:
     Ok(InvoiceHistory { months, start, end })
 }
 
-pub async fn load(user: &AppUser, start: NaiveDate, end: NaiveDate) -> Result<InvoiceHistory> {
+const CACHE_VERSION: u32 = 1;
+const CACHE_TTL: u64 = 3600;
+static CACHE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Serialize, Deserialize)]
+struct CachedWindow {
+    version: u32,
+    kind: String,
+    start: String,
+    end: String,
+    timestamp: u64,
+    rows: Vec<Value>,
+}
+
+struct HistoryCache {
+    directory: PathBuf,
+}
+
+fn timestamp() -> Result<u64> {
+    Ok(SystemTime::now().duration_since(UNIX_EPOCH).context("System clock is before the Unix epoch")?.as_secs())
+}
+
+fn unique_suffix() -> Result<String> {
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).context("System clock is before the Unix epoch")?.as_nanos();
+    Ok(format!("{}-{nanos}-{}", std::process::id(), CACHE_SEQUENCE.fetch_add(1, Ordering::Relaxed)))
+}
+
+impl HistoryCache {
+    fn new(root: &Path, endpoint: &str, user_id: &str) -> Self {
+        let mut hash = Sha256::new();
+        hash.update((endpoint.len() as u64).to_be_bytes());
+        hash.update(endpoint.as_bytes());
+        hash.update(user_id.as_bytes());
+        let scope: String = hash.finalize().iter().map(|byte| format!("{byte:02x}")).collect();
+        Self { directory: root.join(scope) }
+    }
+
+    fn for_user(user: &AppUser) -> Result<Self> {
+        let home = std::env::var_os("USERPROFILE").filter(|home| !home.is_empty())
+            .context("USERPROFILE is not set; cannot locate the invoice history cache")?;
+        let root = PathBuf::from(home).join(".ksefbot").join("cache").join("invoice-history");
+        Ok(Self::new(&root, cf_worker_url!(), &user.id))
+    }
+
+    fn path(&self, kind: InvoiceType, start: NaiveDate, end: NaiveDate) -> PathBuf {
+        self.directory.join(format!("{kind}-{start}_{end}.json"))
+    }
+
+    fn read(&self, kind: InvoiceType, start: NaiveDate, end: NaiveDate, now: u64) -> Result<Option<Vec<Value>>> {
+        let path = self.path(kind, start, end);
+        let bytes = match fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error).with_context(|| format!("Could not read invoice cache {}", path.display())),
+        };
+        let validate = || -> Result<CachedWindow> {
+            let cached: CachedWindow = serde_json::from_slice(&bytes)?;
+            ensure!(cached.version == CACHE_VERSION, "Unsupported cache version {}", cached.version);
+            ensure!(cached.kind == kind.to_string() && cached.start == start.to_string() && cached.end == end.to_string(),
+                "Cache window or invoice type does not match the requested window");
+            ensure!(cached.timestamp <= now, "Cache timestamp is in the future");
+            validate_rows(kind, start, end, &cached.rows)?;
+            Ok(cached)
+        };
+        let cached = validate().with_context(|| format!(
+            "Invalid invoice cache {}; remove this file and retry", path.display()))?;
+        if now - cached.timestamp >= CACHE_TTL { return Ok(None); }
+        Ok(Some(cached.rows))
+    }
+
+    fn write(&self, kind: InvoiceType, start: NaiveDate, end: NaiveDate, now: u64, rows: &[Value]) -> Result<()> {
+        let path = self.path(kind, start, end);
+        fs::create_dir_all(&self.directory)
+            .with_context(|| format!("Could not create invoice cache directory {}", self.directory.display()))?;
+        let bytes = serde_json::to_vec(&CachedWindow {
+            version: CACHE_VERSION, kind: kind.to_string(), start: start.to_string(), end: end.to_string(),
+            timestamp: now, rows: rows.to_vec(),
+        })?;
+        let temporary = path.with_extension(format!("json.{}.tmp", unique_suffix()?));
+        let mut file = OpenOptions::new().write(true).create_new(true).open(&temporary)
+            .with_context(|| format!("Could not create invoice cache temporary file {}", temporary.display()))?;
+        let result = (|| -> Result<()> {
+            file.write_all(&bytes)?;
+            file.sync_all()?;
+            drop(file);
+            fs::rename(&temporary, &path)?;
+            Ok(())
+        })().with_context(|| format!("Could not write invoice cache {}", path.display()));
+        if result.is_err() {
+            fs::remove_file(&temporary)
+                .with_context(|| format!("Could not clean up invoice cache temporary file {}", temporary.display()))?;
+        }
+        result
+    }
+
+    async fn fetch<F, Fut>(&self, kind: InvoiceType, start: NaiveDate, end: NaiveDate, now: u64, fetch: F) -> Result<Vec<Value>>
+    where F: FnOnce() -> Fut, Fut: Future<Output = Result<Vec<Value>>> {
+        if let Some(rows) = self.read(kind, start, end, now)? { return Ok(rows); }
+        let rows = fetch().await.with_context(|| format!("Could not load {kind} from {start} to {end}"))?;
+        validate_rows(kind, start, end, &rows)?;
+        self.write(kind, start, end, now, &rows)?;
+        Ok(rows)
+    }
+
+    fn invalidate_sales(&self) -> Result<()> {
+        let entries = match fs::read_dir(&self.directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(error).with_context(|| format!("Could not list invoice cache {}", self.directory.display())),
+        };
+        for entry in entries {
+            let entry = entry.with_context(|| format!("Could not read invoice cache entry in {}", self.directory.display()))?;
+            let name = entry.file_name();
+            let Some(window) = name.to_str().and_then(|name| name.strip_prefix("sales-")).and_then(|name| name.strip_suffix(".json")) else { continue; };
+            let Some((start, end)) = window.split_once('_') else { continue; };
+            let (Ok(start), Ok(end)) = (NaiveDate::parse_from_str(start, "%Y-%m-%d"), NaiveDate::parse_from_str(end, "%Y-%m-%d")) else { continue; };
+            if entry.path() != self.path(InvoiceType::Sales, start, end) { continue; }
+            match fs::remove_file(entry.path()) {
+                Ok(()) => {}
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => return Err(error).with_context(|| format!("Could not invalidate invoice cache {}", entry.path().display())),
+            }
+        }
+        Ok(())
+    }
+}
+
+fn validate_rows(kind: InvoiceType, start: NaiveDate, end: NaiveDate, rows: &[Value]) -> Result<()> {
+    let (sales, purchases) = match kind {
+        InvoiceType::Sales => (rows.to_vec(), Vec::new()),
+        InvoiceType::Purchases => (Vec::new(), rows.to_vec()),
+    };
+    from_rows(start, end, sales, purchases)?;
+    Ok(())
+}
+
+async fn fetch_history<F, Fut>(cache: &HistoryCache, start: NaiveDate, end: NaiveDate, now: u64, fetch: F) -> Result<InvoiceHistory>
+where F: Fn(InvoiceType, NaiveDate, NaiveDate) -> Fut, Fut: Future<Output = Result<Vec<Value>>> {
     let mut sales = Vec::new();
     let mut purchases = Vec::new();
     for (from, to) in query_windows(start, end)?.into_iter().rev() {
-        let from = from.format("%Y/%m/%d").to_string();
-        let to = to.format("%Y/%m/%d").to_string();
         let (window_sales, window_purchases) = tokio::join!(
-            list_invoices(user, &InvoiceType::Sales, &from, &to),
-            list_invoices(user, &InvoiceType::Purchases, &from, &to),
+            cache.fetch(InvoiceType::Sales, from, to, now, || fetch(InvoiceType::Sales, from, to)),
+            cache.fetch(InvoiceType::Purchases, from, to, now, || fetch(InvoiceType::Purchases, from, to)),
         );
-        sales.extend(window_sales.with_context(|| format!("Could not load sales from {from} to {to}"))?);
-        purchases.extend(window_purchases.with_context(|| format!("Could not load purchases from {from} to {to}"))?);
+        sales.extend(window_sales?);
+        purchases.extend(window_purchases?);
     }
     from_rows(start, end, sales, purchases)
+}
+
+pub async fn load(user: &AppUser, start: NaiveDate, end: NaiveDate) -> Result<InvoiceHistory> {
+    validate_range(start, end)?;
+    let cache = HistoryCache::for_user(user)?;
+    fetch_history(&cache, start, end, timestamp()?, |kind, from, to| async move {
+        list_invoices(user, &kind, &from.format("%Y/%m/%d").to_string(), &to.format("%Y/%m/%d").to_string()).await
+    }).await
+}
+
+pub fn invalidate_sales(user: &AppUser) -> Result<()> {
+    HistoryCache::for_user(user)?.invalidate_sales()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::cell::RefCell;
+    use std::future::ready;
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new() -> Self {
+            let path = std::env::current_dir().unwrap().join(format!(".history-cache-test-{}", unique_suffix().unwrap()));
+            fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+
+        fn cache(&self, endpoint: &str, user: &str) -> HistoryCache {
+            HistoryCache::new(&self.0, endpoint, user)
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).unwrap();
+        }
+    }
 
     fn date(value: &str) -> NaiveDate {
         NaiveDate::parse_from_str(value, "%Y-%m-%d").unwrap()
@@ -165,10 +350,210 @@ mod tests {
     }
 
     #[test]
-    fn initial_range_includes_twelve_calendar_months() {
-        assert_eq!(initial_range(date("2026-10-02")), (date("2025-11-01"), date("2026-10-02")));
-        assert_eq!(initial_range(date("2024-02-29")), (date("2023-03-01"), date("2024-02-29")));
-        assert_eq!(initial_range(date("2025-01-31")), (date("2024-02-01"), date("2025-01-31")));
+    fn initial_range_includes_three_calendar_months() {
+        assert_eq!(initial_range(date("2026-10-02")), (date("2026-08-01"), date("2026-10-02")));
+        assert_eq!(initial_range(date("2024-02-29")), (date("2023-12-01"), date("2024-02-29")));
+        assert_eq!(initial_range(date("2025-01-31")), (date("2024-11-01"), date("2025-01-31")));
+    }
+
+    #[test]
+    fn older_range_covers_previous_three_months() {
+        assert_eq!(older_range(date("2026-08-01")), Some((date("2026-05-01"), date("2026-07-31"))));
+        assert_eq!(older_range(date("2024-03-01")), Some((date("2023-12-01"), date("2024-02-29"))));
+        assert_eq!(older_range(date("0001-04-01")), Some((date("0001-01-01"), date("0001-03-31"))));
+        assert_eq!(older_range(date("0001-03-01")), None);
+        assert_eq!(older_range(date("0001-01-01")), None);
+    }
+
+    #[tokio::test]
+    async fn cache_survives_new_instances_and_isolates_users_endpoints_types_and_windows() {
+        let directory = TestDirectory::new();
+        let calls = RefCell::new(Vec::new());
+        let fetch = |kind: InvoiceType, start: NaiveDate, end| {
+            calls.borrow_mut().push((kind, start, end));
+            ready(Ok(vec![row(&start.to_string(), &kind.to_string(), "PLN", 1.0)]))
+        };
+        let start = date("2026-08-01");
+        let end = date("2026-10-02");
+        let cache = directory.cache("https://example.invalid/api", "user/one");
+        let first = fetch_history(&cache, start, end, 10_000, &fetch).await.unwrap();
+        let second = fetch_history(&cache, start, end, 10_001, &fetch).await.unwrap();
+        let restarted = directory.cache("https://example.invalid/api", "user/one");
+        let third = fetch_history(&restarted, start, end, 10_002, &fetch).await.unwrap();
+        assert_eq!(calls.borrow().len(), 2);
+        assert_eq!(first.months[0].sales, second.months[0].sales);
+        assert_eq!(first.months[0].purchases, third.months[0].purchases);
+        assert_ne!(first.months[0].sales, first.months[0].purchases);
+        for (endpoint, user) in [
+            ("https://example.invalid/api", "user/two"),
+            ("https://other.invalid/api", "user/one"),
+        ] {
+            fetch_history(&directory.cache(endpoint, user), start, end, 10_002, &fetch).await.unwrap();
+        }
+        fetch_history(&cache, date("2026-05-01"), date("2026-07-31"), 10_002, &fetch).await.unwrap();
+        assert_eq!(calls.borrow().len(), 10);
+        let scope = cache.directory.file_name().unwrap().to_str().unwrap();
+        assert_eq!(scope.len(), 64);
+        assert!(scope.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        assert_ne!(directory.cache("ab", "c").directory, directory.cache("a", "bc").directory);
+    }
+
+    #[tokio::test]
+    async fn cache_keeps_empty_successes_and_expires_at_one_hour() {
+        let directory = TestDirectory::new();
+        let calls = RefCell::new(0);
+        let fetch = |_, _, _| {
+            *calls.borrow_mut() += 1;
+            ready(Ok(Vec::new()))
+        };
+        let start = date("2020-01-01");
+        let end = date("2020-01-31");
+        let cache = directory.cache("endpoint", "user");
+        assert!(fetch_history(&cache, start, end, 10_000, &fetch).await.unwrap().months.is_empty());
+        fetch_history(&directory.cache("endpoint", "user"), start, end, 13_599, &fetch).await.unwrap();
+        assert_eq!(*calls.borrow(), 2);
+        fetch_history(&cache, start, end, 13_600, &fetch).await.unwrap();
+        assert_eq!(*calls.borrow(), 4);
+        fetch_history(&cache, start, end, 13_601, &fetch).await.unwrap();
+        assert_eq!(*calls.borrow(), 4);
+        let cached: CachedWindow = serde_json::from_slice(&fs::read(cache.path(InvoiceType::Sales, start, end)).unwrap()).unwrap();
+        assert_eq!(cached.timestamp, 13_600);
+        assert!(cached.rows.is_empty());
+        assert_eq!(fs::read_dir(&cache.directory).unwrap().count(), 2);
+    }
+
+    #[tokio::test]
+    async fn failures_are_not_cached_and_successful_types_and_windows_survive_retry() {
+        for failed_kind in [InvoiceType::Sales, InvoiceType::Purchases] {
+            let directory = TestDirectory::new();
+            let cache = directory.cache("endpoint", "user");
+            let start = date("2025-11-01");
+            let end = date("2026-01-31");
+            let calls = RefCell::new(Vec::new());
+            let error = fetch_history(&cache, start, end, 10_000, |kind, from, to| {
+                calls.borrow_mut().push((kind, from, to));
+                ready(if kind == failed_kind && from == start {
+                    Err(anyhow::anyhow!("Backend unavailable"))
+                } else { Ok(Vec::new()) })
+            }).await.unwrap_err();
+            assert!(format!("{error:#}").contains("Backend unavailable"));
+            assert_eq!(calls.borrow().len(), 4);
+            let failed_path = cache.path(failed_kind, start, date("2026-01-30"));
+            assert!(!failed_path.exists());
+            fetch_history(&directory.cache("endpoint", "user"), start, end, 10_001, |kind, from, to| {
+                calls.borrow_mut().push((kind, from, to));
+                ready(Ok(Vec::new()))
+            }).await.unwrap();
+            assert_eq!(calls.borrow().len(), 5);
+            assert_eq!(calls.borrow().last().unwrap(), &(failed_kind, start, date("2026-01-30")));
+            assert!(failed_path.is_file());
+        }
+    }
+
+    #[tokio::test]
+    async fn invalid_backend_rows_are_rejected_without_caching() {
+        let directory = TestDirectory::new();
+        let cache = directory.cache("endpoint", "user");
+        let start = date("2026-01-01");
+        let end = date("2026-01-31");
+        for invoice in [
+            json!({}),
+            row("2026-02-01", "outside", "PLN", 1.0),
+            row("2026-01-01", "currency", "", 1.0),
+            json!({"InvoiceBody": {"IssueDate": "2026-01-01", "CurrencyCode": "PLN", "TotalGrossAmount": "NaN"}}),
+        ] {
+            let result = cache.fetch(InvoiceType::Sales, start, end, 10_000, || ready(Ok(vec![invoice]))).await;
+            assert!(result.is_err());
+            assert!(!cache.path(InvoiceType::Sales, start, end).exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn corrupt_cache_is_explicit_and_never_falls_back_to_backend() {
+        let directory = TestDirectory::new();
+        let cache = directory.cache("endpoint", "user");
+        let start = date("2026-01-01");
+        let end = date("2026-01-31");
+        cache.write(InvoiceType::Sales, start, end, 10_000, &[]).unwrap();
+        let path = cache.path(InvoiceType::Sales, start, end);
+        let valid: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let mut invalid = vec![b"not json".to_vec()];
+        for (field, value) in [
+            ("version", json!(CACHE_VERSION + 1)),
+            ("start", json!("2025-01-01")),
+            ("end", json!("2026-02-01")),
+            ("kind", json!("purchases")),
+            ("timestamp", json!(10_001)),
+            ("rows", json!([{}])),
+            ("rows", json!([row("2026-02-01", "outside", "PLN", 1.0)])),
+            ("rows", json!([row("2026-01-01", "currency", "", 1.0)])),
+        ] {
+            let mut value_to_write = valid.clone();
+            value_to_write[field] = value;
+            invalid.push(serde_json::to_vec(&value_to_write).unwrap());
+        }
+        for bytes in invalid {
+            fs::write(&path, bytes).unwrap();
+            let error = cache.fetch(InvoiceType::Sales, start, end, 10_000, || async {
+                panic!("Corrupt cache must not trigger a fetch")
+            }).await.unwrap_err();
+            assert!(error.to_string().contains(&path.display().to_string()));
+            assert!(error.to_string().contains("remove this file and retry"));
+        }
+        assert!(cache.read(InvoiceType::Sales, start, end, 20_000).is_err());
+    }
+
+    #[tokio::test]
+    async fn filesystem_errors_are_explicit_and_failed_atomic_writes_clean_only_their_temp_file() {
+        let directory = TestDirectory::new();
+        let cache = directory.cache("endpoint", "user");
+        let start = date("2026-01-01");
+        let end = date("2026-01-31");
+        let path = cache.path(InvoiceType::Sales, start, end);
+        fs::create_dir_all(&path).unwrap();
+        let other_temp = cache.directory.join("other-writer.tmp");
+        fs::write(&other_temp, b"keep").unwrap();
+        let error = cache.fetch(InvoiceType::Sales, start, end, 10_000, || async {
+            panic!("Filesystem errors must not trigger a fetch")
+        }).await.unwrap_err();
+        assert!(error.to_string().contains("Could not read invoice cache"));
+        assert!(error.to_string().contains(&path.display().to_string()));
+        let error = cache.write(InvoiceType::Sales, start, end, 10_000, &[]).unwrap_err();
+        assert!(error.to_string().contains("Could not write invoice cache"));
+        assert!(path.is_dir());
+        assert_eq!(fs::read(&other_temp).unwrap(), b"keep");
+        assert_eq!(fs::read_dir(&cache.directory).unwrap().count(), 2);
+        let error = cache.invalidate_sales().unwrap_err();
+        assert!(error.to_string().contains("Could not invalidate invoice cache"));
+    }
+
+    #[tokio::test]
+    async fn sales_invalidation_preserves_purchases_other_scopes_and_unrelated_files() {
+        let directory = TestDirectory::new();
+        let cache = directory.cache("endpoint", "user");
+        let other = directory.cache("endpoint", "other");
+        let start = date("2026-01-01");
+        let end = date("2026-01-31");
+        cache.invalidate_sales().unwrap();
+        for cache in [&cache, &other] {
+            fetch_history(cache, start, end, 10_000, |_, _, _| ready(Ok(Vec::new()))).await.unwrap();
+        }
+        cache.write(InvoiceType::Sales, date("2025-01-01"), date("2025-01-31"), 10_000, &[]).unwrap();
+        for name in ["sales-unrelated.json", "sales-2026-01-01_2026-01-31.json.other.tmp", "notes.txt"] {
+            fs::write(cache.directory.join(name), b"keep").unwrap();
+        }
+        cache.invalidate_sales().unwrap();
+        cache.invalidate_sales().unwrap();
+        assert_eq!(fs::read_dir(&cache.directory).unwrap().count(), 4);
+        assert!(cache.read(InvoiceType::Sales, start, end, 10_000).unwrap().is_none());
+        assert!(cache.read(InvoiceType::Purchases, start, end, 10_000).unwrap().is_some());
+        assert!(other.read(InvoiceType::Sales, start, end, 10_000).unwrap().is_some());
+        let calls = RefCell::new(Vec::new());
+        fetch_history(&cache, start, end, 10_001, |kind, _, _| {
+            calls.borrow_mut().push(kind);
+            ready(Ok(Vec::new()))
+        }).await.unwrap();
+        assert_eq!(*calls.borrow(), vec![InvoiceType::Sales]);
     }
 
     #[test]

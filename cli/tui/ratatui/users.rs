@@ -57,13 +57,13 @@ fn edit_optional_rate(terminal: &mut Tui, current: Option<f64>) -> Result<Option
 pub fn fields(user: &AppUser) -> Vec<String> {
     vec![
         format!("Email: {}", user.email),
-        format!("Phone: {}", user.phone.as_deref().unwrap_or("-")),
+        format!("Phone: {}", user.phone.as_deref().unwrap_or("")),
         format!("Language: {}", language_label(&user.language)),
-        format!("Default hourly rate: {}", user.default_hourly_rate.map(|rate| format!("{rate:.2}")).unwrap_or_else(|| "-".to_string())),
-        format!("Default item name: {}", user.default_item_name.as_deref().unwrap_or("-")),
+        format!("Default hourly rate: {}", user.default_hourly_rate.map(|rate| format!("{rate:.2}")).unwrap_or_default()),
+        format!("Default item name: {}", user.default_item_name.as_deref().unwrap_or("")),
         format!("Settlement type: {}", settlement_type_label(&user.settlement_type)),
-        format!("Bank name: {}", user.bank_name.as_deref().unwrap_or("-")),
-        format!("Bank account number: {}", user.bank_account_number.as_deref().unwrap_or("-")),
+        format!("Bank name: {}", user.bank_name.as_deref().unwrap_or("")),
+        format!("Bank account number: {}", user.bank_account_number.as_deref().unwrap_or("")),
     ]
 }
 

@@ -1,14 +1,14 @@
 use super::{Tui, customers, history::{self, InvoiceHistory}, invoices::{self, InvoiceType}, month_range, read_key, users, widgets};
 use crate::api::{customers::AppContractor, users::AppUser};
 use anyhow::Result;
-use chrono::{Datelike, Local, Months, NaiveDate};
+use chrono::{Local, NaiveDate};
 use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, BorderType, List, ListItem, ListState, Padding, Paragraph},
+    widgets::{Block, List, ListItem, ListState, Padding, Paragraph},
 };
 use serde_json::Value;
 use std::ops::Range;
@@ -38,11 +38,13 @@ struct Workspace {
     history: InvoiceHistory,
     history_state: LoadState,
     older: bool,
+    history_exhausted: bool,
     invoice_type: InvoiceType,
     selected_month: usize,
     selected_invoice: usize,
     card_start: usize,
     card_capacity: usize,
+    show_latest: bool,
     settings_selection: ListState,
 }
 
@@ -55,8 +57,8 @@ impl Workspace {
             customers: Vec::new(), customer_state: LoadState::Pending, customer_selection: ListState::default(),
             customer_details: false, customer_scroll: 0, customer_height: 1,
             history: InvoiceHistory { months: Vec::new(), start, end }, history_state: LoadState::Pending, older: false,
-            invoice_type: InvoiceType::Sales, selected_month: 0, selected_invoice: 0,
-            card_start: 0, card_capacity: 1,
+            history_exhausted: false, invoice_type: InvoiceType::Sales, selected_month: 0, selected_invoice: 0,
+            card_start: 0, card_capacity: 1, show_latest: true,
             settings_selection: ListState::default().with_selected(Some(0)),
         }
     }
@@ -89,6 +91,7 @@ impl Workspace {
     }
 
     fn cycle_focus(&mut self, backwards: bool) {
+        self.show_latest = false;
         let last = self.month_indices().len().saturating_sub(1);
         match (self.focus, backwards) {
             (Focus::Cards, false) if self.selected_month < last => self.selected_month += 1,
@@ -112,15 +115,16 @@ impl Workspace {
     fn set_type(&mut self, kind: InvoiceType) {
         self.set_focus(Focus::Cards);
         if self.invoice_type == kind { return; }
-        let date = self.selected_date();
         self.invoice_type = kind;
-        self.restore_month(date);
+        self.history_exhausted = false;
+        self.restore_month(None);
     }
 
     fn restore_month(&mut self, date: Option<NaiveDate>) {
         let indices = self.month_indices();
-        self.selected_month = indices.iter().position(|index| Some(self.history.months[*index].month) == date)
-            .unwrap_or_default();
+        let selected = indices.iter().position(|index| Some(self.history.months[*index].month) == date);
+        self.show_latest = selected.is_none();
+        self.selected_month = selected.unwrap_or_else(|| indices.len().saturating_sub(self.card_capacity));
         self.selected_invoice = 0;
         self.card_start = self.selected_month.saturating_sub(self.card_capacity.saturating_sub(1));
     }
@@ -128,6 +132,11 @@ impl Workspace {
     fn card_range(&mut self, width: u16) -> Range<usize> {
         self.card_capacity = usize::from(((width + 1) / 31).max(1));
         let count = self.month_indices().len();
+        if self.show_latest && count > 0 {
+            self.selected_month = count.saturating_sub(self.card_capacity);
+            self.card_start = self.selected_month;
+            self.show_latest = false;
+        }
         self.selected_month = self.selected_month.min(count.saturating_sub(1));
         self.card_start = self.card_start.min(count.saturating_sub(self.card_capacity));
         if self.selected_month < self.card_start { self.card_start = self.selected_month; }
@@ -138,9 +147,14 @@ impl Workspace {
     }
 
     fn move_card(&mut self, key: KeyCode) {
+        self.show_latest = false;
         let count = self.month_indices().len();
         if matches!(key, KeyCode::Left | KeyCode::PageUp) && self.selected_month == 0
-            && matches!(self.history_state, LoadState::Ready) {
+            && !self.history_exhausted && matches!(self.history_state, LoadState::Ready) {
+            if history::older_range(self.history.start).is_none() {
+                self.history_exhausted = true;
+                return;
+            }
             self.older = true;
             self.history_state = LoadState::Pending;
             return;
@@ -199,45 +213,40 @@ impl Workspace {
         }
         if matches!(self.history_state, LoadState::Pending) {
             terminal.draw_workspace(|frame| self.draw(frame))?;
-            let was_older = self.older;
-            let previous_count = self.month_indices().len();
-            let previous_start = self.history.start;
             let result = self.load_history().await;
             self.history_state = match result {
                 Ok(()) => LoadState::Ready,
-                Err(error) => LoadState::Failed(format!("{error:#}")),
+                Err(error) => LoadState::Failed(error.root_cause().to_string()),
             };
-            if let LoadState::Failed(error) = &self.history_state {
-                widgets::message(terminal, "Invoice history could not be loaded", &[error.clone(), "Press r to retry. Previously loaded invoices are retained.".to_string()])?;
-            } else if was_older && previous_count == self.month_indices().len() {
-                widgets::message(terminal, "No earlier invoices found", &[format!(
-                    "No {} invoices from {} to {}. Scroll left past the first card again to continue searching.",
-                    self.invoice_type, self.history.start, previous_start.pred_opt().unwrap(),
-                )])?;
-            }
         }
         Ok(())
     }
 
     async fn load_history(&mut self) -> Result<()> {
-        let mut date = self.selected_date();
+        let date = self.selected_date();
         if self.older {
-            let start = self.history.start.checked_sub_months(Months::new(12)).filter(|date| date.year() >= 1)
-                .ok_or_else(|| anyhow::anyhow!("No earlier supported months"))?;
-            let end = self.history.start.pred_opt().ok_or_else(|| anyhow::anyhow!("No earlier supported months"))?;
-            let mut earlier = history::load(&self.user, start, end).await?;
-            if let Some(month) = earlier.months.iter().rev().find(|month| !month.invoices(self.invoice_type).is_empty()) {
-                date = Some(month.month);
-            }
-            earlier.months.append(&mut self.history.months);
-            earlier.end = self.history.end;
-            self.history = earlier;
+            let (start, end) = history::older_range(self.history.start).ok_or_else(|| anyhow::anyhow!("No earlier supported months"))?;
+            let earlier = history::load(&self.user, start, end).await?;
+            self.extend_history(earlier);
         } else {
             self.history = history::load(&self.user, self.history.start, Local::now().date_naive()).await?;
+            self.history_exhausted = false;
+            self.restore_month(date);
         }
         self.older = false;
-        self.restore_month(date);
         Ok(())
+    }
+
+    fn extend_history(&mut self, mut earlier: InvoiceHistory) {
+        let previous = self.selected_date();
+        let selected_invoice = self.selected_invoice;
+        let date = earlier.months.iter().rev().find(|month| !month.invoices(self.invoice_type).is_empty()).map(|month| month.month);
+        self.history_exhausted = earlier.months.is_empty();
+        earlier.months.append(&mut self.history.months);
+        earlier.end = self.history.end;
+        self.history = earlier;
+        self.restore_month(date.or(previous));
+        if date.is_none() { self.selected_invoice = selected_invoice; }
     }
 
     fn draw(&mut self, frame: &mut Frame) {
@@ -250,14 +259,17 @@ impl Workspace {
         let area = Rect::new(screen.x + 1, screen.y, screen.width - 2, screen.height);
         let sections = Layout::vertical([
             Constraint::Length(3), Constraint::Length(1), Constraint::Length(((screen.height - 5) / 2).clamp(8, 12)),
-            Constraint::Min(7), Constraint::Length(1),
+            Constraint::Length(1), Constraint::Min(7), Constraint::Length(1),
         ]).split(area);
         self.draw_type(frame, sections[0]);
         self.draw_cards(frame, sections[2]);
-        let lower = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).spacing(1).split(sections[3]);
+        if let LoadState::Failed(error) = &self.history_state && !self.month_indices().is_empty() {
+            frame.render_widget(Paragraph::new(widgets::clipped_line(&format!("r:retry | Load failed: {error}"), sections[3].width)), sections[3]);
+        }
+        let lower = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).spacing(1).split(sections[4]);
         self.draw_customers(frame, lower[0]);
         self.draw_settings(frame, lower[1]);
-        frame.render_widget(Paragraph::new(self.footer(sections[4].width)), sections[4]);
+        frame.render_widget(Paragraph::new(self.footer(sections[5].width)), sections[5]);
     }
 
     fn footer(&self, width: u16) -> String {
@@ -270,19 +282,18 @@ impl Workspace {
         };
         let create = if self.section == Section::Invoices && self.invoice_type == InvoiceType::Sales && width >= 85 { " n:new" } else { "" };
         let tab = if width >= 120 { "Tab/Shift+Tab:next/previous" } else { "Tab:next" };
-        widgets::clipped_line(&format!("s/c:invoice type {tab} q:quit{create} | {hint}"), width)
+        widgets::clipped_line(&format!("s/p:invoice type {tab} q:quit{create} | {hint}"), width)
     }
 
     fn draw_type(&self, frame: &mut Frame, area: Rect) {
         let mut x = area.x;
-        for (kind, label, emoji) in [(InvoiceType::Sales, "(s) Sales", "💵"), (InvoiceType::Purchases, "(c) Purchases", "🛒")] {
+        for (kind, label, emoji) in [(InvoiceType::Sales, "[S]ales", "💵"), (InvoiceType::Purchases, "[P]urchases", "🛒")] {
             let selected = self.invoice_type == kind;
-            let text = format!(" {label} {} ", if selected { emoji } else { "  " });
+            let text = if selected { format!(" {emoji} {label} ") } else { format!(" {label} ") };
             let width = Line::from(text.as_str()).width() as u16;
-            let style = if selected { bold().add_modifier(Modifier::REVERSED) } else { Style::default() };
-            let tab = Rect::new(x, area.y, width.min(area.right().saturating_sub(x)), area.height);
-            frame.render_widget(Block::default().style(style), tab);
-            frame.render_widget(Paragraph::new(text).style(style), Rect::new(tab.x, tab.y + 1, tab.width, 1));
+            let style = if selected { bold().bg(self.invoice_color()).fg(Color::Black) } else { Style::default() };
+            let tab = Rect::new(x, area.y + 1, width.min(area.right().saturating_sub(x)), 1);
+            frame.render_widget(Paragraph::new(text).style(style), tab);
             x += width;
         }
         let status = match &self.history_state {
@@ -298,58 +309,65 @@ impl Workspace {
         let range = self.card_range(area.width);
         if range.is_empty() {
             let title = format!(" {} invoices ", self.invoice_type);
-            let inner = pane(frame, area, &title, self.focus == Focus::Cards, Some(self.invoice_color()));
+            let focused = self.focus == Focus::Cards;
+            let inner = card_pane(frame, area, &title, focused, self.card_color(focused));
             let status = match &self.history_state {
                 LoadState::Pending => "Loading invoice history...".to_string(),
-                LoadState::Failed(error) => format!("Load failed: {error}\nPress r to retry."),
-                LoadState::Ready => format!("No {} invoices from {} to {}.\nPress Left to search earlier months.", self.invoice_type, self.history.start, self.history.end),
+                LoadState::Failed(error) => format!("Load failed: {error}\n\nPress r to retry."),
+                LoadState::Ready => format!("No {} invoices from {} to {}.{}", self.invoice_type, self.history.start, self.history.end,
+                    if self.history_exhausted { "" } else { "\nPress Left to search earlier months." }),
             };
             draw_text(frame, inner, &[status], &mut 0);
             return;
         }
-        let width = ((area.width + 1) / self.card_capacity as u16).saturating_sub(1).min(38);
-        let occupied = range.len() as u16 * (width + 1) - 1;
-        let start_x = area.right() - occupied;
+        let cards = Layout::horizontal(vec![Constraint::Ratio(1, range.len() as u32); range.len()]).spacing(1).split(area);
         for (slot, position) in range.enumerate() {
             let month = &self.history.months[indices[position]];
             let records = month.invoices(self.invoice_type);
             let selected = position == self.selected_month;
             let record_index = if selected { self.selected_invoice.min(records.len() - 1) } else { 0 };
             let invoice = &records[record_index];
-            let card = Rect::new(start_x + slot as u16 * (width + 1), area.y, width, area.height);
-            let title = format!("{}{}{}", if position == 0 { "" } else if slot == 0 { "< " } else { "" },
-                month.month.format("%b %Y"), if position + 1 < indices.len() && slot + 1 == self.card_capacity { " >" } else { "" });
-            let inner = pane(frame, card, &title, selected && self.focus == Focus::Cards, Some(self.invoice_color()));
+            let card = cards[slot];
+            let title = format!("📅 {}", month.month.format("%b %Y"));
+            let focused = selected && self.focus == Focus::Cards;
+            let inner = card_pane(frame, card, &title, focused, self.card_color(focused));
             let body = &invoice["InvoiceBody"];
             let number = body["InvoiceNumber"].as_str().unwrap_or("-");
             let party_key = if self.invoice_type == InvoiceType::Sales { "Buyer" } else { "Seller" };
             let party = invoice[party_key]["IdentificationData"]["Name"].as_str().unwrap_or("-");
             let currency = body["CurrencyCode"].as_str().unwrap_or("-");
             let gross = body["TotalGrossAmount"].as_f64().unwrap_or_default();
-            let mut lines = vec![number.to_string(), party.to_string(), format!("{gross:.2} {currency}")];
-            if inner.height >= 6 {
-                lines.push(format!("Issued: {}", body["IssueDate"].as_str().unwrap_or("-")));
-                lines.push(format!("{} invoice(s) this month", records.len()));
-            }
+            let lines = vec![
+                format!("{} invoice(s) this month", records.len()), number.to_string(), party.to_string(),
+                format!("Issued: {}", body["IssueDate"].as_str().unwrap_or("-")), format!("{gross:.2} {currency}"),
+            ];
             let body_area = Rect::new(inner.x, inner.y, inner.width, inner.height.saturating_sub(1));
             frame.render_widget(Paragraph::new(lines.into_iter().map(|line| Line::from(widgets::clipped_line(&line, inner.width))).collect::<Vec<_>>()), body_area);
-            let label = format!("[Download] (d) {}/{}", record_index + 1, records.len());
+            let label = format!("[Download (d)] {}/{}", record_index + 1, records.len());
             frame.render_widget(Paragraph::new(widgets::clipped_line(&label, inner.width))
-                .style(if selected { bold() } else { Style::default().add_modifier(Modifier::DIM) }),
+                .style(if focused { bold() } else { Style::default() }),
                 Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1));
         }
     }
 
     fn invoice_color(&self) -> Color {
         match self.invoice_type {
-            InvoiceType::Sales => Color::Blue,
+            InvoiceType::Sales => Color::Rgb(100, 149, 237),
             InvoiceType::Purchases => Color::Rgb(255, 165, 0),
+        }
+    }
+
+    fn card_color(&self, focused: bool) -> Color {
+        if focused { return self.invoice_color(); }
+        match self.invoice_type {
+            InvoiceType::Sales => Color::Rgb(190, 212, 250),
+            InvoiceType::Purchases => Color::Rgb(255, 220, 170),
         }
     }
 
     fn draw_customers(&mut self, frame: &mut Frame, area: Rect) {
         let title = if self.customer_details { "💼 Customer details" } else { "💼 Customers" };
-        let inner = pane(frame, area, title, self.section == Section::Customers, None);
+        let inner = pane(frame, area, title, self.section == Section::Customers);
         let parts = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(inner);
         if let LoadState::Failed(error) = &self.customer_state {
             self.customer_height = draw_text(frame, parts[0], &[format!("Load failed: {error}\nr: retry")], &mut self.customer_scroll);
@@ -373,9 +391,9 @@ impl Workspace {
     }
 
     fn draw_settings(&mut self, frame: &mut Frame, area: Rect) {
-        let title = format!("{}🧑‍💻 User details{}", if self.focus == Focus::Settings { widgets::SELECTOR } else { "" },
+        let title = format!("🧑‍💻 User details{}",
             if self.user == self.draft { "" } else { " * unsaved" });
-        let inner = pane(frame, area, &title, self.section == Section::Settings, None);
+        let inner = pane(frame, area, &title, self.section == Section::Settings);
         let parts = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(inner);
         draw_list(frame, parts[0], &users::fields(&self.draft), &mut self.settings_selection);
         if self.user != self.draft {
@@ -388,11 +406,18 @@ impl Workspace {
 
 fn bold() -> Style { Style::default().add_modifier(Modifier::BOLD) }
 
-fn pane(frame: &mut Frame, area: Rect, title: &str, focused: bool, color: Option<Color>) -> Rect {
+fn card_pane(frame: &mut Frame, area: Rect, title: &str, focused: bool, color: Color) -> Rect {
+    frame.render_widget(Block::default().style(Style::default().bg(color).fg(Color::Black)), area);
+    let width = area.width.saturating_sub(4);
+    frame.render_widget(Paragraph::new(widgets::clipped_line(title, width)).style(if focused { bold() } else { Style::default() }),
+        Rect::new(area.x + 2, area.y, width, 1));
+    Rect::new(area.x + 2, area.y + 2, width, area.height.saturating_sub(3))
+}
+
+fn pane(frame: &mut Frame, area: Rect, title: &str, focused: bool) -> Rect {
     let block = widgets::block().title(Line::from(format!(" {title} ")).style(if focused { bold() } else { Style::default() }))
         .padding(Padding::new(1, 1, 1, 0))
-        .border_type(if focused && color.is_some() { BorderType::Thick } else { BorderType::Plain })
-        .border_style(if let Some(color) = color { Style::default().fg(color) } else if focused { bold() } else { Style::default() });
+        .border_style(if focused { bold() } else { Style::default() });
     let inner = block.inner(area);
     frame.render_widget(block, area);
     inner
@@ -476,8 +501,8 @@ pub async fn run(terminal: &mut Tui, user: &AppUser) -> Result<()> {
         terminal.draw_workspace(|frame| app.draw(frame))?;
         let key = read_key()?;
         match key {
-            KeyCode::Char('s') => app.set_type(InvoiceType::Sales),
-            KeyCode::Char('c') => app.set_type(InvoiceType::Purchases),
+            KeyCode::Char('s' | 'S') => app.set_type(InvoiceType::Sales),
+            KeyCode::Char('p' | 'P') => app.set_type(InvoiceType::Purchases),
             KeyCode::Tab => app.cycle_focus(false),
             KeyCode::BackTab => app.cycle_focus(true),
             KeyCode::Char('n') if app.section == Section::Invoices && app.invoice_type == InvoiceType::Sales => activate(&mut app, terminal, Action::NewInvoice).await?,
@@ -553,6 +578,18 @@ mod tests {
             .map(|row| row.iter().map(|cell| cell.symbol()).collect()).collect()
     }
 
+    fn card_areas(buffer: &Buffer) -> Vec<Range<u16>> {
+        let mut cards = Vec::new();
+        let mut x = 0;
+        while x < buffer.area.width {
+            if buffer[(x, 5)].bg == Color::Reset { x += 1; continue; }
+            let start = x;
+            while x < buffer.area.width && buffer[(x, 5)].bg != Color::Reset { x += 1; }
+            cards.push(start..x);
+        }
+        cards
+    }
+
     #[test]
     fn dashboard_has_no_header_and_exactly_one_footer_row() {
         let mut app = app();
@@ -563,12 +600,12 @@ mod tests {
                 let rows = lines(&buffer);
                 let text = rows.join("\n");
                 assert!(!text.contains("KSeF Bot") && !text.contains("1. Invoices"));
-                assert!(rows[1].contains("(s)") && rows[1].contains("Sales"));
-                assert!(rows[1].contains("(c)") && rows[1].contains("Purchases"));
+                assert!(rows[1].contains("[S]ales"));
+                assert!(rows[1].contains("[P]urchases"));
                 assert!(!text.contains("Gross PLN") && !text.contains("Tab:focus") && !text.contains("1/2/3"));
                 assert!(!rows[0].contains("[New]") && !text.contains("[Older]"));
-                assert_eq!(rows.iter().filter(|row| row.contains("s/c:invoice type")).count(), 1);
-                assert!(rows.last().unwrap().contains("s/c:invoice type"));
+                assert_eq!(rows.iter().filter(|row| row.contains("s/p:invoice type")).count(), 1);
+                assert!(rows.last().unwrap().contains("s/p:invoice type"));
                 assert!(rows.last().unwrap().contains("Tab:next") || rows.last().unwrap().contains("Tab/Shift+Tab"));
                 assert!(rows.last().unwrap().contains("q:quit"));
                 assert!(Line::from(app.footer(width)).width() <= width as usize);
@@ -584,32 +621,28 @@ mod tests {
             let text = lines(&render(&mut app, width, height)).join("\n");
             assert!(!text.contains('╱') && !text.contains('░') && !text.contains('█'));
             assert!(text.contains('┌') && text.contains('┐'));
-            assert!(text.contains("Jan 2026"));
-            assert!(text.contains("FV/1"));
+            assert!(text.contains("Sep 2026"));
+            assert!(text.contains("FV/9"));
             assert!(text.contains("123.00 PLN"));
-            assert!(text.contains("[Download]"));
+            assert!(text.contains("[Download (d)]"));
             assert!(!text.contains("Feb 2026"));
         }
     }
 
     #[test]
-    fn lone_card_is_right_aligned_and_stays_within_its_area() {
+    fn lone_card_aligns_with_both_outer_panel_borders() {
         let mut app = app();
         app.history.months.drain(..3);
         app.restore_month(None);
         let buffer = render(&mut app, 100, 40);
-        let rows = lines(&buffer);
-        let top = rows.iter().position(|row| row.contains('┏') && row.contains('┓')).unwrap();
-        let left = (0..100).find(|x| buffer[(*x, top as u16)].symbol() == "┏").unwrap();
-        let right = (0..100).rfind(|x| buffer[(*x, top as u16)].symbol() == "┓").unwrap();
-        assert!(left >= 60);
-        assert_eq!(right, 98);
+        assert_eq!(card_areas(&buffer), vec![1..99]);
         assert!((0..40).all(|y| buffer[(99, y)].symbol() == " "));
     }
 
     #[test]
     fn focus_cycles_through_every_card_then_customers_and_settings() {
         let mut app = app();
+        render(&mut app, 160, 30);
         assert_eq!(app.focus, Focus::Cards);
         assert_eq!(app.selected_month, 0);
         for month in 1..4 {
@@ -640,9 +673,42 @@ mod tests {
     }
 
     #[test]
+    fn initial_focus_is_the_leftmost_card_in_the_newest_visible_months() {
+        for width in [48, 80, 100, 160] {
+            let mut app = app();
+            let buffer = render(&mut app, width, 30);
+            let range = app.card_range(width - 2);
+            assert_eq!(range.end, app.month_indices().len());
+            assert_eq!(app.selected_month, range.start);
+            assert_eq!(app.focus, Focus::Cards);
+            let cards = card_areas(&buffer);
+            assert_eq!(buffer[(cards[0].start, 5)].bg, app.invoice_color());
+            assert!(lines(&buffer)[4].contains("Sep 2026"));
+            for (card, position) in cards.iter().zip(range) {
+                let title: String = (card.start..card.end).map(|x| buffer[(x, 4)].symbol()).collect();
+                let month = &app.history.months[app.month_indices()[position]];
+                assert!(title.contains(&month.month.format("%b %Y").to_string()));
+            }
+        }
+    }
+
+    #[test]
+    fn navigating_loaded_months_never_requests_history() {
+        let mut app = app();
+        app.move_card(KeyCode::Home);
+        for key in [KeyCode::Right, KeyCode::Right, KeyCode::Left, KeyCode::End, KeyCode::Right, KeyCode::Home] {
+            app.move_card(key);
+            assert!(!app.older);
+            assert!(matches!(app.history_state, LoadState::Ready));
+        }
+        app.set_type(InvoiceType::Purchases);
+        app.set_type(InvoiceType::Sales);
+        assert!(matches!(app.history_state, LoadState::Ready));
+    }
+
+    #[test]
     fn card_selection_scrolls_to_older_nonempty_months() {
         let mut app = app();
-        assert_eq!(app.selected_date().unwrap().month(), 1);
         app.card_range(78);
         assert_eq!(app.card_capacity, 2);
         app.move_card(KeyCode::Home);
@@ -660,7 +726,7 @@ mod tests {
         for state in [LoadState::Ready, LoadState::Failed("Backend rejected request".to_string())] {
             app.history_state = state;
             let text = lines(&render(&mut app, 100, 40)).join("\n");
-            assert!(!text.contains("╱│") && !text.contains("[Download]"));
+            assert!(!text.contains("╱│") && !text.contains("[Download (d)]"));
             assert!(text.contains("Customers"));
             assert!(text.contains("No sales invoices") || text.contains("Backend rejected request"));
         }
@@ -695,6 +761,66 @@ mod tests {
     }
 
     #[test]
+    fn exhausted_history_stops_without_changing_selection_or_requesting_again() {
+        let mut app = app();
+        app.move_card(KeyCode::End);
+        app.move_card(KeyCode::Right);
+        assert!(!app.older && matches!(app.history_state, LoadState::Ready));
+        app.move_card(KeyCode::Home);
+        let date = app.selected_date();
+        let earlier = history::from_rows(
+            NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(), NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(), vec![], vec![],
+        ).unwrap();
+        app.extend_history(earlier);
+        assert!(app.history_exhausted);
+        for key in [KeyCode::Left, KeyCode::PageUp, KeyCode::Left] {
+            app.move_card(key);
+            assert_eq!(app.selected_date(), date);
+            assert!(!app.older && matches!(app.history_state, LoadState::Ready));
+        }
+    }
+
+    #[test]
+    fn extending_history_selects_the_newest_of_the_earlier_months() {
+        let mut app = app();
+        app.move_card(KeyCode::End);
+        let mut invoice = app.invoice().unwrap().clone();
+        invoice["InvoiceBody"]["IssueDate"] = "2025-12-01".into();
+        let earlier = history::from_rows(
+            NaiveDate::from_ymd_opt(2025, 1, 1).unwrap(), NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(), vec![invoice], vec![],
+        ).unwrap();
+        app.extend_history(earlier);
+        assert!(!app.history_exhausted);
+        assert_eq!(app.selected_date(), NaiveDate::from_ymd_opt(2025, 12, 1));
+        assert_eq!(app.selected_month, 0);
+    }
+
+    #[test]
+    fn cards_align_with_lower_panels_and_have_balanced_padding_and_ordered_details() {
+        for (width, height) in [(48, 24), (80, 24), (100, 40), (160, 50)] {
+            let mut app = app();
+            let buffer = render(&mut app, width, height);
+            let rows = lines(&buffer);
+            let lower = rows.iter().position(|row| row.contains("Customers")).unwrap() as u16;
+            assert!(rows[lower as usize - 1].trim().is_empty());
+            let cards = card_areas(&buffer);
+            assert_eq!(cards.first().unwrap().start, 1);
+            assert_eq!(cards.last().unwrap().end, width - 1);
+            assert_eq!(buffer[(1, lower)].symbol(), "┌");
+            assert_eq!(buffer[(width - 2, lower)].symbol(), "┐");
+            let right = cards[0].end - 1;
+            assert_eq!(buffer[(2, 6)].symbol(), " ");
+            assert_eq!(buffer[(right - 1, 6)].symbol(), " ");
+            assert!(rows[6].contains("1 invoice(s) this month"));
+            assert!(rows[7].contains("FV/9"));
+            assert!(rows[8].contains("Example company"));
+            assert!(rows[9].contains("Issued: 2026-09-01"));
+            assert!(rows[10].contains("123.00 PLN"));
+            assert!(rows[lower as usize - 3].contains("[Download (d)]"));
+        }
+    }
+
+    #[test]
     fn choosing_invoice_type_returns_focus_to_cards_even_when_type_is_unchanged() {
         let mut app = app();
         app.set_focus(Focus::Customers);
@@ -709,7 +835,7 @@ mod tests {
     }
 
     #[test]
-    fn type_selector_highlights_three_rows_and_only_shows_the_selected_emoji() {
+    fn type_selector_uses_bracketed_initials_and_the_selected_card_color() {
         let mut app = app();
         for kind in [InvoiceType::Sales, InvoiceType::Purchases] {
             app.set_type(kind);
@@ -719,43 +845,67 @@ mod tests {
                 assert!(rows[0].trim().is_empty());
                 assert!(rows[2].trim().is_empty());
                 assert!(rows[3].trim().is_empty());
-                let (label, emoji, hidden) = if kind == InvoiceType::Sales { ("Sales", "💵", "🛒") } else { ("Purchases", "🛒", "💵") };
-                assert!(rows[1].find(label).unwrap() < rows[1].find(emoji).unwrap());
-                assert!(!rows[1].contains(hidden));
-                let split = 1 + Line::from(" (s) Sales 💵 ").width() as u16;
-                let end = split + Line::from(" (c) Purchases 🛒 ").width() as u16;
+                assert!(rows[1].contains("[S]ales") && rows[1].contains("[P]urchases"));
+                let emoji = if kind == InvoiceType::Sales { "💵" } else { "🛒" };
+                assert_eq!(rows[1].contains("💵"), kind == InvoiceType::Sales);
+                assert_eq!(rows[1].contains("🛒"), kind == InvoiceType::Purchases);
+                let x = (0..width).find(|x| buffer[(*x, 1)].symbol() == emoji).unwrap();
+                assert_eq!(buffer[(x + 2, 1)].symbol(), " ");
+                assert_eq!(buffer[(x + 3, 1)].symbol(), "[");
+                assert!(!rows[1].contains("(s)") && !rows[1].contains("(p)"));
+                let split = 1 + Line::from(" [S]ales ").width() as u16 + if kind == InvoiceType::Sales { 3 } else { 0 };
+                let end = split + Line::from(" [P]urchases ").width() as u16 + if kind == InvoiceType::Purchases { 3 } else { 0 };
                 for x in 1..width - 1 {
                     let selected = if kind == InvoiceType::Sales { x < split } else { (split..end).contains(&x) };
-                    assert_eq!(buffer[(x, 0)].modifier.contains(Modifier::REVERSED), selected);
-                    assert_eq!(buffer[(x, 2)].modifier.contains(Modifier::REVERSED), selected);
+                    let color = if selected { app.invoice_color() } else { Color::Reset };
+                    assert_eq!(buffer[(x, 0)].bg, Color::Reset);
+                    assert_eq!(buffer[(x, 2)].bg, Color::Reset);
                     if Line::from(buffer[(x - 1, 1)].symbol()).width() < 2 {
-                        assert_eq!(buffer[(x, 1)].modifier.contains(Modifier::REVERSED), selected);
+                        assert_eq!(buffer[(x, 1)].bg, color);
+                        assert!(!buffer[(x, 1)].modifier.contains(Modifier::REVERSED));
                     }
-                    assert!(!buffer[(x, 3)].modifier.contains(Modifier::REVERSED));
+                    assert_eq!(buffer[(x, 3)].bg, Color::Reset);
                 }
             }
         }
     }
 
     #[test]
-    fn invoice_borders_use_type_colors_and_only_the_focused_card_is_thick() {
-        let mut app = app();
-        for month in &mut app.history.months { month.purchases = month.sales.clone(); }
-        for (kind, color) in [(InvoiceType::Sales, Color::Blue), (InvoiceType::Purchases, Color::Rgb(255, 165, 0))] {
+    fn invoice_cards_are_borderless_with_calendar_headers_and_lighter_inactive_colors() {
+        for (kind, color) in [(InvoiceType::Sales, Color::Rgb(100, 149, 237)), (InvoiceType::Purchases, Color::Rgb(255, 165, 0))] {
+            let mut app = app();
+            for month in &mut app.history.months { month.purchases = month.sales.clone(); }
             app.set_type(kind);
             let buffer = render(&mut app, 160, 30);
-            let corners: Vec<_> = (0..160).filter(|x| matches!(buffer[(*x, 4)].symbol(), "┏" | "┌")).collect();
-            assert_eq!(corners.len(), 4);
-            for (index, x) in corners.iter().enumerate() {
-                assert_eq!(buffer[(*x, 4)].symbol(), if index == 0 { "┏" } else { "┌" });
-                assert_eq!(buffer[(*x, 4)].fg, color);
-                assert_eq!(buffer[(*x + 2, 4)].modifier.contains(Modifier::BOLD), index == 0);
-                assert_eq!(buffer[(*x + 2, 5)].symbol(), " ");
-                assert_eq!(buffer[(*x + 2, 6)].symbol(), "F");
+            let cards = card_areas(&buffer);
+            assert_eq!(cards.len(), 4);
+            let inactive = app.card_color(false);
+            assert_ne!(inactive, color);
+            for (index, card) in cards.iter().enumerate() {
+                let expected = if index == 0 { color } else { inactive };
+                for y in 4..16 {
+                    for column in card.clone() {
+                        let cell = &buffer[(column, y)];
+                        assert!(!matches!(cell.symbol(), "┏" | "┓" | "┗" | "┛" | "┌" | "┐" | "└" | "┘" | "┃" | "│" | "─" | "━"));
+                        if y != 4 || column != card.start + 3 {
+                            assert_eq!(cell.bg, expected);
+                            assert_eq!(cell.fg, Color::Black);
+                        }
+                    }
+                }
+                assert_eq!(buffer[(card.end, 5)].bg, Color::Reset);
+                assert_eq!(buffer[(card.start + 2, 4)].symbol(), "📅");
+                assert_eq!(buffer[(card.start + 5, 4)].modifier.contains(Modifier::BOLD), index == 0);
+                assert_eq!(buffer[(card.start + 2, 5)].symbol(), " ");
+                assert_eq!(buffer[(card.start + 2, 6)].symbol(), "1");
             }
             app.set_focus(Focus::Customers);
             let buffer = render(&mut app, 160, 30);
-            assert!(!lines(&buffer)[4].contains('┏'));
+            assert_eq!(buffer[(cards[0].start, 4)].bg, inactive);
+            app.history.months.clear();
+            let buffer = render(&mut app, 160, 30);
+            assert_eq!(buffer[(3, 6)].bg, inactive);
+            assert_eq!(buffer[(3, 6)].fg, Color::Black);
         }
     }
 
@@ -770,8 +920,40 @@ mod tests {
             assert!(!rows[top].contains("❯ 💼"));
             assert!(rows[top + 1].chars().all(|ch| ch == ' ' || ch == '│'));
             assert!(rows[top + 2].contains("No customers found."));
-            assert_eq!(rows[top].contains('❯'), focus == Focus::Settings);
+            assert!(!rows[top].contains('❯'));
+            assert!(rows[top + 2].contains("❯ Email:"));
         }
+    }
+
+    #[test]
+    fn load_error_has_a_blank_row_before_retry() {
+        let mut app = app();
+        app.history.months.clear();
+        app.history_state = LoadState::Failed("The limit of 20 requests per hour has been exceeded.".to_string());
+        let rows = lines(&render(&mut app, 120, 30));
+        let error = rows.iter().position(|row| row.contains("Load failed: The limit of 20 requests per hour has been exceeded.")).unwrap();
+        assert!(rows[error + 1].chars().all(|ch| matches!(ch, ' ' | '┃')));
+        assert!(rows[error + 2].contains("Press r to retry."));
+    }
+
+    #[test]
+    fn history_failure_keeps_cards_and_reports_the_error_inline() {
+        let mut app = app();
+        app.history_state = LoadState::Failed("The limit of 20 requests per hour has been exceeded.".to_string());
+        let rows = lines(&render(&mut app, 120, 30));
+        assert!(rows.iter().any(|row| row.contains("[Download (d)]")));
+        assert!(rows.iter().any(|row| row.contains("r:retry | Load failed: The limit of 20 requests")));
+        assert!(!rows.iter().any(|row| row.contains("Invoice history could not be loaded")));
+        assert_eq!(app.history.months.len(), 4);
+    }
+
+    #[test]
+    fn empty_user_fields_keep_labels_without_dashes() {
+        let fields = users::fields(&app().user);
+        assert_eq!(fields, [
+            "Email: user@example.com", "Phone: ", "Language: ", "Default hourly rate: ",
+            "Default item name: ", "Settlement type: ", "Bank name: ", "Bank account number: ",
+        ]);
     }
 
     #[test]
