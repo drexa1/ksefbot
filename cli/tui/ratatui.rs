@@ -227,7 +227,7 @@ fn restore_terminal(terminal: &mut Tui) -> Result<()> {
 fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], selected: usize, last_used: Option<&login::LoginMethod>) {
     let area = centered_rect(frame.area(), 60, 50);
     let items = methods.iter().map(|method| {
-        let label = if last_used == Some(method) { format!("{method} (last used)") } else { method.to_string() };
+        let label = if last_used == Some(method) { format!("(last used) {method}") } else { method.to_string() };
         ListItem::new(label)
     }).collect::<Vec<_>>();
     let list = List::new(items)

@@ -15,11 +15,11 @@ use tokio::net::TcpListener;
 
 #[derive(Clone, Display, EnumIter, PartialEq)]
 pub enum LoginMethod {
-    #[strum(to_string = "🪟 Sign in with Microsoft account")]
+    #[strum(to_string = "Sign in with Microsoft account")]
     Microsoft,
-    #[strum(to_string = "𝐆 Sign in with Google account")]
+    #[strum(to_string = "Sign in with Google account")]
     Google,
-    #[strum(to_string = "📲 Sign in with your phone")]
+    #[strum(to_string = "Sign in with your phone")]
     Phone
 }
 
