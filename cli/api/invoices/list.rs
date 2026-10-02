@@ -135,7 +135,7 @@ fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType
 }
 
 async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> anyhow::Result<Vec<serde_json::Value>> {
-    let json: serde_json::Value = reqwest::Client::new()
+    let mut json: serde_json::Value = crate::api::client::http_client()
         .get(format!("{}/ksef/{endpoint}", cf_worker_url!()))
         .query(&[
             ("from", from),
@@ -154,7 +154,10 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, t
         println!("  API Response: {}", json["error"].as_str().unwrap_or("unknown error"));
         return Ok(Vec::new());
     }
-    let invoices = json["result"].as_array().cloned().unwrap();
+    let invoices = match json["result"].take() {
+        serde_json::Value::Array(array) => array,
+        _ => Vec::new()
+    };
     println!("  API Response: {} invoices [{} {}] found", invoices.len(), endpoint.emoji(), endpoint);
     Ok(invoices)
 }
@@ -165,7 +168,7 @@ async fn download_invoice_xml(app_user: &AppUser, invoice_type: &InvoiceType, in
         .append_pair("invoiceNumber", invoice_number)
         .append_pair("from", from)
         .append_pair("to", to);
-    let response = reqwest::Client::new()
+    let response = crate::api::client::http_client()
         .get(url)
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

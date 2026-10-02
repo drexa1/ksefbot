@@ -48,7 +48,7 @@ pub enum SettlementType {
 }
 
 pub async fn get_app_user(logged_user: &AuthUser) -> anyhow::Result<Option<AppUser>> {
-    let response = reqwest::Client::new()
+    let response = crate::api::client::http_client()
         .get(format!("{}/app/users", cf_worker_url!()))
         .query(&[("email", logged_user.email.as_deref().unwrap())])
         .query(&[("onboarding", "true")])

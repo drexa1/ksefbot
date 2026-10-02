@@ -86,8 +86,8 @@ pub fn prompt_invoice_dates() -> Result<(String, String)> {
     let (last_month_start, last_month_end) = month_range(today, 1);
     let (prev_month_start, prev_month_end) = month_range(today, 2);
     let specific_dates = "Specific dates (max. allowed by KSeF: 3 months span)".to_string();
-    let last_month_choice = last_month_start.format("%B").to_string();
-    let prev_month_choice = prev_month_start.format("%B").to_string();
+    let last_month_choice = last_month_start.format("%m %B").to_string();
+    let prev_month_choice = prev_month_start.format("%m %B").to_string();
     let choices = vec![prev_month_choice.clone(), last_month_choice.clone(), specific_dates.clone()];
     let selected = Select::new("Invoice date range:", choices).prompt()?;
     if selected == prev_month_choice {

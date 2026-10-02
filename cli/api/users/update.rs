@@ -27,7 +27,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
             fields.push("✅ Save changes".to_string());
         }
         fields.push("❌ Cancel".to_string());
-        let field = Select::new("Select a field to edit:", fields.clone()).with_page_size(fields.len()).prompt()?;
+        let field = Select::new("Edit user settings", fields.clone()).with_page_size(fields.len()).prompt()?;
         let selected_index = fields.iter().position(|choice| choice == &field).unwrap();
         match keys.get(selected_index).copied().unwrap_or_default() {
             "Email" => user.email = edit_required("Email:", &user.email)?,
@@ -46,7 +46,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
     if !Confirm::new("Save changes to your profile?").with_default(true).prompt()? {
         return Ok(true);
     }
-    let response = reqwest::Client::new()
+    let response = crate::api::client::http_client()
         .put(format!("{}/app/users", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

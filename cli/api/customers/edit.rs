@@ -31,15 +31,19 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
         println!();
         return Ok(true);
     }
-    let choices: Vec<String> = contractors.iter().enumerate().map(|(index, contractor)| format!("{}. {}", index + 1, contractor.name)).collect();
-    let mut choices = choices;
-    choices.push("Back ↩️".to_string());
-    let selected = Select::new("Select a customer to edit:", choices.clone()).with_page_size(15).prompt()?;
-    if selected == "Back ↩️" {
-        return Ok(false);
-    }
-    let index = choices.iter().position(|choice| choice == &selected).unwrap();
-    let mut contractor = contractors.remove(index);
+    let mut contractor = if contractors.len() == 1 {
+        contractors.remove(0)
+    } else {
+        let choices: Vec<String> = contractors.iter().enumerate().map(|(index, contractor)| format!("{}. {}", index + 1, contractor.name)).collect();
+        let mut choices = choices;
+        choices.push("Back ↩️".to_string());
+        let selected = Select::new("Select customer to edit:", choices.clone()).with_page_size(15).prompt()?;
+        if selected == "Back ↩️" {
+            return Ok(false);
+        }
+        let index = choices.iter().position(|choice| choice == &selected).unwrap();
+        contractors.remove(index)
+    };
     let original = contractor.clone();
     let (mut city, mut postal_code, mut street, mut building_number, mut apartment_number) = parse_address_l1(&contractor.address_l1);
     loop {
@@ -66,7 +70,7 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
             fields.push("✅ Save changes".to_string());
         }
         fields.push("❌ Cancel".to_string());
-        let field = Select::new("Select a field to edit:", fields.clone()).with_page_size(15).prompt()?;
+        let field = Select::new("Edit customer", fields.clone()).with_page_size(15).prompt()?;
         let selected_index = fields.iter().position(|choice| choice == &field).unwrap();
         match keys.get(selected_index).copied().unwrap_or_default() {
             "Name" => contractor.name = edit_required("Name:", &contractor.name)?,
@@ -104,7 +108,7 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
         address_l1: contractor.address_l1,
         notes: contractor.notes
     };
-    let response = reqwest::Client::new()
+    let response = crate::api::client::http_client()
         .put(format!("{}/app/contractors", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

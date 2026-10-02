@@ -116,7 +116,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
         anyhow::bail!("OAuth state mismatch");
     }
     let code = code.context("Microsoft callback did not contain authorization code")?;
-    let http_client = reqwest::Client::new();
+    let http_client = crate::api::client::http_client();
     let token: MSTokenResponse = http_client.post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token").form(&[
             ("client_id", microsoft_client_id!()),
             ("grant_type", "authorization_code"),
@@ -139,7 +139,7 @@ pub async fn login_with_microsoft() -> Result<AuthUser> {
 }
 
 async fn refresh_microsoft(refresh_token: &str) -> Result<AuthUser> {
-    let token: MSTokenResponse = reqwest::Client::new().post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token").form(&[
+    let token: MSTokenResponse = crate::api::client::http_client().post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token").form(&[
             ("client_id", microsoft_client_id!()),
             ("grant_type", "refresh_token"),
             ("refresh_token", refresh_token),
@@ -257,7 +257,7 @@ async fn refresh_google(refresh_token: &str) -> Result<AuthUser> {
 }
 
 async fn fetch_google_user(access_token: &str) -> Result<AuthUser> {
-    let user: AuthUser = reqwest::Client::new().get("https://openidconnect.googleapis.com/v1/userinfo")
+    let user: AuthUser = crate::api::client::http_client().get("https://openidconnect.googleapis.com/v1/userinfo")
         .bearer_auth(access_token)
         .send()
         .await

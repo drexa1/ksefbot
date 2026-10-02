@@ -296,7 +296,7 @@ fn seller_invoice_address(address: &str) -> String {
 pub async fn upload_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &str) -> anyhow::Result<UploadInvoiceResult> {
     let file = reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?;
     let form = reqwest::multipart::Form::new().part("file", file).text("type", "sales").text("notes", notes.to_string());
-    let response = reqwest::Client::new()
+    let response = crate::api::client::http_client()
         .post(format!("{}/app/invoices", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
@@ -325,7 +325,7 @@ pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyho
         "file",
         reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?
     );
-    let response = reqwest::Client::new()
+    let response = crate::api::client::http_client()
         .post(format!("{}/ksef/sales", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
@@ -336,11 +336,11 @@ pub async fn submit_invoice(app_user: &AppUser, invoice: &SalesInvoice) -> anyho
         .send()
         .await?;
     let response = ensure_success(response, "KSeF submission").await?;
-    let body: serde_json::Value = response.json().await?;
+    let mut body: serde_json::Value = response.json().await?;
     if body["success"].as_bool() != Some(true) {
         anyhow::bail!("KSeF submission failed: {}", body["error"].as_str().unwrap_or("unknown error"));
     }
-    Ok(serde_json::from_value(body["result"].clone())?)
+    Ok(serde_json::from_value(body["result"].take())?)
 }
 
 pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> anyhow::Result<PathBuf> {
@@ -348,7 +348,7 @@ pub async fn download_receipt(app_user: &AppUser, invoice: &SalesInvoice) -> any
     url.query_pairs_mut()
         .append_pair("sessionReferenceNumber", &invoice.submission.as_ref().unwrap().session_reference_number)
         .append_pair("invoiceReferenceNumber", &invoice.submission.as_ref().unwrap().invoice_reference_number);
-    let response = reqwest::Client::new().get(url)
+    let response = crate::api::client::http_client().get(url)
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
         .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)

@@ -15,6 +15,7 @@ mod api {
     pub mod invoices;
     #[path = "users/read.rs"]
     pub mod users;
+    pub mod client;
 }
 mod obfstr;
 
@@ -30,7 +31,7 @@ pub enum MainMenuAction {
     #[strum(to_string = "8. 🚪 Exit")] Exit
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     dotenvy::from_filename("cli/.env").ok();
     match std::env::var("TUI").as_deref() {

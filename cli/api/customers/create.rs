@@ -50,7 +50,7 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     if !Confirm::new("Save this contractor in your online vault?").with_default(true).prompt()? {
         return Ok(());
     }
-    let response = reqwest::Client::new()
+    let response = crate::api::client::http_client()
         .post(format!("{}/app/contractors", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

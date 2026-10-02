@@ -69,9 +69,11 @@
 - [x] CLI: create invoice  
 - [x] CLI: create customer  
 - [x] CLI: edit customer  
+- [x] CLI: check performance  
+- [ ] CLI: implement RataTUI  
 - [ ] Fix tests failing after refactor  
 - [ ] Move invoiceToXml completely to worker  
-- [ ] Schedule daily tests  
+- [ ] Schedule daily tests
 - [ ] CLI: login with phone  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup
