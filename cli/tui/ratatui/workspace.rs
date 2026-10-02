@@ -20,7 +20,7 @@ enum Section { Invoices, Customers, Settings }
 enum Focus { Type, Cards, Customers, Settings, Action(Action) }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Action { NewInvoice, Download, Older, NewCustomer, EditCustomer, Back, Save, Discard }
+enum Action { NewInvoice, Download, NewCustomer, EditCustomer, Back, Save, Discard }
 
 enum LoadState { Pending, Ready, Failed(String) }
 
@@ -43,7 +43,6 @@ struct Workspace {
     selected_invoice: usize,
     card_start: usize,
     card_capacity: usize,
-    chart_currency: usize,
     settings_selection: ListState,
 }
 
@@ -57,7 +56,7 @@ impl Workspace {
             customer_details: false, customer_scroll: 0, customer_height: 1,
             history: InvoiceHistory { months: Vec::new(), start, end }, history_state: LoadState::Pending, older: false,
             invoice_type: InvoiceType::Sales, selected_month: 0, selected_invoice: 0,
-            card_start: 0, card_capacity: 1, chart_currency: 0,
+            card_start: 0, card_capacity: 1,
             settings_selection: ListState::default().with_selected(Some(0)),
         }
     }
@@ -81,9 +80,8 @@ impl Workspace {
     }
 
     fn focus_order(&self) -> Vec<Focus> {
-        let mut order = vec![Focus::Type, Focus::Action(Action::Older)];
-        if self.invoice_type == InvoiceType::Sales { order.push(Focus::Action(Action::NewInvoice)); }
-        if self.invoice().is_some() { order.extend([Focus::Cards, Focus::Action(Action::Download)]); }
+        let mut order = vec![Focus::Type, Focus::Cards];
+        if self.invoice().is_some() { order.push(Focus::Action(Action::Download)); }
         order.extend([Focus::Customers, Focus::Action(Action::NewCustomer)]);
         if self.customer_details {
             if self.customer().is_some() { order.push(Focus::Action(Action::EditCustomer)); }
@@ -119,6 +117,7 @@ impl Workspace {
     }
 
     fn set_type(&mut self, kind: InvoiceType) {
+        self.set_focus(Focus::Cards);
         if self.invoice_type == kind { return; }
         let date = self.selected_date();
         self.invoice_type = kind;
@@ -147,6 +146,12 @@ impl Workspace {
 
     fn move_card(&mut self, key: KeyCode) {
         let count = self.month_indices().len();
+        if matches!(key, KeyCode::Left | KeyCode::PageUp) && self.selected_month == 0
+            && matches!(self.history_state, LoadState::Ready) {
+            self.older = true;
+            self.history_state = LoadState::Pending;
+            return;
+        }
         let previous = self.selected_month;
         match key {
             KeyCode::Left => self.selected_month = self.selected_month.saturating_sub(1),
@@ -213,7 +218,7 @@ impl Workspace {
                 widgets::message(terminal, "Invoice history could not be loaded", &[error.clone(), "Press r to retry. Previously loaded invoices are retained.".to_string()])?;
             } else if was_older && previous_count == self.month_indices().len() {
                 widgets::message(terminal, "No earlier invoices found", &[format!(
-                    "No {} invoices from {} to {}. Choose Older again to continue searching.",
+                    "No {} invoices from {} to {}. Scroll left past the first card again to continue searching.",
                     self.invoice_type, self.history.start, previous_start.pred_opt().unwrap(),
                 )])?;
             }
@@ -252,41 +257,40 @@ impl Workspace {
         }
         let area = Rect::new(screen.x + 1, screen.y, screen.width - 2, screen.height);
         let sections = Layout::vertical([
-            Constraint::Length(((screen.height - 1) / 2).max(14)),
+            Constraint::Length(1), Constraint::Length(((screen.height - 2) / 2).clamp(8, 12)),
             Constraint::Min(7), Constraint::Length(1),
         ]).split(area);
-        let top = Layout::vertical([Constraint::Min(4), Constraint::Length(1), Constraint::Length(if screen.height >= 30 { 10 } else { 9 })]).split(sections[0]);
-        self.draw_chart(frame, top[0]);
-        self.draw_type(frame, top[1]);
-        self.draw_cards(frame, top[2]);
-        let lower = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).spacing(1).split(sections[1]);
+        self.draw_type(frame, sections[0]);
+        self.draw_cards(frame, sections[1]);
+        let lower = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).spacing(1).split(sections[2]);
         self.draw_customers(frame, lower[0]);
         self.draw_settings(frame, lower[1]);
-        frame.render_widget(Paragraph::new(self.footer(sections[2].width)), sections[2]);
+        frame.render_widget(Paragraph::new(self.footer(sections[3].width)), sections[3]);
     }
 
     fn footer(&self, width: u16) -> String {
         let hint = match self.focus {
             Focus::Cards | Focus::Action(Action::Download) => "Left/Right:months Up/Down:invoice d:download",
-            Focus::Type => "Left/Right:type o:older c:currency",
+            Focus::Type => "Left/Right:type Enter:select",
             Focus::Customers if self.customer_details => "Up/Down:scroll Esc:list",
             Focus::Customers => "Up/Down:customer Enter:details",
             Focus::Settings => "Up/Down:field Enter:edit",
             _ => "Enter:activate Esc:back",
         };
-        let global = if width >= 80 { "Tab:focus 1/2/3:jump q:quit" } else { "Tab:focus q:quit" };
-        widgets::clipped_line(&format!("{global} | {hint}"), width)
+        let create = if self.section == Section::Invoices && self.invoice_type == InvoiceType::Sales && width >= 85 { " n:new" } else { "" };
+        widgets::clipped_line(&format!("1/2:type q:quit{create} | {hint}"), width)
     }
 
     fn draw_type(&self, frame: &mut Frame, area: Rect) {
-        let rows = Layout::horizontal([Constraint::Min(25), Constraint::Length(if self.invoice_type == InvoiceType::Sales { 19 } else { 9 })]).split(area);
-        let spans = [(InvoiceType::Sales, " 💵 Sales "), (InvoiceType::Purchases, " 🛒 Purchases ")].into_iter()
+        let mut spans = [(InvoiceType::Sales, " 1. 💵 Sales "), (InvoiceType::Purchases, " 2. 🛒 Purchases ")].into_iter()
             .map(|(kind, text)| Span::styled(text, if self.invoice_type == kind { Style::default().add_modifier(Modifier::REVERSED | Modifier::BOLD) } else { Style::default() }))
             .collect::<Vec<_>>();
-        frame.render_widget(Paragraph::new(Line::from(spans)), rows[0]);
-        let mut buttons = vec![(Action::Older, "Older")];
-        if self.invoice_type == InvoiceType::Sales { buttons.push((Action::NewInvoice, "New")); }
-        draw_buttons(frame, rows[1], &buttons, self.focus);
+        match &self.history_state {
+            LoadState::Pending => spans.push(Span::raw(" Loading...")),
+            LoadState::Failed(_) => spans.push(Span::raw(" Failed (r:retry)")),
+            LoadState::Ready => {}
+        }
+        frame.render_widget(Paragraph::new(Line::from(spans)), area);
     }
 
     fn draw_cards(&mut self, frame: &mut Frame, area: Rect) {
@@ -298,7 +302,7 @@ impl Workspace {
             let status = match &self.history_state {
                 LoadState::Pending => "Loading invoice history...".to_string(),
                 LoadState::Failed(error) => format!("Load failed: {error}\nPress r to retry."),
-                LoadState::Ready => format!("No {} invoices from {} to {}.\nChoose Older to search earlier months.", self.invoice_type, self.history.start, self.history.end),
+                LoadState::Ready => format!("No {} invoices from {} to {}.\nPress Left to search earlier months.", self.invoice_type, self.history.start, self.history.end),
             };
             draw_text(frame, inner, &[status], &mut 0);
             return;
@@ -315,7 +319,7 @@ impl Workspace {
             let card = Rect::new(start_x + slot as u16 * (width + 1), area.y, width, area.height);
             let title = format!("{}{}{}", if position == 0 { "" } else if slot == 0 { "< " } else { "" },
                 month.month.format("%b %Y"), if position + 1 < indices.len() && slot + 1 == self.card_capacity { " >" } else { "" });
-            let inner = cube(frame, card, &title, selected);
+            let inner = pane(frame, card, &title, selected);
             let body = &invoice["InvoiceBody"];
             let number = body["InvoiceNumber"].as_str().unwrap_or("-");
             let party_key = if self.invoice_type == InvoiceType::Sales { "Buyer" } else { "Seller" };
@@ -335,51 +339,6 @@ impl Workspace {
                 .style(if selected { bold() } else { Style::default().add_modifier(Modifier::DIM) }),
                 Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1));
         }
-    }
-
-    fn draw_chart(&mut self, frame: &mut Frame, area: Rect) {
-        let totals: Result<Vec<_>> = self.history.months.iter().map(|month| month.totals()).collect();
-        let totals = match totals {
-            Ok(totals) => totals,
-            Err(error) => {
-                let inner = pane(frame, area, "Monthly amounts", false);
-                draw_text(frame, inner, &[format!("Cannot chart amounts: {error:#}")], &mut 0);
-                return;
-            }
-        };
-        let currencies: std::collections::BTreeSet<_> = totals.iter().flatten().map(|total| total.currency.as_str()).collect();
-        self.chart_currency %= currencies.len().max(1);
-        let currency = currencies.iter().nth(self.chart_currency).copied().unwrap_or("PLN");
-        let status = match &self.history_state {
-            LoadState::Pending => " | loading...",
-            LoadState::Failed(_) => " | load failed: r retry",
-            _ => "",
-        };
-        let selected_totals = self.selected_date()
-            .and_then(|date| self.history.months.iter().position(|month| month.month == date))
-            .and_then(|index| totals[index].iter().find(|total| total.currency == currency));
-        let title = if area.width >= 80 {
-            match selected_totals {
-                Some(total) => format!("Gross {currency} | █ Sales {:.2}  ░ Expenses {:.2} | {}{status}",
-                    total.sales, total.purchases, self.selected_date().unwrap().format("%b %Y")),
-                None => format!("Gross {currency} | █ Sales ░ Expenses{status}"),
-            }
-        } else { format!("Gross {currency} | █ Sales ░ Expenses{status}") };
-        frame.render_widget(Paragraph::new(widgets::clipped_line(&title, area.width)).style(bold()), Rect::new(area.x, area.y, area.width, 1));
-        let inner = Rect::new(area.x, area.y + 1, area.width, area.height.saturating_sub(1));
-        if self.history.months.is_empty() {
-            draw_text(frame, inner, &[format!("History: {} - {} | o: older", self.history.start, self.history.end)], &mut 0);
-            return;
-        }
-        let count = (inner.width / 10).max(1) as usize;
-        let end = self.selected_date().and_then(|date| self.history.months.iter().position(|month| month.month == date))
-            .map_or(self.history.months.len(), |index| (index + 1).max(count).min(self.history.months.len()));
-        let start = end.saturating_sub(count);
-        let data: Vec<_> = (start..end).map(|index| {
-            let total = totals[index].iter().find(|total| total.currency == currency);
-            (self.history.months[index].month, total.map_or(0.0, |total| total.sales), total.map_or(0.0, |total| total.purchases))
-        }).collect();
-        draw_stacks(frame, inner, &data);
     }
 
     fn draw_customers(&mut self, frame: &mut Frame, area: Rect) {
@@ -430,20 +389,6 @@ fn pane(frame: &mut Frame, area: Rect, title: &str, focused: bool) -> Rect {
     inner
 }
 
-fn cube(frame: &mut Frame, area: Rect, title: &str, selected: bool) -> Rect {
-    let front = Rect::new(area.x, area.y + 2, area.width.saturating_sub(2), area.height.saturating_sub(2));
-    let edge = if selected { bold() } else { Style::default().add_modifier(Modifier::DIM) };
-    frame.render_widget(Paragraph::new(format!("┌{}┐", "─".repeat(front.width.saturating_sub(2) as usize))).style(edge),
-        Rect::new(area.x + 2, area.y, front.width, 1));
-    frame.render_widget(Paragraph::new(format!("╱{}╱│", "░".repeat(front.width.saturating_sub(2) as usize))).style(edge),
-        Rect::new(area.x + 1, area.y + 1, front.width + 1, 1));
-    for y in area.y + 2..area.bottom().saturating_sub(2) {
-        frame.render_widget(Paragraph::new("░│").style(edge), Rect::new(front.right(), y, 2, 1));
-    }
-    frame.render_widget(Paragraph::new("╱").style(edge), Rect::new(front.right(), area.bottom().saturating_sub(2), 1, 1));
-    pane(frame, front, title, selected)
-}
-
 fn draw_list(frame: &mut Frame, area: Rect, labels: &[String], state: &mut ListState) {
     let items: Vec<_> = labels.iter().map(|label| ListItem::new(widgets::clipped_line(label, area.width.saturating_sub(2)))).collect();
     frame.render_stateful_widget(List::new(items).highlight_symbol(widgets::SELECTOR), area, state);
@@ -477,53 +422,8 @@ fn scroll(offset: &mut u16, key: KeyCode, page: u16) {
     }
 }
 
-fn stack_heights(sales: f64, expenses: f64, maximum: f64, rows: u16) -> (u16, u16) {
-    let total = sales + expenses;
-    if maximum <= 0.0 || total <= 0.0 { return (0, 0); }
-    let height = ((total / maximum * f64::from(rows)).round() as u16).min(rows);
-    let sales_height = (sales / total * f64::from(height)).round() as u16;
-    (sales_height.min(height), height.saturating_sub(sales_height))
-}
-
-fn draw_stacks(frame: &mut Frame, area: Rect, data: &[(NaiveDate, f64, f64)]) {
-    if area.height < 2 || data.is_empty() { return; }
-    let positive = data.iter().map(|(_, sales, expenses)| sales.max(0.0) + expenses.max(0.0)).fold(0.0, f64::max);
-    let negative = data.iter().map(|(_, sales, expenses)| (-sales).max(0.0) + (-expenses).max(0.0)).fold(0.0, f64::max);
-    let baseline_rows = u16::from(positive > 0.0 && negative > 0.0 && area.height >= 4);
-    let plot_height = area.height - 1 - baseline_rows;
-    let negative_rows = if negative > 0.0 {
-        ((negative / (positive + negative) * f64::from(plot_height)).round() as u16).max(1).min(plot_height)
-    } else { 0 };
-    let positive_rows = plot_height - negative_rows;
-    let scale = if positive_rows == 0 { negative / f64::from(negative_rows.max(1)) }
-        else if negative_rows == 0 { positive / f64::from(positive_rows) }
-        else { (positive / f64::from(positive_rows)).max(negative / f64::from(negative_rows)) };
-    let width = (area.width / data.len() as u16).max(1);
-    if baseline_rows > 0 {
-        frame.render_widget(Paragraph::new(format!("0{}", "─".repeat(area.width.saturating_sub(1) as usize))),
-            Rect::new(area.x, area.y + positive_rows, area.width, 1));
-    }
-    for (index, (month, sales, expenses)) in data.iter().enumerate() {
-        let x = area.x + index as u16 * width;
-        let bar_width = width.saturating_sub(2).clamp(1, 7);
-        let bar_x = x + (width - bar_width) / 2;
-        let (sale_rows, expense_rows) = stack_heights(sales.max(0.0), expenses.max(0.0), scale * f64::from(positive_rows), positive_rows);
-        for row in 0..sale_rows + expense_rows {
-            let y = area.y + positive_rows - 1 - row;
-            frame.render_widget(Paragraph::new(if row < sale_rows { "█" } else { "░" }.repeat(bar_width as usize)), Rect::new(bar_x, y, bar_width, 1));
-        }
-        let (sale_rows, expense_rows) = stack_heights((-sales).max(0.0), (-expenses).max(0.0), scale * f64::from(negative_rows), negative_rows);
-        for row in 0..sale_rows + expense_rows {
-            let y = area.y + positive_rows + baseline_rows + row;
-            frame.render_widget(Paragraph::new(if row < sale_rows { "█" } else { "░" }.repeat(bar_width as usize)), Rect::new(bar_x, y, bar_width, 1));
-        }
-        frame.render_widget(Paragraph::new(month.format("%b %y").to_string()).alignment(Alignment::Center), Rect::new(x, area.bottom() - 1, width, 1));
-    }
-}
-
 async fn activate(app: &mut Workspace, terminal: &mut Tui, action: Action) -> Result<()> {
     let result = match action {
-        Action::Older => { app.older = true; app.history_state = LoadState::Pending; return Ok(()); }
         Action::Back => { app.customer_details = false; app.set_focus(Focus::Customers); return Ok(()); }
         Action::NewCustomer => {
             let result = customers::create_customer(terminal, &app.user).await;
@@ -569,13 +469,11 @@ pub async fn run(terminal: &mut Tui, user: &AppUser) -> Result<()> {
         terminal.draw_workspace(|frame| app.draw(frame))?;
         let key = read_key()?;
         match key {
-            KeyCode::Char('1') => app.switch_section(Section::Invoices),
-            KeyCode::Char('2') => app.switch_section(Section::Customers),
-            KeyCode::Char('3') => app.switch_section(Section::Settings),
+            KeyCode::Char('1') => app.set_type(InvoiceType::Sales),
+            KeyCode::Char('2') => app.set_type(InvoiceType::Purchases),
             KeyCode::Tab => app.cycle_focus(false),
             KeyCode::BackTab => app.cycle_focus(true),
-            KeyCode::Char('c') => app.chart_currency = app.chart_currency.saturating_add(1),
-            KeyCode::Char('o') => activate(&mut app, terminal, Action::Older).await?,
+            KeyCode::Char('n') if app.section == Section::Invoices && app.invoice_type == InvoiceType::Sales => activate(&mut app, terminal, Action::NewInvoice).await?,
             KeyCode::Char('d') if app.section == Section::Invoices => activate(&mut app, terminal, Action::Download).await?,
             KeyCode::Char('r') => {
                 if matches!(app.history_state, LoadState::Failed(_)) { app.history_state = LoadState::Pending; }
@@ -655,15 +553,18 @@ mod tests {
     fn dashboard_has_no_header_and_exactly_one_footer_row() {
         let mut app = app();
         for (width, height) in [(48, 24), (80, 24), (100, 40), (160, 50)] {
-            for focus in [Focus::Type, Focus::Cards, Focus::Customers, Focus::Settings, Focus::Action(Action::Older)] {
+            for focus in [Focus::Type, Focus::Cards, Focus::Customers, Focus::Settings, Focus::Action(Action::Download)] {
                 app.set_focus(focus);
                 let buffer = render(&mut app, width, height);
                 let rows = lines(&buffer);
                 let text = rows.join("\n");
                 assert!(!text.contains("KSeF Bot") && !text.contains("1. Invoices"));
-                assert!(rows[0].starts_with(" Gross PLN"));
-                assert_eq!(rows.iter().filter(|row| row.contains("Tab:focus")).count(), 1);
-                assert!(rows.last().unwrap().contains("Tab:focus"));
+                assert!(rows[0].contains("1.") && rows[0].contains("Sales"));
+                assert!(rows[0].contains("2.") && rows[0].contains("Purchases"));
+                assert!(!text.contains("Gross PLN") && !text.contains("Tab:focus") && !text.contains("1/2/3"));
+                assert!(!rows[0].contains("[New]") && !text.contains("[Older]"));
+                assert_eq!(rows.iter().filter(|row| row.contains("1/2:type")).count(), 1);
+                assert!(rows.last().unwrap().contains("1/2:type"));
                 assert!(rows.last().unwrap().contains("q:quit"));
                 assert!(Line::from(app.footer(width)).width() <= width as usize);
                 assert!(text.contains("Customers") && text.contains("User details"));
@@ -672,11 +573,12 @@ mod tests {
     }
 
     #[test]
-    fn invoice_cubes_have_raised_tops_side_faces_details_and_downloads() {
+    fn invoice_cards_are_flat_with_details_and_downloads() {
         let mut app = app();
         for (width, height) in [(48, 24), (80, 24), (100, 40)] {
             let text = lines(&render(&mut app, width, height)).join("\n");
-            assert!(text.contains("╱░") && text.contains("╱│") && text.contains("░│"));
+            assert!(!text.contains('╱') && !text.contains('░') && !text.contains('█'));
+            assert!(text.contains('┌') && text.contains('┐'));
             assert!(text.contains("Sep 2026"));
             assert!(text.contains("FV/9"));
             assert!(text.contains("123.00 PLN"));
@@ -686,7 +588,7 @@ mod tests {
     }
 
     #[test]
-    fn lone_cube_is_right_aligned_and_stays_within_its_area() {
+    fn lone_card_is_right_aligned_and_stays_within_its_area() {
         let mut app = app();
         app.history.months.drain(..3);
         app.restore_month(None);
@@ -715,7 +617,7 @@ mod tests {
     }
 
     #[test]
-    fn cube_selection_scrolls_to_older_nonempty_months() {
+    fn card_selection_scrolls_to_older_nonempty_months() {
         let mut app = app();
         assert_eq!(app.selected_date().unwrap().month(), 9);
         app.card_range(78);
@@ -729,7 +631,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_or_failed_history_never_invents_invoice_cubes() {
+    fn empty_or_failed_history_never_invents_invoice_cards() {
         let mut app = app();
         app.history.months.clear();
         for state in [LoadState::Ready, LoadState::Failed("Backend rejected request".to_string())] {
@@ -742,7 +644,47 @@ mod tests {
     }
 
     #[test]
-    fn cube_preview() {
+    fn scrolling_past_oldest_card_requests_earlier_history_once() {
+        let mut app = app();
+        app.move_card(KeyCode::Home);
+        assert!(matches!(app.history_state, LoadState::Ready));
+        app.move_card(KeyCode::Left);
+        assert!(app.older);
+        assert!(matches!(app.history_state, LoadState::Pending));
+        assert_eq!(app.selected_month, 0);
+        app.move_card(KeyCode::Left);
+        assert_eq!(app.selected_month, 0);
+        app.history_state = LoadState::Failed("Request failed".to_string());
+        app.move_card(KeyCode::PageUp);
+        assert!(matches!(app.history_state, LoadState::Failed(_)));
+    }
+
+    #[test]
+    fn empty_history_can_be_focused_and_scrolled_to_search_earlier_months() {
+        let mut app = app();
+        app.history.months.clear();
+        app.restore_month(None);
+        assert!(app.focus_order().contains(&Focus::Cards));
+        app.move_card(KeyCode::Left);
+        assert!(app.older && matches!(app.history_state, LoadState::Pending));
+    }
+
+    #[test]
+    fn choosing_invoice_type_returns_focus_to_cards_even_when_type_is_unchanged() {
+        let mut app = app();
+        app.set_focus(Focus::Customers);
+        app.set_type(InvoiceType::Sales);
+        assert_eq!(app.focus, Focus::Cards);
+        assert_eq!(app.section, Section::Invoices);
+        app.set_focus(Focus::Settings);
+        app.set_type(InvoiceType::Purchases);
+        assert_eq!(app.invoice_type, InvoiceType::Purchases);
+        assert_eq!(app.focus, Focus::Cards);
+        assert_eq!(app.section, Section::Invoices);
+    }
+
+    #[test]
+    fn card_preview() {
         println!("{}", lines(&render(&mut app(), 100, 30)).join("\n"));
     }
 }

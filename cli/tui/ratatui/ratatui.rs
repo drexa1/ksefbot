@@ -8,6 +8,9 @@ use ratatui::{
     Terminal,
     backend::CrosstermBackend,
     buffer::Buffer,
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{List, ListItem, ListState},
 };
 use std::io;
 use strum::IntoEnumIterator;
@@ -57,18 +60,37 @@ impl Tui {
     }
 }
 
+fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], selected: usize, last_used: Option<&login::LoginMethod>) {
+    let Some(area) = widgets::modal(frame, "Sign in to KSeF Bot", 76, methods.len() as u16,
+        "↑↓: move | Enter: select | Esc/q: exit") else { return; };
+    let items: Vec<_> = methods.iter().map(|method| {
+        let prefix = if last_used == Some(method) { "(last used) " } else { "" };
+        let width = area.width.saturating_sub(2 + prefix.len() as u16);
+        ListItem::new(Line::from(vec![
+            Span::styled(prefix, Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
+            Span::raw(widgets::clipped_line(&method.to_string(), width)),
+        ]))
+    }).collect();
+    frame.render_stateful_widget(List::new(items).highlight_symbol(widgets::SELECTOR), area,
+        &mut ListState::default().with_selected(Some(selected)));
+}
+
 pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
     let methods: Vec<_> = login::LoginMethod::iter().collect();
     let last_used = login::last_used_method();
-    let choices: Vec<_> = methods.iter().map(|method| {
-        format!("{method}{}", if last_used.as_ref() == Some(method) { " (last used)" } else { "" })
-    }).collect();
     let mut selected = methods.iter().position(|method| Some(method) == last_used.as_ref()).unwrap_or_default();
     loop {
-        let Some(index) = widgets::select_index(terminal, "Sign in to KSeF Bot", &choices, &mut selected)? else {
-            anyhow::bail!("Login cancelled");
-        };
-        let method = &methods[index];
+        terminal.draw(|frame| draw_login(frame, &methods, selected, last_used.as_ref()))?;
+        match read_key()? {
+            KeyCode::Enter => {}
+            KeyCode::Esc | KeyCode::Char('q') => anyhow::bail!("Login cancelled"),
+            key @ (KeyCode::Up | KeyCode::Down) => {
+                widgets::navigate(&mut selected, key, methods.len());
+                continue;
+            }
+            _ => continue,
+        }
+        let method = &methods[selected];
         terminal.draw(|frame| {
             widgets::modal(frame, "Signing in", 64, 1, "Complete sign-in in your browser if requested.");
         })?;
@@ -123,4 +145,61 @@ pub async fn with_terminal<T>(action: impl AsyncFnOnce(&mut Tui) -> Result<T>) -
     let result = action(&mut terminal).await;
     ratatui::try_restore()?;
     result
+}
+
+#[cfg(test)]
+mod login_tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn login_options_are_consecutive_and_only_last_used_prefix_is_bold_green() {
+        let methods: Vec<_> = login::LoginMethod::iter().collect();
+        for width in [48, 80, 120] {
+            let mut terminal = Terminal::new(TestBackend::new(width, 24)).unwrap();
+            terminal.draw(|frame| draw_login(frame, &methods, 0, Some(&login::LoginMethod::Microsoft))).unwrap();
+            let buffer = terminal.backend().buffer();
+            let rows: Vec<String> = buffer.content.chunks(width as usize)
+                .map(|row| row.iter().map(|cell| cell.symbol()).collect()).collect();
+            let first = rows.iter().position(|row| row.contains("(last used)")).unwrap();
+            assert!(rows[first].contains("❯ (last used) Sign in"));
+            assert!(rows[first + 1].contains("Sign in with Google"));
+            assert!(rows[first + 2].contains("Sign in with your phone"));
+            let start = rows[first].chars().position(|character| character == '(').unwrap() as u16;
+            for x in start..start + "(last used)".len() as u16 {
+                let cell = &buffer[(x, first as u16)];
+                assert_eq!(cell.fg, Color::LightGreen);
+                assert!(cell.modifier.contains(Modifier::BOLD));
+            }
+            let label = &buffer[(start + "(last used) ".len() as u16, first as u16)];
+            assert_eq!(label.fg, Color::Reset);
+            assert!(!label.modifier.contains(Modifier::BOLD));
+        }
+    }
+
+    #[test]
+    fn login_without_previous_method_has_no_badge() {
+        let methods: Vec<_> = login::LoginMethod::iter().collect();
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        terminal.draw(|frame| draw_login(frame, &methods, 1, None)).unwrap();
+        let text: String = terminal.backend().buffer().content.iter().map(|cell| cell.symbol()).collect();
+        assert!(!text.contains("(last used)"));
+        assert!(text.contains("❯ Sign in with Google account"));
+    }
+
+    #[test]
+    fn login_caption_is_one_row_without_tab_navigation_or_counter() {
+        let methods: Vec<_> = login::LoginMethod::iter().collect();
+        for width in [48, 80, 120] {
+            let mut terminal = Terminal::new(TestBackend::new(width, 24)).unwrap();
+            terminal.draw(|frame| draw_login(frame, &methods, 2, None)).unwrap();
+            let rows: Vec<String> = terminal.backend().buffer().content.chunks(width as usize)
+                .map(|row| row.iter().map(|cell| cell.symbol()).collect()).collect();
+            assert_eq!(rows.iter().filter(|row| row.contains("↑↓: move | Enter: select | Esc/q: exit")).count(), 1);
+            let text = rows.join("\n");
+            for removed in ["Tab", "3/3", "Esc: back", "Esc: cancel"] {
+                assert!(!text.contains(removed));
+            }
+        }
+    }
 }
