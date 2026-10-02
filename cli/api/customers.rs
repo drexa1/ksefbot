@@ -1,5 +1,6 @@
 use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
+use crossterm::style::Stylize;
 use inquire::Text;
 use serde::Deserialize;
 
@@ -40,7 +41,7 @@ pub async fn list_customers(app_user: &AppUser) -> anyhow::Result<()> {
     }
     println!();
     for (index, contractor) in contractors.iter().enumerate() {
-        println!("  {}. {}", index + 1, contractor.name);
+        println!("  {}. {}", index + 1, contractor.name.clone().bold());
         println!("     NIP: {}", contractor.nip.as_deref().unwrap_or("-"));
         println!("     Address: {}, {}", contractor.address_l1, contractor.country_code);
     }
@@ -48,9 +49,9 @@ pub async fn list_customers(app_user: &AppUser) -> anyhow::Result<()> {
 }
 
 pub async fn create_customer() -> anyhow::Result<()> {
-    let name = Text::new("Contractor name").with_placeholder("ACME Sp. z o.o.").prompt()?;
-    let nip = Text::new("NIP").with_placeholder("1234567890").prompt()?;
-    let email = Text::new("Email").with_placeholder("billing@example.com").prompt()?;
+    let name = Text::new("Contractor name:").with_placeholder("ACME Sp. z o.o.").prompt()?;
+    let nip = Text::new("NIP:").with_placeholder("1234567890").prompt()?;
+    let email = Text::new("Email:").with_placeholder("billing@example.com").prompt()?;
     println!();
     println!("  [API] contractor created successfully.");
     println!("  Contractor ID: {}", "contractor001");

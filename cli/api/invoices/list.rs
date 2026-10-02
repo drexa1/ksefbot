@@ -58,6 +58,7 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
     let item_description = |invoice: &serde_json::Value| -> String {
         invoice["InvoiceBody"]["InvoiceLines"].as_array().into_iter().flatten()
             .filter_map(|line| line["ItemDescription"].as_str())
+            .map(str::trim)
             .map(&capitalize)
             .collect::<Vec<_>>()
             .join(", ")
@@ -73,7 +74,7 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
         let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
         let amount_text = format!("{amount:.2} {currency}");
         let amount_styled = match invoice_type {
-            InvoiceType::Sales => amount_text,
+            InvoiceType::Sales => amount_text.blue().to_string(),
             InvoiceType::Purchases => amount_text.dark_yellow().to_string()
         };
         let number_padded = format!("{number:<invoice_number_width$}");
