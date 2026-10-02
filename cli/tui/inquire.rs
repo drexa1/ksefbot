@@ -56,7 +56,7 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 invoices::list_purchase_invoices(logged_user, from, to).await?;
             }
             MainMenuAction::CreateCustomer => {
-                customers::create_customer().await?;
+                customers::create_customer(logged_user).await?;
                 pause()?;
             }
             MainMenuAction::ListCustomers => {

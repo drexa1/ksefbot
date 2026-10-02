@@ -88,7 +88,7 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
                     }
                     MainMenuAction::CreateCustomer => {
                         restore_terminal(terminal)?;
-                        customers::create_customer().await?;
+                        customers::create_customer(app_user).await?;
                     }
                     MainMenuAction::ListCustomers => {
                         restore_terminal(terminal)?;
