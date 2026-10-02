@@ -41,7 +41,7 @@ pub async fn login_loop() -> Result<AuthUser> {
 pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
     println!();
     loop {
-        match Select::new("What shall we do now?", MainMenuAction::iter().collect()).prompt()? {
+        match Select::new("What shall we do now?:", MainMenuAction::iter().collect()).prompt()? {
             MainMenuAction::CreateSalesInvoice => {
                 if prompt_create_invoice(logged_user).await? {
                     pause()?;

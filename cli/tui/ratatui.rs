@@ -234,7 +234,7 @@ fn draw_main_menu(frame: &mut ratatui::Frame, actions: &[MainMenuAction], select
     let items = actions.iter().map(|action| ListItem::new(action.to_string())).collect::<Vec<_>>();
     let list = List::new(items)
         .block(Block::default()
-        .title("What shall we do now?")
+        .title("What shall we do now?:")
         .borders(Borders::ALL))
         .highlight_symbol("> ")
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
