@@ -22,9 +22,9 @@ pub enum MainMenuAction {
     #[strum(to_string = "1. 💵 Create new sales invoice")] CreateSalesInvoice,
     #[strum(to_string = "2. 💵 List sales invoices")] ListSalesInvoices,
     #[strum(to_string = "3. 🛒 List purchase invoices")] ListPurchaseInvoices,
-    #[strum(to_string = "4. 👤 List customers")] ListCustomers,
-    #[strum(to_string = "5. 👤 Create new customer")] CreateCustomer,
-    #[strum(to_string = "6. 👤 Edit existing customer")] EditCustomer,
+    #[strum(to_string = "4. 💼 List customers")] ListCustomers,
+    #[strum(to_string = "5. 💼 Create new customer")] CreateCustomer,
+    #[strum(to_string = "6. 💼 Edit existing customer")] EditCustomer,
     #[strum(to_string = "7. ⚙️ Update user settings")] UserSettings,
     #[strum(to_string = "8. 🚪 Exit")] Exit
 }

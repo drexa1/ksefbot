@@ -198,7 +198,7 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
             "Apartment number" => apartment_number = edit_optional("Apartment number:", apartment_number.as_deref())?,
             "Notes" => contractor.notes = edit_optional("Notes:", contractor.notes.as_deref())?,
             _ if field.starts_with("✅") => break,
-            _ => return Ok(true),
+            _ => return Ok(false),
         }
     }
     contractor.address_l1 = assemble_address_l1(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
