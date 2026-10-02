@@ -71,8 +71,7 @@
 - [x] CLI: edit customer  
 - [ ] Fix tests failing after refactor  
 - [ ] Move invoiceToXml completely to worker  
-- [ ] Schedule daily tests  
-- [ ] CLI: login with email  
+- [ ] Schedule daily tests
 - [ ] CLI: login with phone  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup
