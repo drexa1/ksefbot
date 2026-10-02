@@ -62,7 +62,7 @@ impl Tui {
 
 fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], selected: usize, last_used: Option<&login::LoginMethod>) {
     let Some(area) = widgets::modal(frame, "Sign in to KSeF Bot", 76, methods.len() as u16,
-        "↑↓: move | Enter: select | Esc/q: exit") else { return; };
+        "↑↓:move | Enter:select | Ctrl+C:quit") else { return; };
     let items: Vec<_> = methods.iter().map(|method| {
         let prefix = if last_used == Some(method) { "(last used) " } else { "" };
         let width = area.width.saturating_sub(2 + prefix.len() as u16);
@@ -83,7 +83,6 @@ pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
         terminal.draw(|frame| draw_login(frame, &methods, selected, last_used.as_ref()))?;
         match read_key()? {
             KeyCode::Enter => {}
-            KeyCode::Esc | KeyCode::Char('q') => anyhow::bail!("Login cancelled"),
             key @ (KeyCode::Up | KeyCode::Down) => {
                 widgets::navigate(&mut selected, key, methods.len());
                 continue;
@@ -91,9 +90,6 @@ pub async fn login_loop(terminal: &mut Tui) -> Result<AuthUser> {
             _ => continue,
         }
         let method = &methods[selected];
-        terminal.draw(|frame| {
-            widgets::modal(frame, "Signing in", 64, 1, "Complete sign-in in your browser if requested.");
-        })?;
         if let Some(user) = login::try_resume_method(method).await {
             return Ok(user);
         }
@@ -129,9 +125,11 @@ fn read_key() -> Result<KeyCode> {
         match event::read()? {
             Event::Resize(_, _) => return Ok(KeyCode::Null),
             Event::Key(key) if key.kind != KeyEventKind::Release => {
-                let code = if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
-                    KeyCode::Esc
-                } else { key.code };
+                if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('c' | 'C')) {
+                    ratatui::try_restore()?;
+                    std::process::exit(130);
+                }
+                let code = key.code;
                 let (width, height) = crossterm::terminal::size()?;
                 return Ok(if (width < 48 || height < 24) && code != KeyCode::Esc { KeyCode::Null } else { code });
             }

@@ -38,7 +38,7 @@ pub fn modal(frame: &mut Frame, title: &str, width: u16, body_height: u16, hint:
     if screen.width < MIN_WIDTH || screen.height < MIN_HEIGHT {
         frame.render_widget(Clear, screen);
         frame.render_widget(
-            Paragraph::new("KSeF Bot\nResize terminal to at least 48 x 24.\nEsc to go back.")
+            Paragraph::new("KSeF Bot\nResize terminal to at least 48 x 24.\nCtrl+C to exit.")
                 .wrap(Wrap { trim: false }).alignment(Alignment::Center),
             centered_rect(screen, 36, 4),
         );
@@ -131,9 +131,8 @@ pub fn navigate(selected: &mut usize, key: KeyCode, count: usize) {
 }
 
 pub fn draw_select(frame: &mut Frame, title: &str, choices: &[String], state: &mut ListState) {
-    let selected = state.selected().unwrap_or_default();
-    let hint = format!("Tab/Shift+Tab or Up/Down: move | Enter: select\nEsc: back   {}/{}", selected + usize::from(!choices.is_empty()), choices.len());
-    let Some(area) = modal(frame, title, 76, (choices.len().min(14) * 2).max(1) as u16, &hint) else { return; };
+    let Some(area) = modal(frame, title, 76, (choices.len().min(14) * 2).max(1) as u16,
+        "↑↓: move | Enter: select | Esc: back") else { return; };
     if choices.is_empty() {
         frame.render_widget(Paragraph::new("No options available. Press Esc to go back."), area);
         return;
@@ -157,10 +156,11 @@ pub fn select_index(terminal: &mut Tui, title: &str, choices: &[String], selecte
         match read_key()? {
             KeyCode::Enter if !choices.is_empty() => return Ok(Some(*selected)),
             KeyCode::Esc | KeyCode::Char('q') => return Ok(None),
-            key => {
+            key @ (KeyCode::Up | KeyCode::Down) => {
                 navigate(selected, key, choices.len());
                 state.select(Some(*selected));
             }
+            _ => {}
         }
     }
 }
@@ -178,7 +178,7 @@ fn buttons(frame: &mut Frame, area: Rect, labels: &[&str], selected: Option<usiz
 }
 
 pub fn draw_confirm(frame: &mut Frame, title: &str, selected: usize) {
-    if let Some(area) = modal(frame, title, 64, 1, "Tab/Shift+Tab: move | Enter: confirm | Esc: no") {
+    if let Some(area) = modal(frame, title, 64, 1, "←→: move | Enter: select | Esc: back") {
         buttons(frame, area, &["Yes", "No"], Some(selected));
     }
 }
@@ -191,7 +191,7 @@ pub fn confirm(terminal: &mut Tui, title: &str, default: bool) -> Result<bool> {
             KeyCode::Enter => return Ok(selected == 0),
             KeyCode::Esc | KeyCode::Char('q') => return Ok(false),
             KeyCode::Left | KeyCode::Right => selected = 1 - selected,
-            key => navigate(&mut selected, key, 2),
+            _ => {}
         }
     }
 }
@@ -248,7 +248,7 @@ impl TextInput {
 }
 
 pub fn draw_input(frame: &mut Frame, title: &str, input: &TextInput) {
-    let Some(area) = modal(frame, title, 76, 5, "Tab/Shift+Tab: focus | Enter: continue | Esc: back\nLeft/Right, Home/End: cursor | Backspace/Delete: edit") else { return; };
+    let Some(area) = modal(frame, title, 76, 5, "Tab: focus | Enter: next | Esc: back") else { return; };
     let sections = Layout::vertical([Constraint::Length(3), Constraint::Length(1), Constraint::Length(1)]).split(area);
     let field = block().padding(Padding::horizontal(1))
         .border_style(if input.focus == 0 { Style::default().add_modifier(Modifier::BOLD) } else { Style::default() });
@@ -272,7 +272,7 @@ pub fn text_input(terminal: &mut Tui, title: &str, initial: &str) -> Result<Opti
 }
 
 pub fn draw_message(frame: &mut Frame, title: &str, lines: &[String], scroll: &mut u16) -> u16 {
-    let Some(area) = modal(frame, title, 88, 12, "Up/Down, PgUp/PgDn: scroll | Home/End: jump\nEnter/Esc: continue") else { return 1; };
+    let Some(area) = modal(frame, title, 88, 12, "↑↓: scroll | Enter/Esc: close") else { return 1; };
     let lines = wrap_lines(&lines.join("\n"), area.width);
     let max_scroll = lines.len().saturating_sub(area.height as usize).min(u16::MAX as usize) as u16;
     *scroll = (*scroll).min(max_scroll);

@@ -116,6 +116,7 @@ impl Workspace {
         self.set_focus(Focus::Cards);
         if self.invoice_type == kind { return; }
         self.invoice_type = kind;
+        if matches!(self.history_state, LoadState::Failed(_)) { self.history_state = LoadState::Pending; }
         self.history_exhausted = false;
         self.restore_month(None);
     }
@@ -263,9 +264,6 @@ impl Workspace {
         ]).split(area);
         self.draw_type(frame, sections[0]);
         self.draw_cards(frame, sections[2]);
-        if let LoadState::Failed(error) = &self.history_state && !self.month_indices().is_empty() {
-            frame.render_widget(Paragraph::new(widgets::clipped_line(&format!("r:retry | Load failed: {error}"), sections[3].width)), sections[3]);
-        }
         let lower = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).spacing(1).split(sections[4]);
         self.draw_customers(frame, lower[0]);
         self.draw_settings(frame, lower[1]);
@@ -274,46 +272,47 @@ impl Workspace {
 
     fn footer(&self, width: u16) -> String {
         let hint = match self.focus {
-            Focus::Cards => "←/→:months ↑/↓:invoice Enter:details d:download",
-            Focus::Customers if self.customer_details => "↑/↓:scroll n:new e:edit Esc:list",
-            Focus::Customers => "↑/↓:customer Enter:details n:new",
-            Focus::Settings if self.user != self.draft => "↑/↓:field Enter:edit w:save x:discard",
-            Focus::Settings => "↑/↓:field Enter:edit",
+            Focus::Cards => "←/→:months | ↑/↓:invoice | Enter:details | d:download",
+            Focus::Customers if self.customer_details => "↑/↓:scroll | n:new | e:edit | Esc/q:list",
+            Focus::Customers => "↑/↓:customer | Enter:details | n:new",
+            Focus::Settings if self.user != self.draft => "↑/↓:field | Enter:edit | w:save | x:discard",
+            Focus::Settings => "↑/↓:field | Enter:edit",
         };
-        let create = if self.section == Section::Invoices && self.invoice_type == InvoiceType::Sales && width >= 85 { " n:new" } else { "" };
+        let create = if self.section == Section::Invoices && self.invoice_type == InvoiceType::Sales && width >= 85 { " | n:new" } else { "" };
         let tab = if width >= 120 { "Tab/Shift+Tab:next/previous" } else { "Tab:next" };
-        widgets::clipped_line(&format!("s/p:invoice type {tab} q:quit{create} | {hint}"), width)
+        widgets::clipped_line(&format!("s/p:invoice type | {tab} | Ctrl+C:quit{create} | {hint}"), width)
     }
 
     fn draw_type(&self, frame: &mut Frame, area: Rect) {
         let mut x = area.x;
         for (kind, label, emoji) in [(InvoiceType::Sales, "[S]ales", "💵"), (InvoiceType::Purchases, "[P]urchases", "🛒")] {
             let selected = self.invoice_type == kind;
-            let text = if selected { format!(" {emoji} {label} ") } else { format!(" {label} ") };
+            let text = if selected { format!("{label} {emoji}") } else { label.to_string() };
             let width = Line::from(text.as_str()).width() as u16;
             let style = if selected { bold().bg(self.invoice_color()).fg(Color::Black) } else { Style::default() };
             let tab = Rect::new(x, area.y + 1, width.min(area.right().saturating_sub(x)), 1);
             frame.render_widget(Paragraph::new(text).style(style), tab);
-            x += width;
+            x += width + 2;
         }
         let status = match &self.history_state {
-            LoadState::Pending => " Loading...",
-            LoadState::Failed(_) => " Failed (r:retry)",
-            LoadState::Ready => "",
+            LoadState::Pending => "Loading...".to_string(),
+            LoadState::Failed(error) => format!("Load failed: {error}"),
+            LoadState::Ready => String::new(),
         };
-        frame.render_widget(Paragraph::new(status), Rect::new(x, area.y + 1, area.right().saturating_sub(x), 1));
+        let status_area = Rect::new(x, area.y + 1, area.right().saturating_sub(x), 1);
+        frame.render_widget(Paragraph::new(widgets::clipped_line(&status, status_area.width)).alignment(Alignment::Right), status_area);
     }
 
     fn draw_cards(&mut self, frame: &mut Frame, area: Rect) {
         let indices = self.month_indices();
         let range = self.card_range(area.width);
         if range.is_empty() {
-            let title = format!(" {} invoices ", self.invoice_type);
+            let title = format!("{} invoices", self.invoice_type);
             let focused = self.focus == Focus::Cards;
             let inner = card_pane(frame, area, &title, focused, self.card_color(focused));
             let status = match &self.history_state {
                 LoadState::Pending => "Loading invoice history...".to_string(),
-                LoadState::Failed(error) => format!("Load failed: {error}\n\nPress r to retry."),
+                LoadState::Failed(_) => String::new(),
                 LoadState::Ready => format!("No {} invoices from {} to {}.{}", self.invoice_type, self.history.start, self.history.end,
                     if self.history_exhausted { "" } else { "\nPress Left to search earlier months." }),
             };
@@ -409,8 +408,8 @@ fn bold() -> Style { Style::default().add_modifier(Modifier::BOLD) }
 fn card_pane(frame: &mut Frame, area: Rect, title: &str, focused: bool, color: Color) -> Rect {
     frame.render_widget(Block::default().style(Style::default().bg(color).fg(Color::Black)), area);
     let width = area.width.saturating_sub(4);
-    frame.render_widget(Paragraph::new(widgets::clipped_line(title, width)).style(if focused { bold() } else { Style::default() }),
-        Rect::new(area.x + 2, area.y, width, 1));
+    frame.render_widget(Paragraph::new(widgets::clipped_line(title, area.width)).style(if focused { bold() } else { Style::default() }),
+        Rect::new(area.x, area.y, area.width, 1));
     Rect::new(area.x + 2, area.y + 2, width, area.height.saturating_sub(3))
 }
 
@@ -465,7 +464,7 @@ async fn activate(app: &mut Workspace, terminal: &mut Tui, action: Action) -> Re
         Action::EditCustomer => {
             let Some(customer) = app.customer().cloned() else { return Ok(()); };
             let result = customers::edit_customer(terminal, &app.user, &customer).await;
-            app.customer_state = LoadState::Pending;
+            if !result.as_ref().is_ok_and(Vec::is_empty) { app.customer_state = LoadState::Pending; }
             result
         }
         Action::NewInvoice => {
@@ -512,15 +511,12 @@ pub async fn run(terminal: &mut Tui, user: &AppUser) -> Result<()> {
             KeyCode::Char('x') if app.focus == Focus::Settings && app.user != app.draft => activate(&mut app, terminal, Action::Discard).await?,
             KeyCode::Char('d') if app.section == Section::Invoices => activate(&mut app, terminal, Action::Download).await?,
             KeyCode::Char('r') => {
-                if matches!(app.history_state, LoadState::Failed(_)) { app.history_state = LoadState::Pending; }
                 if matches!(app.customer_state, LoadState::Failed(_)) { app.customer_state = LoadState::Pending; }
             }
-            KeyCode::Esc if app.section == Section::Customers && app.customer_details => {
+            KeyCode::Esc | KeyCode::Char('q') if app.section == Section::Customers && app.customer_details => {
                 activate(&mut app, terminal, Action::Back).await?;
             }
-            KeyCode::Esc | KeyCode::Char('q') => {
-                if app.user == app.draft || widgets::confirm(terminal, "Discard unsaved settings and quit?", false)? { return Ok(()); }
-            }
+            KeyCode::Esc | KeyCode::Char('q') => {}
             KeyCode::Enter => match app.focus {
                 Focus::Cards => if let Some(invoice) = app.invoice() {
                     widgets::message(terminal, "Invoice details", &invoices::invoice_preview(invoice, &app.invoice_type))?;

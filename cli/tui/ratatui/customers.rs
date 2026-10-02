@@ -131,7 +131,7 @@ pub async fn edit_customer(terminal: &mut Tui, app_user: &AppUser, customer: &Ap
             fields.push("Save changes".to_string());
         }
         fields.push("Cancel".to_string());
-        let Some(selected_index) = select_index(terminal, "Edit customer", &fields, &mut selected)? else { return Ok(vec!["Edit cancelled.".to_string()]); };
+        let Some(selected_index) = select_index(terminal, "Edit customer", &fields, &mut selected)? else { return Ok(Vec::new()); };
         match keys.get(selected_index).copied().unwrap_or_default() {
             "Name" => contractor.name = edit_required(terminal, "Name", &contractor.name)?,
             "NIP" => contractor.nip = Some(edit_digits(terminal, "NIP", contractor.nip.as_deref(), 10)?),
@@ -145,7 +145,7 @@ pub async fn edit_customer(terminal: &mut Tui, app_user: &AppUser, customer: &Ap
             "Apartment number" => apartment_number = edit_optional(terminal, "Apartment number", apartment_number.as_deref())?,
             "Notes" => contractor.notes = edit_optional(terminal, "Notes", contractor.notes.as_deref())?,
             _ if selected_index == keys.len() && contractor != original => break,
-            _ => return Ok(vec!["Edit cancelled.".to_string()]),
+            _ => return Ok(Vec::new()),
         }
     }
     contractor.address_l1 = assemble_address_l1(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
@@ -153,7 +153,7 @@ pub async fn edit_customer(terminal: &mut Tui, app_user: &AppUser, customer: &Ap
         return Ok(vec!["No changes made.".to_string()]);
     }
     if !confirm(terminal, "Save changes to this contractor?", true)? {
-        return Ok(vec!["Changes discarded.".to_string()]);
+        return Ok(Vec::new());
     }
     let update = ContractorUpdate {
         id: contractor.id.clone(),
