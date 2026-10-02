@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-/// Shared UI surface for business logic flows.
+/// Shared UI surface for TUI flows.
 pub trait Prompter {
     fn info(&mut self, message: &str) -> Result<()>;
     fn select(&mut self, title: &str, choices: &[String]) -> Result<String>;
