@@ -103,7 +103,10 @@ pub(crate) async fn main_loop(terminal: &mut Tui, app_user: &AppUser) -> Result<
                     }
                     MainMenuAction::UserSettings => {
                         restore_terminal(terminal)?;
-                        settings::edit_profile().await?;
+                        if !settings::edit_profile(app_user).await? {
+                            setup_terminal_in_place(terminal)?;
+                            continue;
+                        }
                     }
                     MainMenuAction::Exit => return Ok(()),
                 }
