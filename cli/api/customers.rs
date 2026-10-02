@@ -179,7 +179,9 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
         let mut fields: Vec<String> = keys.iter().zip(values.iter())
             .map(|(key, value)| format!("{}: {value}", key.bold()))
             .collect();
-        fields.push("✅ Save changes".to_string());
+        if contractor != original {
+            fields.push("✅ Save changes".to_string());
+        }
         fields.push("❌ Cancel".to_string());
         let field = Select::new("Select a field to edit:", fields.clone()).with_page_size(15).prompt()?;
         let selected_index = fields.iter().position(|choice| choice == &field).unwrap();
