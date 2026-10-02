@@ -4,28 +4,21 @@ use crossterm::event::KeyCode;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
-    symbols::border,
+    style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap},
+    widgets::{Block, BorderType, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap},
 };
 
-const BACKGROUND: Color = Color::Rgb(18, 22, 30);
-const SURFACE: Color = Color::Rgb(27, 33, 44);
-const TEXT: Color = Color::Rgb(224, 230, 239);
-const MUTED: Color = Color::Rgb(153, 166, 186);
-const ACCENT: Color = Color::Rgb(126, 211, 204);
-const BORDER: border::Set = border::Set {
-    top_left: "+", top_right: "+", bottom_left: "+", bottom_right: "+",
-    vertical_left: "|", vertical_right: "|", horizontal_top: "-", horizontal_bottom: "-",
-};
+pub const SELECTOR: &str = "❯ ";
+pub const MIN_WIDTH: u16 = 48;
+pub const MIN_HEIGHT: u16 = 24;
 
 pub fn highlight_style() -> Style {
-    Style::default().fg(BACKGROUND).bg(ACCENT).add_modifier(Modifier::BOLD)
+    Style::default().add_modifier(Modifier::BOLD)
 }
 
-fn block() -> Block<'static> {
-    Block::bordered().border_set(BORDER).border_style(Style::default().fg(MUTED))
+pub fn block() -> Block<'static> {
+    Block::bordered().border_type(BorderType::Plain)
 }
 
 pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
@@ -36,8 +29,8 @@ pub fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
 
 pub fn modal(frame: &mut Frame, title: &str, width: u16, body_height: u16, hint: &str) -> Option<Rect> {
     let screen = frame.area();
-    frame.render_widget(Block::default().style(Style::default().fg(TEXT).bg(BACKGROUND)), screen);
-    if screen.width < 48 || screen.height < 24 {
+    if screen.width < MIN_WIDTH || screen.height < MIN_HEIGHT {
+        frame.render_widget(Clear, screen);
         frame.render_widget(
             Paragraph::new("KSeF Bot\nResize terminal to at least 48 x 24.\nEsc to go back.")
                 .wrap(Wrap { trim: false }).alignment(Alignment::Center),
@@ -45,13 +38,6 @@ pub fn modal(frame: &mut Frame, title: &str, width: u16, body_height: u16, hint:
         );
         return None;
     }
-    frame.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled("KSEF BOT", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
-            Span::styled("  /  Invoice workspace", Style::default().fg(MUTED)),
-        ])),
-        Rect::new(screen.x + 2, screen.y + 1, screen.width - 4, 1),
-    );
     let width = width.min(screen.width - 4);
     let content_width = width - 6;
     let title = wrap_lines(&single_line(title), content_width);
@@ -60,16 +46,15 @@ pub fn modal(frame: &mut Frame, title: &str, width: u16, body_height: u16, hint:
     let hint_height = hint.len() as u16;
     let area = centered_rect(screen, width, (body_height + title_height + hint_height + 6).min(screen.height - 4));
     frame.render_widget(Clear, area);
-    frame.render_widget(block().style(Style::default().fg(TEXT).bg(SURFACE)), area);
+    frame.render_widget(block(), area);
     let inner = Rect::new(area.x + 3, area.y + 2, content_width, area.height - 4);
     let sections = Layout::vertical([
         Constraint::Length(title_height), Constraint::Length(1), Constraint::Min(1),
         Constraint::Length(1), Constraint::Length(hint_height),
     ]).split(inner);
     frame.render_widget(Paragraph::new(title.into_iter().take(title_height as usize).map(Line::from).collect::<Vec<_>>())
-        .style(Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)), sections[0]);
-    frame.render_widget(Paragraph::new(hint.into_iter().map(Line::from).collect::<Vec<_>>())
-        .style(Style::default().fg(MUTED)), sections[4]);
+        .style(Style::default().add_modifier(Modifier::BOLD)), sections[0]);
+    frame.render_widget(Paragraph::new(hint.into_iter().map(Line::from).collect::<Vec<_>>()), sections[4]);
     Some(sections[2])
 }
 
@@ -108,9 +93,10 @@ pub fn wrap_lines(text: &str, width: u16) -> Vec<String> {
     lines
 }
 
-fn clipped_line(text: &str, width: u16) -> String {
+pub fn clipped_line(text: &str, width: u16) -> String {
     let text = single_line(text);
     if Line::from(text.as_str()).width() <= width as usize { return text; }
+    if width <= 3 { return ".".repeat(width as usize); }
     let mut clipped = String::new();
     let span = Span::raw(text);
     for grapheme in span.styled_graphemes(Style::default()) {
@@ -152,7 +138,7 @@ pub fn draw_select(frame: &mut Frame, title: &str, choices: &[String], state: &m
         ListItem::new(if spaced { vec![label, Line::default()] } else { vec![label] })
     }).collect();
     frame.render_stateful_widget(
-        List::new(items).highlight_style(highlight_style()).highlight_symbol("> "),
+        List::new(items).highlight_symbol(SELECTOR),
         area, state,
     );
 }
@@ -180,7 +166,7 @@ pub fn select(terminal: &mut Tui, title: &str, choices: &[String]) -> Result<Opt
 fn buttons(frame: &mut Frame, area: Rect, labels: &[&str], selected: Option<usize>) {
     let columns = Layout::horizontal(vec![Constraint::Ratio(1, labels.len() as u32); labels.len()]).split(area);
     for (index, label) in labels.iter().enumerate() {
-        let style = if selected == Some(index) { highlight_style() } else { Style::default().fg(MUTED) };
+        let style = if selected == Some(index) { highlight_style() } else { Style::default() };
         frame.render_widget(Paragraph::new(format!("[ {label} ]")).alignment(Alignment::Center).style(style), columns[index]);
     }
 }
@@ -265,7 +251,7 @@ pub fn draw_input(frame: &mut Frame, title: &str, input: &TextInput) {
     let Some(area) = modal(frame, title, 76, 5, "Tab/Shift+Tab: focus | Enter: continue | Esc: back\nLeft/Right, Home/End: cursor | Backspace/Delete: edit") else { return; };
     let sections = Layout::vertical([Constraint::Length(3), Constraint::Length(1), Constraint::Length(1)]).split(area);
     let field = block().padding(Padding::horizontal(1))
-        .border_style(Style::default().fg(if input.focus == 0 { ACCENT } else { MUTED }));
+        .border_style(if input.focus == 0 { Style::default().add_modifier(Modifier::BOLD) } else { Style::default() });
     let inner = field.inner(sections[0]);
     let (visible, cursor) = input.visible(inner.width);
     frame.render_widget(Paragraph::new(visible).block(field), sections[0]);

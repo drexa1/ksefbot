@@ -33,7 +33,7 @@ struct ContractorUpdate {
     #[serde(skip_serializing_if = "Option::is_none")] notes: Option<String>
 }
 
-async fn other_contractors(app_user: &AppUser) -> Result<Vec<AppContractor>> {
+pub async fn load_customers(app_user: &AppUser) -> Result<Vec<AppContractor>> {
     Ok(crate::api::customers::load_contractors(app_user).await?.into_iter()
         .filter(|contractor| contractor.nip.as_deref() != Some(app_user.id.as_str()))
         .collect())
@@ -105,20 +105,8 @@ pub async fn create_customer(terminal: &mut Tui, app_user: &AppUser) -> Result<V
     ])
 }
 
-pub async fn edit_customer(terminal: &mut Tui, app_user: &AppUser) -> Result<Vec<String>> {
-    let mut contractors = other_contractors(app_user).await?;
-    if contractors.is_empty() {
-        return Ok(vec!["No customers found.".to_string()]);
-    }
-    let mut contractor = if contractors.len() == 1 {
-        contractors.remove(0)
-    } else {
-        let mut choices: Vec<String> = contractors.iter().map(|contractor| contractor.name.clone()).collect();
-        choices.push("Back".to_string());
-        let Some(index) = select_index(terminal, "Select customer to edit", &choices, &mut 0)? else { return Ok(Vec::new()); };
-        if index == contractors.len() { return Ok(Vec::new()); }
-        contractors.remove(index)
-    };
+pub async fn edit_customer(terminal: &mut Tui, app_user: &AppUser, customer: &AppContractor) -> Result<Vec<String>> {
+    let mut contractor = customer.clone();
     let original = contractor.clone();
     let (mut city, mut postal_code, mut street, mut building_number, mut apartment_number) = parse_address_l1(&contractor.address_l1);
     let mut selected = 0;
@@ -196,27 +184,19 @@ pub async fn edit_customer(terminal: &mut Tui, app_user: &AppUser) -> Result<Vec
     Ok(vec!["Contractor updated successfully.".to_string()])
 }
 
-pub async fn list_customers(terminal: &mut Tui, app_user: &AppUser) -> Result<Vec<String>> {
-    let contractors = other_contractors(app_user).await?;
-    if contractors.is_empty() {
-        return Ok(vec!["No customers found.".to_string()]);
-    }
-    let mut selected = 0;
-    loop {
-        let mut choices: Vec<String> = contractors.iter()
-            .map(|contractor| format!("{} (NIP: {})", contractor.name, contractor.nip.as_deref().unwrap_or("-")))
-            .collect();
-        choices.push("Back".to_string());
-        let Some(index) = select_index(terminal, &format!("Customers ({})", contractors.len()), &choices, &mut selected)? else { return Ok(Vec::new()); };
-        if index == contractors.len() { return Ok(Vec::new()); }
-        let contractor = &contractors[index];
-        super::widgets::message(terminal, "Customer details", &[
-            format!("Name: {}", contractor.name),
-            format!("NIP: {}", contractor.nip.as_deref().unwrap_or("-")),
-            format!("PESEL: {}", contractor.pesel.as_deref().unwrap_or("-")),
-            format!("REGON: {}", contractor.regon.as_deref().unwrap_or("-")),
-            format!("Address: {}, {}", contractor.address_l1, contractor.country_code),
-            format!("Notes: {}", contractor.notes.as_deref().unwrap_or("-")),
-        ])?;
-    }
+pub fn preview(contractor: &AppContractor) -> Vec<String> {
+    vec![
+        contractor.name.clone(),
+        String::new(),
+        format!("NIP: {}", contractor.nip.as_deref().unwrap_or("-")),
+        format!("PESEL: {}", contractor.pesel.as_deref().unwrap_or("-")),
+        format!("REGON: {}", contractor.regon.as_deref().unwrap_or("-")),
+        format!("Internal ID: {}", contractor.internal_identifier.as_deref().unwrap_or("-")),
+        String::new(),
+        "Address".to_string(),
+        format!("{}, {}", contractor.address_l1, contractor.country_code),
+        String::new(),
+        "Notes".to_string(),
+        contractor.notes.clone().unwrap_or_else(|| "-".to_string()),
+    ]
 }

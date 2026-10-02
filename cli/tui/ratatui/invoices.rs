@@ -9,8 +9,8 @@ use std::fs::{create_dir_all, read_dir, read_to_string, write};
 use std::io;
 use std::path::{Path, PathBuf};
 
-#[derive(Clone)]
-enum InvoiceType { Sales, Purchases }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InvoiceType { Sales, Purchases }
 
 impl std::fmt::Display for InvoiceType {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -182,74 +182,30 @@ fn move_to_submitted(source: &Path) -> Result<PathBuf> {
     Ok(target)
 }
 
-pub async fn browse_sales_invoices(terminal: &mut Tui, app_user: &AppUser, from: String, to: String) -> Result<Vec<String>> {
-    browse_invoices(terminal, app_user, InvoiceType::Sales, from, to).await
-}
-
-pub async fn browse_purchase_invoices(terminal: &mut Tui, app_user: &AppUser, from: String, to: String) -> Result<Vec<String>> {
-    browse_invoices(terminal, app_user, InvoiceType::Purchases, from, to).await
-}
-
-async fn browse_invoices(terminal: &mut Tui, app_user: &AppUser, invoice_type: InvoiceType, from: String, to: String) -> Result<Vec<String>> {
-    let invoices = list_invoices(app_user, &invoice_type, &from, &to).await?;
-    if invoices.is_empty() {
-        return Ok(vec!["No invoices found.".to_string()]);
-    }
-    let counterparty_key = invoice_type.counterparty_key();
-    let item_description = |invoice: &serde_json::Value| -> String {
-        invoice["InvoiceBody"]["InvoiceLines"].as_array().into_iter().flatten()
-            .filter_map(|line| line["ItemDescription"].as_str())
-            .map(str::trim)
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-    let mut selected = 0;
-    loop {
-        let mut choices: Vec<String> = invoices.iter().map(|invoice| {
-            let number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap_or("-");
-            let counterparty = invoice[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap_or("-");
-            let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap_or_default();
-            let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap_or("PLN");
-            format!("{number} - {counterparty} - {} - {amount:.2} {currency}", item_description(invoice))
-        }).collect();
-        choices.push("Back".to_string());
-        let Some(index) = select_index(terminal, &format!("Select a {invoice_type} invoice ({})", invoices.len()), &choices, &mut selected)? else { return Ok(Vec::new()); };
-        if index == invoices.len() { return Ok(Vec::new()); }
-        let invoice = &invoices[index];
-        let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap_or("-").to_string();
-        let Some(action) = select(terminal, &format!("Invoice {invoice_number}"), &[
-            "Preview".to_string(),
-            "Download XML".to_string(),
-            "Back".to_string()
-        ])? else { continue; };
-        match action.as_str() {
-            "Preview" => message(terminal, "Invoice preview", &invoice_preview(invoice, &invoice_type))?,
-            "Download XML" => {
-                let path = download_invoice_xml(app_user, &invoice_type, invoice, &invoice_number, &from, &to).await?;
-                message(terminal, "Download complete", &[format!("Invoice XML saved to {}", path.display())])?;
-            }
-            _ => {}
-        }
-    }
-}
-
-fn invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType) -> Vec<String> {
+pub fn invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType) -> Vec<String> {
     let body = &invoice["InvoiceBody"];
     let counterparty = &invoice[invoice_type.counterparty_key()]["IdentificationData"];
     let currency = body["CurrencyCode"].as_str().unwrap_or("PLN");
-    vec![
-        format!("InvoiceNumber: {}", body["InvoiceNumber"].as_str().unwrap_or("-")),
-        format!("InvoiceType: {}", body["InvoiceType"].as_str().unwrap_or("-")),
+    let mut lines = vec![
+        body["InvoiceNumber"].as_str().unwrap_or("-").to_string(),
+        String::new(),
         format!("{}: {} - {}", invoice_type.counterparty_label(), counterparty["NIP"].as_str().unwrap_or("-"), counterparty["Name"].as_str().unwrap_or("-")),
-        format!("ServiceDate: {}", body["ServiceDate"].as_str().unwrap_or("-")),
-        format!("TotalGrossAmount: {:.2} {currency}", body["TotalGrossAmount"].as_f64().unwrap_or_default()),
-        format!("TotalNetAmount: {:.2} {currency}", body["TotalNetAmount"].as_f64().unwrap_or_default()),
-        format!("TotalVatAmount: {:.2} {currency}", body["TotalVatAmount"].as_f64().unwrap_or_default()),
-    ]
+        format!("Issue date: {}", body["IssueDate"].as_str().unwrap_or("-")),
+        format!("Service date: {}", body["ServiceDate"].as_str().unwrap_or("-")),
+        String::new(),
+        format!("Net:   {:.2} {currency}", body["TotalNetAmount"].as_f64().unwrap_or_default()),
+        format!("VAT:   {:.2} {currency}", body["TotalVatAmount"].as_f64().unwrap_or_default()),
+        format!("Gross: {:.2} {currency}", body["TotalGrossAmount"].as_f64().unwrap_or_default()),
+        String::new(),
+        "Items".to_string(),
+    ];
+    lines.extend(body["InvoiceLines"].as_array().into_iter().flatten()
+        .filter_map(|line| line["ItemDescription"].as_str()).map(str::to_string));
+    lines
 }
 
-async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> Result<Vec<serde_json::Value>> {
-    let mut json: serde_json::Value = crate::api::client::http_client()
+pub async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> Result<Vec<serde_json::Value>> {
+    let response = crate::api::client::http_client()
         .get(format!("{}/ksef/{endpoint}", cf_worker_url!()))
         .query(&[("from", from), ("to", to)])
         .header("CF-Access-Client-Id", cf_client_id!())
@@ -258,19 +214,36 @@ async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, t
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .send()
-        .await?
-        .json()
         .await?;
-    if json["success"].as_bool() != Some(true) {
-        return Ok(Vec::new());
-    }
-    Ok(match json["result"].take() {
-        serde_json::Value::Array(array) => array,
-        _ => Vec::new()
-    })
+    let status = response.status();
+    let body = response.text().await?;
+    decode_invoice_list(status, &body)
 }
 
-async fn download_invoice_xml(app_user: &AppUser, invoice_type: &InvoiceType, invoice: &serde_json::Value, invoice_number: &str, from: &str, to: &str) -> Result<PathBuf> {
+fn decode_invoice_list(status: reqwest::StatusCode, body: &str) -> Result<Vec<serde_json::Value>> {
+    if !status.is_success() {
+        let detail = serde_json::from_str::<serde_json::Value>(body).ok()
+            .and_then(|json| json["error"].as_str().map(str::to_string))
+            .unwrap_or_else(|| body.chars().take(300).collect());
+        anyhow::bail!("Invoice request failed (HTTP {status}): {detail}");
+    }
+    let mut json: serde_json::Value = serde_json::from_str(body)?;
+    if json["success"].as_bool() != Some(true) {
+        if json["success"].as_bool() == Some(false)
+            && json["result"].as_array().is_some_and(Vec::is_empty)
+            && json["error"].as_str() == Some("No invoices found for the specified date range.") {
+            return Ok(Vec::new());
+        }
+        anyhow::bail!("Could not load invoices: {}", json["error"].as_str().unwrap_or("unknown error"));
+    }
+
+    match json["result"].take() {
+        serde_json::Value::Array(array) => Ok(array),
+        _ => anyhow::bail!("Invoice response did not contain a list"),
+    }
+}
+
+pub async fn download_invoice_xml(app_user: &AppUser, invoice_type: &InvoiceType, invoice: &serde_json::Value, invoice_number: &str, from: &str, to: &str) -> Result<PathBuf> {
     let mut url = reqwest::Url::parse(&format!("{}/ksef/{invoice_type}", cf_worker_url!()))?;
     url.query_pairs_mut().append_pair("invoiceNumber", invoice_number).append_pair("from", from).append_pair("to", to);
     let response = crate::api::client::http_client()
@@ -304,4 +277,31 @@ async fn download_invoice_xml(app_user: &AppUser, invoice_type: &InvoiceType, in
     let path = download_folder.join(format!("{safe_number}.xml"));
     std::fs::write(&path, xml)?;
     Ok(path)
+}
+
+#[cfg(test)]
+mod response_tests {
+    use super::*;
+    use reqwest::StatusCode;
+
+    #[test]
+    fn backend_empty_month_response_is_not_a_failed_request() {
+        assert!(decode_invoice_list(StatusCode::OK,
+            r#"{"success":false,"result":[],"error":"No invoices found for the specified date range."}"#).unwrap().is_empty());
+        assert!(decode_invoice_list(StatusCode::OK, r#"{"success":true,"result":[]}"#).unwrap().is_empty());
+        assert_eq!(decode_invoice_list(StatusCode::OK,
+            r#"{"success":true,"result":[{"InvoiceBody":{"InvoiceNumber":"FV/1"}}]}"#).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn backend_errors_keep_their_message_and_are_never_empty_successes() {
+        let body = r#"{"success":false,"error":"The maximum date range supported by KSeF is 3 calendar months."}"#;
+        let error = decode_invoice_list(StatusCode::BAD_REQUEST, body).unwrap_err().to_string();
+        assert!(error.contains("400") && error.contains("maximum date range"));
+        assert!(decode_invoice_list(StatusCode::OK, r#"{"success":false,"result":[],"error":"Access denied"}"#).is_err());
+        assert!(decode_invoice_list(StatusCode::UNAUTHORIZED,
+            r#"{"success":false,"result":[],"error":"No invoices found for the specified date range."}"#).is_err());
+        assert!(decode_invoice_list(StatusCode::OK, r#"{"success":true,"result":null}"#).is_err());
+        assert!(decode_invoice_list(StatusCode::OK, "invalid json").is_err());
+    }
 }

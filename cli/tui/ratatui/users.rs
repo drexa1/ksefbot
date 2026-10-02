@@ -54,46 +54,40 @@ fn edit_optional_rate(terminal: &mut Tui, current: Option<f64>) -> Result<Option
     }
 }
 
-pub async fn edit_profile(terminal: &mut Tui, app_user: &AppUser) -> Result<Vec<String>> {
-    let mut user = app_user.clone();
-    let original = user.clone();
-    let mut selected = 0;
-    loop {
-        let keys = ["Email", "Phone", "Language", "Default hourly rate", "Default item name", "Settlement type", "Bank name", "Bank account number"];
-        let values = [
-            user.email.clone(),
-            user.phone.clone().unwrap_or_default(),
-            language_label(&user.language).to_string(),
-            user.default_hourly_rate.map(|rate| rate.to_string()).unwrap_or_default(),
-            user.default_item_name.clone().unwrap_or_default(),
-            settlement_type_label(&user.settlement_type).to_string(),
-            user.bank_name.clone().unwrap_or_default(),
-            user.bank_account_number.clone().unwrap_or_default(),
-        ];
-        let mut fields: Vec<String> = keys.iter().zip(values.iter()).map(|(key, value)| format!("{key}: {value}")).collect();
-        if user != original {
-            fields.push("Save changes".to_string());
-        }
-        fields.push("Cancel".to_string());
-        let Some(selected_index) = select_index(terminal, "Edit user settings", &fields, &mut selected)? else { return Ok(vec!["Edit cancelled.".to_string()]); };
-        match keys.get(selected_index).copied().unwrap_or_default() {
-            "Email" => user.email = edit_required(terminal, "Email", &user.email)?,
-            "Phone" => user.phone = Some(edit_required(terminal, "Phone", user.phone.as_deref().unwrap_or(""))?),
-            "Language" => user.language = edit_language(terminal, user.language.as_ref())?,
-            "Default item name" => user.default_item_name = edit_optional(terminal, "Default item name", user.default_item_name.as_deref())?,
-            "Default hourly rate" => user.default_hourly_rate = edit_optional_rate(terminal, user.default_hourly_rate)?,
-            "Settlement type" => user.settlement_type = edit_settlement_type(terminal, user.settlement_type.as_ref())?,
-            "Bank name" => user.bank_name = edit_optional(terminal, "Bank name", user.bank_name.as_deref())?,
-            "Bank account number" => user.bank_account_number = edit_optional_digits(terminal, "Bank account number", user.bank_account_number.as_deref(), 26)?,
-            _ if selected_index == keys.len() && user != original => break,
-            _ => return Ok(vec!["Edit cancelled.".to_string()]),
-        }
+pub fn fields(user: &AppUser) -> Vec<String> {
+    vec![
+        format!("Email: {}", user.email),
+        format!("Phone: {}", user.phone.as_deref().unwrap_or("-")),
+        format!("Language: {}", language_label(&user.language)),
+        format!("Default hourly rate: {}", user.default_hourly_rate.map(|rate| format!("{rate:.2}")).unwrap_or_else(|| "-".to_string())),
+        format!("Default item name: {}", user.default_item_name.as_deref().unwrap_or("-")),
+        format!("Settlement type: {}", settlement_type_label(&user.settlement_type)),
+        format!("Bank name: {}", user.bank_name.as_deref().unwrap_or("-")),
+        format!("Bank account number: {}", user.bank_account_number.as_deref().unwrap_or("-")),
+    ]
+}
+
+pub fn edit_field(terminal: &mut Tui, user: &mut AppUser, index: usize) -> Result<()> {
+    match index {
+        0 => user.email = edit_required(terminal, "Email", &user.email)?,
+        1 => user.phone = Some(edit_required(terminal, "Phone", user.phone.as_deref().unwrap_or(""))?),
+        2 => user.language = edit_language(terminal, user.language.as_ref())?,
+        3 => user.default_hourly_rate = edit_optional_rate(terminal, user.default_hourly_rate)?,
+        4 => user.default_item_name = edit_optional(terminal, "Default item name", user.default_item_name.as_deref())?,
+        5 => user.settlement_type = edit_settlement_type(terminal, user.settlement_type.as_ref())?,
+        6 => user.bank_name = edit_optional(terminal, "Bank name", user.bank_name.as_deref())?,
+        7 => user.bank_account_number = edit_optional_digits(terminal, "Bank account number", user.bank_account_number.as_deref(), 26)?,
+        _ => anyhow::bail!("Unknown settings field: {index}"),
     }
-    if user == original {
+    Ok(())
+}
+
+pub async fn save_profile(terminal: &mut Tui, app_user: &mut AppUser, user: &AppUser) -> Result<Vec<String>> {
+    if user == app_user {
         return Ok(vec!["No changes made.".to_string()]);
     }
     if !confirm(terminal, "Save changes to your profile?", true)? {
-        return Ok(vec!["Changes discarded.".to_string()]);
+        return Ok(vec!["Save cancelled. Your changes are still pending.".to_string()]);
     }
     let response = crate::api::client::http_client()
         .put(format!("{}/app/users", cf_worker_url!()))
@@ -102,7 +96,7 @@ pub async fn edit_profile(terminal: &mut Tui, app_user: &AppUser) -> Result<Vec<
         .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
-        .json(&user)
+        .json(user)
         .send()
         .await?;
     let status = response.status();
@@ -110,5 +104,6 @@ pub async fn edit_profile(terminal: &mut Tui, app_user: &AppUser) -> Result<Vec<
     if !status.is_success() || body["success"].as_bool() != Some(true) {
         anyhow::bail!("Profile update failed: {}", body["error"].as_str().unwrap_or("unknown error"));
     }
+    *app_user = user.clone();
     Ok(vec!["Profile updated successfully.".to_string()])
 }
