@@ -329,16 +329,16 @@ pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
 // -------------------------------------------------------------------------------------------------
 
 pub async fn login_with_phone_loop() -> Result<AuthUser> {
-    let phone = Text::new("Phone number").with_placeholder("+48111222333").prompt()?;
+    let phone = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
     if account_exists(&phone)? {
         println!("Account found.");
-        let password = Password::new("Password").prompt()?;
+        let password = Password::new("Verification code:").prompt()?;
         return login_with_phone(&phone, &password);
     }
     println!("No account found for {phone}.");
     let create = Confirm::new("Would you like to create an account?")
         .with_default(true)
-        .with_help_message("Create an account with this email")
+        .with_help_message("Create an account with this phone")
         .prompt()?;
     if create {
         create_account(&phone)?;
@@ -351,7 +351,7 @@ pub async fn login_with_phone_loop() -> Result<AuthUser> {
 }
 
 fn account_exists(phone: &str) -> Result<bool> {
-    println!("  [API] GET /auth/account-exists");
+    println!("  [API] GET /users");
     println!("  [API] phone = {phone}");
     println!("  [API] Response: account not found");
     // Change to true to test the password flow.
@@ -360,18 +360,14 @@ fn account_exists(phone: &str) -> Result<bool> {
 
 fn create_account(phone: &str) -> Result<()> {
     println!("Creating account...");
-    println!("  [API] POST /auth/register");
+    println!("  [API] POST /users");
     println!("  [API] phone = {phone}");
-    println!("  [API] Creating account record...");
-    println!("  [EMAIL] Verification code sent.");
+    println!("  [API] Creating account...");
     Ok(())
 }
 
 fn login_with_phone(phone: &str, password: &str) -> Result<AuthUser> {
     let _ = password;
-    println!("  [API] POST /auth/login");
-    println!("  [API] phone = {phone}");
-    println!("  [API] password = ********");
     println!("  [API] Response: authentication successful");
     let user = AuthUser {
         name: Some("Dummy User".to_owned()),
