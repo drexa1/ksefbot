@@ -64,7 +64,7 @@ fn draw_login(frame: &mut ratatui::Frame, methods: &[login::LoginMethod], select
     let Some(area) = widgets::modal(frame, "Sign in to KSeF Bot", 76, methods.len() as u16,
         "↑↓:move | Enter:select | Ctrl+C:quit") else { return; };
     let items: Vec<_> = methods.iter().map(|method| {
-        let prefix = if last_used == Some(method) { "(last used) " } else { "" };
+        let prefix = if last_used == Some(method) { "(Last used) " } else { "" };
         let width = area.width.saturating_sub(2 + prefix.len() as u16);
         ListItem::new(Line::from(vec![
             Span::styled(prefix, Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)),
