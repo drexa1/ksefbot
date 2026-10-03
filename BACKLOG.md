@@ -70,18 +70,20 @@
 - [x] CLI: create customer  
 - [x] CLI: edit customer  
 - [x] CLI: check performance  
-- [ ] CLI: implement RataTUI  
+- [x] CLI: edit user settings  
+- [ ] Bug: all cached invoices seem to be type sales   
 - [ ] Fix tests failing after refactor  
-- [ ] Move invoiceToXml completely to worker  
-- [ ] Schedule daily tests
+- [ ] Move invoiceToXml completely to worker
+- [ ] Schedule daily tests  
+- [ ] CLI: first time flow  
+- [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: login with phone  
+- [ ] CLI: implement RataTUI
 - [ ] Whatsapp: get PROD number display name working  
-- [ ] Whatsapp: unravel double WABA setup
+- [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow
-- [ ] CLI: edit user settings  
-- [ ] CLI: first time flow  
 - [ ] Review security architecture  
 - [ ] Admin contractors frontend  
 - [ ] SSO/Enrolment  
