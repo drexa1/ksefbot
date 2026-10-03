@@ -5,7 +5,7 @@
 @metaUrl = https://graph.facebook.com
 @apiVersion = v26.0
 @accessToken =
-@phoneNumberId = 1316073114919570
+@phoneNumberId = 1340878882439630
 
 ### Test Whatsapp webhook
 POST {{baseUrl}}/whatsapp/webhooks
@@ -32,8 +32,18 @@ X-API-Key: {{apiKey}}
 
 {
     "to": "48518121343",
-    "template": "onboarding_language",
+    "template": "onboarding_language_choice",
     "language": "en"
+}
+
+### Register PROD number
+POST {{metaUrl}}/{{apiVersion}}/{{phoneNumberId}}/register
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+    "messaging_product": "whatsapp",
+    "pin": "482731"
 }
 
 ### Register Whatsapp flows public key
