@@ -11,24 +11,22 @@ pub mod create;
 
 #[derive(Clone, Display)]
 pub enum InvoiceType {
-    #[strum(to_string = "sales")]
-    Sales,
-    #[strum(to_string = "purchases")]
-    Purchases
+    #[strum(to_string = "sales")] Sales,
+    #[strum(to_string = "purchases")] Purchases
 }
 
 impl InvoiceType {
-    fn emoji(&self) -> &'static str {
-        match self {
-            InvoiceType::Sales => "💵",
-            InvoiceType::Purchases => "🛒"
-        }
-    }
-
     fn counterparty_label(&self) -> &'static str {
         match self {
             InvoiceType::Sales => "Customer",
             InvoiceType::Purchases => "Seller"
+        }
+    }
+
+    fn emoji(&self) -> &'static str {
+        match self {
+            InvoiceType::Sales => "💵",
+            InvoiceType::Purchases => "🛒"
         }
     }
 }
@@ -42,7 +40,7 @@ pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String
 }
 
 async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: String, to: String) -> anyhow::Result<()> {
-    let invoices = list_invoices(app_user, invoice_type, &from, &to).await?;
+    let invoices = fetch_invoices(app_user, invoice_type, &from, &to).await?;
     if invoices.is_empty() {
         crate::tui::inquire::pause()?;
         return Ok(());
@@ -134,7 +132,7 @@ fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType
     println!("  TotalVatAmount: {vat}");
 }
 
-async fn list_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> anyhow::Result<Vec<serde_json::Value>> {
+async fn fetch_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, to: &str) -> anyhow::Result<Vec<serde_json::Value>> {
     let mut json: serde_json::Value = crate::api::client::http_client()
         .get(format!("{}/ksef/{endpoint}", cf_worker_url!()))
         .query(&[

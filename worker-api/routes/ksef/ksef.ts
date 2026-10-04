@@ -16,7 +16,7 @@ export async function getInvoices(req: Request, env: Env, subjectType: "Subject1
     if ((from && isNaN(from.getTime())) || (to && isNaN(to.getTime())) || (from && to && from > to))
         return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
     try {
-        // Download XML for specific invoice
+        // Download XML for specific invoiceNumber
         if (url.searchParams.has("invoiceNumber")) {
             const ksefClient = new KsefClient(env);
             await ksefClient.authenticate(appUser);

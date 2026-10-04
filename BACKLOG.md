@@ -73,8 +73,11 @@
 - [x] CLI: edit user settings  
 - [ ] Bug: all cached invoices seem to be type sales   
 - [ ] Fix tests failing after refactor  
-- [ ] Move invoiceToXml completely to worker
+- [ ] Move invoiceToXml completely to worker  
 - [ ] Schedule daily tests  
+- [ ] Review invoice xml vs json modes  
+- [ ] Review invoice caching  
+- [ ] CLI: create customer from online lookup  
 - [ ] CLI: first time flow  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: login with phone  
