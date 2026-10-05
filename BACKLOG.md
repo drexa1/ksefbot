@@ -71,7 +71,7 @@
 - [x] CLI: edit customer  
 - [x] CLI: check performance  
 - [x] CLI: edit user settings  
-- [ ] Bug: all cached invoices seem to be type sales   
+- [ ] Bug: all cached invoices seem to be type sales  
 - [ ] Fix tests failing after refactor  
 - [ ] Move invoiceToXml completely to worker  
 - [ ] Schedule daily tests  
