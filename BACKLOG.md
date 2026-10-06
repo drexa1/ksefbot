@@ -73,43 +73,44 @@
 - [x] CLI: edit user settings  
 - [x] Bug: all cached invoices seem to be type sales  
 - [x] Fix tests failing after refactor  
-- [ ] Move invoiceToXml completely to worker  
-- [ ] Schedule daily tests  
 - [ ] Review invoice xml vs json modes  
 - [ ] Review invoice caching  
+- [ ] Add backfill REST tests for entrypoint  
+- [ ] Manual testing of CLI backfill option  
+- [ ] Move invoiceToXml completely to worker  
+- [ ] Schedule daily tests
 - [ ] CLI: create customer from online lookup  
 - [ ] CLI: first time flow  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: login with phone  
-- [ ] CLI: implement RataTUI
+- [ ] CLI: implement RataTUI  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
 - [ ] First time frontend workflow
-- [ ] Review security architecture  
+- [ ] Review security architecture
+- [ ] Login frontend (inspiration: https://nosible.world/login)  
 - [ ] Admin contractors frontend  
-- [ ] SSO/Enrolment  
-- [ ] Login frontend  
 - [ ] Invoice generator frontend: wrangle up CSS  
 - [ ] Invoice generator frontend: smoke mobile  
 - [ ] Invoice generator frontend: contractor additional entity  
 - [ ] Invoice generator frontend: invoice additional column selects  
 - [ ] Invoice generator frontend: invoice additional data  
-- [ ] Encrypt KSeF/Baking keys  
-- [ ] Invoice generator frontend: help hints  
-- [ ] Invoice generator frontend: import logic  
 - [ ] Create user frontend  
+- [ ] Invoice generator frontend: help hints
+- [ ] Invoice generator frontend: import logic  
+- [ ] Encrypt KSeF/Baking keys
 - [ ] Bank client PoC  
 - [ ] Scheduling  
 - [ ] Rust client installer  
 - [ ] GIT-version on deploy  
 - [ ] Transparency disclaimer / no Ai  
 - [ ] Business plan  
-- [ ] Sales execution
+- [ ] Sales execution  
 - [ ] Google Analytics  
 - [ ] Bug report  
 - [ ] Sentry  
 - [ ] CLI: Microsoft SSO verify organization  
 - [ ] Go public  
-- [ ] Slack bot
+- [ ] Slack bot  
