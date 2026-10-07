@@ -13,14 +13,14 @@ export type AppInvoice = {
     updatedAt?: string;
 };
 
-export type InvoicesPeriodsSynced = {
+export type InvoicesSyncPeriod = {
     ownerId: string;
     type: "sales" | "purchase";
     dateFrom: string;
     dateTo: string;
     // DBA
     createdAt: string;
-    updatedAt?: string | null;
+    updatedAt?: string;
 };
 
 export type InvoiceBackfillJob = {
@@ -30,5 +30,5 @@ export type InvoiceBackfillJob = {
     error?: string;
     // DBA
     createdAt: string;
-    updatedAt?: string | null;
+    updatedAt?: string;
 };
