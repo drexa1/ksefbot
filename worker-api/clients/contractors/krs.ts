@@ -59,13 +59,12 @@ function mapKRS(result: any, schema: any): KsefContractor {
     const company = dto.copy?.data?.section1?.entityData;
     const registeredOffice = dto.copy?.data?.section1?.registeredOfficeAndAddress;
     const address = registeredOffice?.address;
-    const addressLine = [
-        address?.city,
-        address?.postalCode,
-        [address?.street, address?.buildingNumber]
-            .filter(Boolean)
-            .join(" ")
-    ].filter(Boolean).join(", ");
+    const building = [address?.buildingNumber, address?.apartmentNumber ? `/${address.apartmentNumber}` : undefined]
+        .filter(Boolean)
+        .join("");
+    const addressLine = [address?.city, address?.postalCode, [address?.street, building].filter(Boolean).join(" ")]
+        .filter(Boolean)
+        .join(", ");
     return {
         source: "KRS",
         name: titleCase(company?.name),
