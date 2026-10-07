@@ -47,6 +47,7 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
         case "/gov/vat-lb":
         case "/app/users":
         case "/app/invoices":
+        case "/invoices/monthly":
         case "/app/invoices/pii":
         case "/app/contractors":
         case "/app/taxes/simulate":

@@ -41,6 +41,18 @@ pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String
     browse_invoices(&InvoiceType::Purchases, purchase_invoices).await
 }
 
+pub async fn sales_invoice_months(app_user: &AppUser, year: i32) -> anyhow::Result<[bool; 12]> {
+    Ok(crate::api::client::http_client()
+        .get(format!("{}/invoices/monthly", cf_worker_url!()))
+        .query(&[("year", year)])
+        .header("CF-Access-Client-Id", cf_client_id!())
+        .header("CF-Access-Client-Secret", cf_client_secret!())
+        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
+        .header("X-User-Id", &app_user.id)
+        .header("Accept", "application/json")
+        .send().await?.error_for_status()?.json().await?)
+}
+
 async fn browse_invoices(invoice_type: &InvoiceType, invoices: Vec<serde_json::Value>) -> anyhow::Result<()> {
     if invoices.is_empty() {
         crate::tui::inquire::pause()?;

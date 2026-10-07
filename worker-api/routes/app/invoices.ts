@@ -28,6 +28,19 @@ export async function get(req: Request, env: Env): Promise<Response> {
         : Response.json(result, { status: 200 });
 }
 
+/// Months with at least one sales invoice.
+export async function months(req: Request, env: Env): Promise<Response> {
+    const appUser = await getAuthUser(req, env);
+    const year = new URL(req.url).searchParams.get("year") ?? "";
+    if (!/^\d{4}$/.test(year) || Number(year) === 0)
+        return Response.json({ success: false, error: "Invalid year" }, { status: 400 });
+    const range = { field: "issueDate", start: `${year}-01-01`, end: `${year}-12-31`, startInclusive: true, endInclusive: true };
+    const invoices = await getRepo(env).getAll<Pick<AppInvoice, "issueDate">>("invoices", { ownerId: appUser.id, type: "sales" }, range, ["issueDate"]);
+    const months = Array<boolean>(12).fill(false);
+    for (const invoice of invoices) months[Number(invoice.issueDate.slice(5, 7)) - 1] = true;
+    return Response.json(months);
+}
+
 export async function post(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const form = await req.formData();

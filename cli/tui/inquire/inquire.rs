@@ -51,11 +51,13 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
                 }
             }
             MainMenuAction::ListSalesInvoices => {
-                let (from, to) = prompt_invoice_dates()?;
+                let today = Local::now().date_naive();
+                let months = invoices::sales_invoice_months(logged_user, today.year()).await?;
+                let (from, to) = prompt_invoice_dates(today, Some(&months))?;
                 invoices::list_sales_invoices(logged_user, from, to).await?;
             }
             MainMenuAction::ListPurchaseInvoices => {
-                let (from, to) = prompt_invoice_dates()?;
+                let (from, to) = prompt_invoice_dates(Local::now().date_naive(), None)?;
                 invoices::list_purchase_invoices(logged_user, from, to).await?;
             }
             MainMenuAction::CreateCustomer => {
@@ -81,15 +83,18 @@ pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
     }
 }
 
-pub fn prompt_invoice_dates() -> Result<(String, String)> {
-    let today = Local::now().date_naive();
+pub fn prompt_invoice_dates(today: NaiveDate, months: Option<&[bool; 12]>) -> Result<(String, String)> {
     let (last_month_start, last_month_end) = month_range(today, 1);
     let (prev_month_start, prev_month_end) = month_range(today, 2);
     let specific_dates = "Specific dates (max. allowed by KSeF: 100 days)".to_string();
     let last_month_choice = last_month_start.format("%m %B").to_string();
     let prev_month_choice = prev_month_start.format("%m %B").to_string();
     let choices = vec![prev_month_choice.clone(), last_month_choice.clone(), specific_dates.clone()];
-    let selected = Select::new("Invoice date range:", choices).prompt()?;
+    let mut message = "Invoice date range:".to_string();
+    if let Some(months) = months {
+        message.push_str(&format!(" {} {}", today.year(), invoice_months(today, months)));
+    }
+    let selected = Select::new(&message, choices).prompt()?;
     if selected == prev_month_choice {
         Ok((prev_month_start.format("%Y-%m-%d").to_string(), prev_month_end.format("%Y-%m-%d").to_string()))
     } else if selected == last_month_choice {
@@ -99,6 +104,17 @@ pub fn prompt_invoice_dates() -> Result<(String, String)> {
         let to = DateSelect::new("To date:").with_starting_date(today.max(from)).with_min_date(from).prompt()?;
         Ok((from.format("%Y-%m-%d").to_string(), to.format("%Y-%m-%d").to_string()))
     }
+}
+
+fn invoice_months(today: NaiveDate, months: &[bool; 12]) -> String {
+    months.iter().enumerate().map(|(index, present)| {
+        let marker = if *present { "✅" } else { "❌" };
+        if index == today.month0() as usize {
+            format!("{}{marker}{}", "[".cyan(), "]".cyan())
+        } else {
+            format!("[{marker}]")
+        }
+    }).collect()
 }
 
 fn month_range(today: NaiveDate, months_ago: i32) -> (NaiveDate, NaiveDate) {

@@ -18,7 +18,7 @@ import {contractors as krsGET} from "../clients/contractors/krs";
 import {contractors as vatLbGET} from "../clients/contractors/vat-lb";
 import {get as usersGET, post as usersPOST, put as usersPUT, del as usersDELETE} from "./app/users";
 import {get as contractorsGET, post as contractorsPOST, put as contractorsPUT, del as contractorsDELETE} from "./app/contractors";
-import {get as invoicesGET, post as invoicesPOST, put as invoicesPUT, del as invoicesDELETE} from "./app/invoices";
+import {get as invoicesGET, months as invoiceMonthsGET, post as invoicesPOST, put as invoicesPUT, del as invoicesDELETE} from "./app/invoices";
 import {get as taxesGET, simulate as simulateGET, post as taxesPOST, put as taxesPUT, del as taxesDELETE, } from "./app/taxes";
 import {AuthError} from "../types/auth";
 
@@ -65,6 +65,7 @@ export const routes: Record<string, Routes> =  {
     "/app/users":            withErrorHandling({ GET: usersGET, POST: usersPOST, PUT: usersPUT, DELETE: usersDELETE }),
     "/app/contractors":      withErrorHandling({ GET: contractorsGET, POST: contractorsPOST, PUT: contractorsPUT, DELETE: contractorsDELETE }),
     "/app/invoices":         withErrorHandling({ GET: invoicesGET, POST: invoicesPOST, PUT: invoicesPUT, DELETE: invoicesDELETE }),
+    "/invoices/monthly":     withErrorHandling({ GET: invoiceMonthsGET }),
     "/app/taxes/simulate":   withErrorHandling({ GET: simulateGET }),
     "/app/taxes":            withErrorHandling({ GET: taxesGET, POST: taxesPOST, PUT: taxesPUT, DELETE: taxesDELETE }),
 };
