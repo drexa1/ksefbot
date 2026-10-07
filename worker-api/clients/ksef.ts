@@ -5,7 +5,6 @@ import {
     InvoiceEncryptionData,
     KsefAuthenticationStatus,
     KsefInvoiceQueryResult,
-    KsefBackfillStatus,
     KsefAccessToken
 } from "../types/ksef";
 import * as asn1js from "asn1js";
@@ -277,12 +276,6 @@ class KsefClientBase {
         return btoa(binary);
     }
 
-    async decryptExportPart(encrypted: Uint8Array, cipherKey: Uint8Array, cipherIv: Uint8Array): Promise<Uint8Array> {
-        const key = await crypto.subtle.importKey("raw", this.toArrayBuffer(cipherKey), { name: "AES-CBC" }, false, ["decrypt"]);
-        const decrypted = await crypto.subtle.decrypt({ name: "AES-CBC", iv: this.toArrayBuffer(cipherIv) }, key, this.toArrayBuffer(encrypted));
-        return new Uint8Array(decrypted);
-    }
-
     private arrayBufferToBase64(data: ArrayBuffer | Uint8Array): string {
         const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
         let binary = "";
@@ -404,36 +397,5 @@ export class KsefClient extends KsefClientBase {
         if (!response.ok)
             throw new Error(`KSeF invoice status failed ${response.status}: ${body}`);
         return JSON.parse(body);
-    }
-
-    // 🐣 Initial backfill ---------------------------------------------------------------------------------------------
-
-    async triggerInvoicesExport(type: "sales" | "purchase", from: string, to: string) {
-        const subjectType = type === "sales" ? "Subject1" : "Subject2";
-        const { certificate } = await this.getKsefEncryptionCertificate(this.env, "SymmetricKeyEncryption");
-        const publicKey = await this.importKsefPublicKey(certificate);
-        const encryption = await this.createInvoiceEncryptionData(publicKey);
-        const response = await fetch(`${this.env.KSEF_URL}/invoices/exports`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-                encryption: { encryptedSymmetricKey: encryption.encryptedSymmetricKey, initializationVector: encryption.initializationVector },
-                filters: { subjectType, dateRange: { dateType: "PermanentStorage", from, to, restrictToPermanentStorageHwmDate: true } },
-                compressionType: "TarGz"
-            })
-        });
-        if (!response.ok)
-            throw new Error(`KSeF invoice export failed ${response.status}: ${await response.text()}`);
-        const result = await response.json() as { referenceNumber: string };
-        return { referenceNumber: result.referenceNumber, cipherKey: encryption.cipherKey, cipherIv: encryption.cipherIv };
-    }
-
-    async getExportStatus(referenceNumber: string): Promise<KsefBackfillStatus> {
-        const response = await fetch(`${this.env.KSEF_URL}/invoices/exports/${referenceNumber}`, {
-            headers: { Authorization: `Bearer ${this.token}` }
-        });
-        if (!response.ok)
-            throw new Error(`KSeF invoice export status failed ${response.status}: ${await response.text()}`);
-        return await response.json() as KsefBackfillStatus;
     }
 }

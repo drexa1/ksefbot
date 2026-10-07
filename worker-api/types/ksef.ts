@@ -45,18 +45,3 @@ export interface SubmissionStatus {
     upoDownloadUrlExpirationDate: string;
     invoicingMode: string;
 }
-
-export type KsefBackfillStatus = {
-    status: {
-        code: number;
-        description: string;
-        details?: string[];
-    };
-    package?: {
-        invoiceCount: number;
-        parts: { url: string; partHash: string; encryptedPartHash: string }[];
-        isTruncated: boolean;
-        lastPermanentStorageDate?: string;
-        permanentStorageHwmDate?: string;
-    };
-};
