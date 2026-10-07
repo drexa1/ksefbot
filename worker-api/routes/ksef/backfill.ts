@@ -33,12 +33,12 @@ export async function status(req: Request, env: Env): Promise<Response> {
 }
 
 async function refreshJob(env: Env, backfill: InvoicesBackfill) {
-    if (backfill.status !== "queued" && backfill.status !== "running")
+    if (backfill.status !== "queued" && backfill.status !== "running" && backfill.status !== "throttled")
         return backfill;
     const workflow = await env.BACKFILL_JOB.get(backfill.ownerId).then(workflow => workflow.status());
     if (workflow.status !== "errored" && workflow.status !== "terminated" && workflow.status !== "complete")
         return backfill;
-    const status = workflow.status === "complete" ? "completed" : "failed";
+    const status = workflow.status === "complete" ? "completed" : backfill.status === "throttled" ? "throttled" : "failed";
     await getRepo(env).update("invoices_backfill", { status, error: workflow.error?.message, updatedAt: new Date().toISOString() }, { ownerId: backfill.ownerId });
-    return {...backfill, status: status, error: workflow.error?.message};
+    return { ...backfill, status: status, error: workflow.error?.message };
 }

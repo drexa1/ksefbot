@@ -35,7 +35,7 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
                         delay: ({ctx, error}) => String(error).includes("429") ? "1 hour" : `${10 * 2 ** (ctx.attempt - 1)} seconds`
                     }
                 }, async () => {
-                    const appInvoices = await getByDatesRange(this.env, appUser, type, fromDate, toDate);
+                    const appInvoices = await this.getBackfillInvoices(userId, appUser, type, fromDate, toDate);
                     console.info(`⏪ [${type}] Backfill step (${windowNumber}) from ${fromDate.toISOString()} to ${toDate.toISOString()}: ${appInvoices.fromKsef} invoices`);
                     return appInvoices.fromKsef;
                 });
@@ -48,6 +48,17 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
             windowNumber += 1;
         }
         await this.updateJob(userId, { status: "completed", invoicesDownloaded: totalDownloaded });
+    }
+
+    async getBackfillInvoices(userId: string, appUser: AppUser, type: "sales" | "purchase", fromDate: Date, toDate: Date) {
+        await this.updateJob(userId, { status: "running" });
+        try {
+            return await getByDatesRange(this.env, appUser, type, fromDate, toDate);
+        } catch (error) {
+            if (String(error).includes("429"))
+                await this.updateJob(userId, { status: "throttled", error: String(error) });
+            throw error;
+        }
     }
 
     async updateJob(ownerId: string, data: Partial<InvoicesBackfill>) {
