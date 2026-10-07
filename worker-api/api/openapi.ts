@@ -205,7 +205,7 @@ export const getOpenApiSpec = () => ({
                         format: "date-time"
                     }
                 }
-            },			
+            },
             Contractor: {
                 type: "object",
                 additionalProperties: false,
@@ -258,6 +258,22 @@ export const getOpenApiSpec = () => ({
                     notes: {
                         type: "string"
                     }
+                }
+            },
+            InvoiceRecord: {
+                type: "object",
+                required: ["id", "ownerId", "type", "issueDate", "rawXml", "jsonData"],
+                properties: {
+                    id: { type: "string" },
+                    ownerId: { type: "string" },
+                    type: { type: "string", enum: ["sales", "purchase"] },
+                    issueDate: { type: "string", format: "date" },
+                    customerId: { type: "string", nullable: true },
+                    rawXml: { type: "string" },
+                    jsonData: { type: "string" },
+                    notes: { type: "string", nullable: true },
+                    createdAt: { type: "string", nullable: true },
+                    updatedAt: { type: "string", nullable: true }
                 }
             },
             TaxRecord: {
@@ -386,27 +402,54 @@ export const getOpenApiSpec = () => ({
                 security: [{ ApiKeyAuth: [] }],
                 parameters: [
                     {
+                        name: "invoiceNumber",
+                        in: "query",
+                        required: false,
+                        description: "Invoice business number.",
+                        schema: { type: "string" }
+                    },
+                    {
                         name: "from",
                         in: "query",
-                        required: true,
-                        description: "Start date",
+                        required: false,
+                        description: "Start date. Maximum range span 100 calendar days.",
                         schema: { type: "string", format: "date", example: "2026-07-01" }
                     }, {
                         name: "to",
                         in: "query",
-                        required: true,
-                        description: "End date",
-                        schema: { type: "string", format: "date", example: "2026-08-01" }
-                    }, {
-                        name: "invoiceNumber",
-                        in: "query",
                         required: false,
-                        description: "Invoice business number. When set, resolves and downloads that invoice's XML from KSeF within the same from/to range (KSeF's dateRange filter still applies) instead of returning the application models.",
-                        schema: { type: "string" }
+                        description: "End date. Maximum range span 100 calendar days.",
+                        schema: { type: "string", format: "date", example: "2026-08-01" }
                     }
                 ],
                 responses: {
-                    "200": { description: "Purchase invoices" },
+                    "200": {
+                        description: "Sales invoices.",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean" },
+                                        count: { type: "integer" },
+                                        counts: {
+                                            type: "object",
+                                            properties: {
+                                                fromDb: { type: "integer", description: "Invoices found in the application database" },
+                                                fromKsef: { type: "integer", description: "Invoices retrieved fresh from KSeF" }
+                                            }
+                                        },
+                                        result: {
+                                            type: "array",
+                                            items: {
+                                                $ref: "#/components/schemas/InvoiceRecord"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     "400": { description: "Invalid date params" },
                     "401": { description: "Unauthorized" }
                 }
@@ -418,14 +461,14 @@ export const getOpenApiSpec = () => ({
                 requestBody: {
                     required: true,
                     content: {
-                        "application/json": {
+                        "multipart/form-data": {
                             schema: {
                                 type: "object",
-                                required: ["invoice"],
+                                required: ["file"],
                                 properties: {
-                                    invoice: {
-                                        type: "object",
-                                        description: "Invoice payload"
+                                    file: {
+                                        type: "string",
+                                        format: "binary"
                                     }
                                 }
                             }
@@ -539,27 +582,54 @@ export const getOpenApiSpec = () => ({
                 security: [{ ApiKeyAuth: [] }],
                 parameters: [
                     {
+                        name: "invoiceNumber",
+                        in: "query",
+                        required: false,
+                        description: "Invoice business number.",
+                        schema: { type: "string" }
+                    },
+                    {
                         name: "from",
                         in: "query",
-                        required: true,
-                        description: "Start date",
+                        required: false,
+                        description: "Start date. Maximum range span 100 calendar days.",
                         schema: { type: "string", format: "date", example: "2026-07-01" }
                     }, {
                         name: "to",
                         in: "query",
-                        required: true,
-                        description: "End date",
-                        schema: { type: "string", format: "date", example: "2026-08-01" }
-                    }, {
-                        name: "invoiceNumber",
-                        in: "query",
                         required: false,
-                        description: "Invoice business number. When set, resolves and downloads that invoice's XML from KSeF within the same from/to range (KSeF's dateRange filter still applies) instead of returning the application models.",
-                        schema: { type: "string" }
+                        description: "End date. Maximum range span 100 calendar days.",
+                        schema: { type: "string", format: "date", example: "2026-08-01" }
                     }
                 ],
                 responses: {
-                    "200": { description: "Purchase invoices" },
+                    "200": {
+                        description: "Purchase invoices.",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        success: { type: "boolean" },
+                                        count: { type: "integer" },
+                                        counts: {
+                                            type: "object",
+                                            properties: {
+                                                fromDb: { type: "integer", description: "Invoices found in the application database" },
+                                                fromKsef: { type: "integer", description: "Invoices retrieved fresh from KSeF" }
+                                            }
+                                        },
+                                        result: {
+                                            type: "array",
+                                            items: {
+                                                $ref: "#/components/schemas/InvoiceRecord"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     "400": { description: "Invalid date params" },
                     "401": { description: "Unauthorized" }
                 }
@@ -631,13 +701,24 @@ export const getOpenApiSpec = () => ({
                 security: [{ ApiKeyAuth: [] }],
                 parameters: [
                     { name: "id", in: "query", required: false, schema: { type: "string" } },
-                    { name: "format", in: "query", required: false, description: "Set to xml to download the raw invoice XML. Requires id.", schema: {
-                            type: "string", enum: ["xml"]
-                        }
-                    }
+                    { name: "type", in: "query", required: false, schema: { type: "string", enum: ["sales", "purchase"] } },
+                    { name: "from", in: "query", required: false, schema: { type: "string", format: "date" } },
+                    { name: "to", in: "query", required: false, schema: { type: "string", format: "date" } },
                 ],
                 responses: {
-                    "200": { description: "Invoice records or raw XML when format=xml" },
+                    "200": {
+                        description: "Invoice records",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: {
+                                        $ref: "#/components/schemas/InvoiceRecord"
+                                    }
+                                }
+                            }
+                        }
+                    },
                     "401": { description: "Unauthorized" },
                     "404": { description: "Invoice not found" }
                 }

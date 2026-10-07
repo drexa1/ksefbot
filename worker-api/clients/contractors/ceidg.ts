@@ -39,7 +39,7 @@ export async function lookupCEIDG(nip: string, env: Env): Promise<KsefContractor
     if (!ceidgDetails.ok)
         throw new Error(`CEIDG details lookup failed: ${ceidgDetails.status}`);
     const detailsResult = await ceidgDetails.json();
-    const ceidgLookupAvroSchema = await env.assets.fetch(new URL(env.CEIDG_LOOKUP_SCHEMA)).then(res => res.json());
+    const ceidgLookupAvroSchema = await env.ASSETS.fetch(new URL(env.CEIDG_LOOKUP_SCHEMA)).then(res => res.json());
     return mapCEIDG(detailsResult, ceidgLookupAvroSchema);
 }
 

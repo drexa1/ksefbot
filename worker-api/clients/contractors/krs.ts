@@ -49,7 +49,7 @@ export async function lookupKRS(nip: string, env: Env): Promise<KsefContractor> 
     if (!krsDetails.ok)
         throw new Error(`KRS details lookup failed: ${krsDetails.status}`);
     const detailsResult = await krsDetails.json();
-    const krsLookupAvroSchema = await env.assets.fetch(new URL(env.KRS_LOOKUP_SCHEMA)).then(res => res.json());
+    const krsLookupAvroSchema = await env.ASSETS.fetch(new URL(env.KRS_LOOKUP_SCHEMA)).then(res => res.json());
     return mapKRS(detailsResult, krsLookupAvroSchema);
 }
 

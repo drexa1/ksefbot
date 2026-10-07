@@ -1,0 +1,8 @@
+#@no-redirect
+@baseUrl = http://localhost:3001
+@apiKey = test
+
+### Get invoice backfill status
+GET {{baseUrl}}/ksef/backfill
+Accept: application/json
+X-API-Key: {{apiKey}}

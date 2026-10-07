@@ -1,42 +1,43 @@
 import {D1Database} from "@cloudflare/workers-types"
 import {Method, routes} from "./routes/routes";
-import {auth, corsHeaders, withCors} from "./auth";
+import {auth, withCors, corsHeaders} from "./auth";
 
 export interface Env {
-    ENVIRONMENT: "dev" | "cloudflare"
-    TEST_MODE: boolean
+    ENVIRONMENT: "dev" | "cloudflare";
+    TEST_MODE: boolean;
     // SSO
-    GOOGLE_AUTH_URL: string
-    GOOGLE_AUTH_TOKEN_URL: string
-    GOOGLE_AUTH_USERINFO_URL: string
-    GOOGLE_CLIENT_ID: string
-    GOOGLE_CLIENT_SECRET: string
-    GOOGLE_CALLBACK_URI: string
+    GOOGLE_AUTH_URL: string;
+    GOOGLE_AUTH_TOKEN_URL: string;
+    GOOGLE_AUTH_USERINFO_URL: string;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
+    GOOGLE_CALLBACK_URI: string;
     // KSeF (National e-Invoicing System)
-    KSEF_URL: string
-    KSEF_INVOICE_SCHEMA: string
-    KSEF_MIN_TIMEOUT: number
-    KSEF_MAX_TIMEOUT: number
+    KSEF_URL: string;
+    KSEF_INVOICE_SCHEMA: string;
+    KSEF_MIN_TIMEOUT: number;
+    KSEF_MAX_TIMEOUT: number;
     // CEIDG (Central Register on Business Activity)
-    CEIDG_URL: string
-    CEIDG_API_KEY: string
-    CEIDG_LOOKUP_SCHEMA: string
+    CEIDG_URL: string;
+    CEIDG_API_KEY: string;
+    CEIDG_LOOKUP_SCHEMA: string;
     // KRS (National Court Registry)
-    KRS_SEARCH_URL: string
-    KRS_API_URL: string
-    KRS_LOOKUP_SCHEMA: string
+    KRS_SEARCH_URL: string;
+    KRS_API_URL: string;
+    KRS_LOOKUP_SCHEMA: string;
     // VAT payers whitelist
-    VAT_LB_URL: string
-    VAT_LB_LOOKUP_SCHEMA: string
+    VAT_LB_URL: string;
+    VAT_LB_LOOKUP_SCHEMA: string;
     // Taxes
-    DEFAULT_VAT_PERCENTAGE: number
-    DEFAULT_TAX_RATE: number
-    DEFAULT_HEALTH_INSURANCE_BASE: number
-    DEFAULT_HEALTH_INSURANCE_RATE: number
+    DEFAULT_VAT_PERCENTAGE: number;
+    DEFAULT_TAX_RATE: number;
+    DEFAULT_HEALTH_INSURANCE_BASE: number;
+    DEFAULT_HEALTH_INSURANCE_RATE: number;
     // App bindings
-    API_KEY: string
-    D1: D1Database
-    assets: Fetcher
+    API_KEY: string;
+    ASSETS: Fetcher;
+    D1: D1Database;
+    INVOICES_BACKFILL: Workflow<{ userId: string }>;
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -55,3 +56,5 @@ export default {
         return withCors(response);
     }
 };
+
+export {InvoicesBackfillJob} from "./jobs/backfill";

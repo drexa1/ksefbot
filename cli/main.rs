@@ -1,13 +1,11 @@
 use crate::api::users::{create::init_app_user, get_app_user};
-use crate::tui::{inquire, ratatui};
+use crate::tui::inquire;
 use anyhow::Result;
 use strum::{Display, EnumIter};
 
 mod tui {
     #[path = "inquire/inquire.rs"]
     pub mod inquire;
-    #[path = "ratatui/ratatui.rs"]
-    pub mod ratatui;
 }
 mod login;
 mod api {
@@ -36,27 +34,11 @@ pub enum MainMenuAction {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     dotenvy::from_filename("cli/.env").ok();
-    match std::env::var("TUI").as_deref() {
-        Ok("inquire") => {
-            let logged_user = inquire::login_loop().await?;
-            let app_user = match get_app_user(&logged_user).await? {
-                Some(app_user) => app_user,
-                None => init_app_user(&logged_user).await?,
-            };
-            inquire::main_loop(&app_user).await?;
-        }
-        Ok("ratatui") | Err(_) => {
-            ratatui::with_terminal(async |terminal| {
-                let logged_user = ratatui::login_loop(terminal).await?;
-                let app_user = match get_app_user(&logged_user).await? {
-                    Some(app_user) => app_user,
-                    None => init_app_user(&logged_user).await?,
-                };
-                ratatui::main_loop(terminal, &app_user).await
-            })
-            .await?;
-        }
-        Ok(tui) => anyhow::bail!("Unknown TUI implementation: {tui}"),
-    }
+    let logged_user = inquire::login_loop().await?;
+    let app_user = match get_app_user(&logged_user).await? {
+        Some(app_user) => app_user,
+        None => init_app_user(&logged_user).await?,
+    };
+    inquire::main_loop(&app_user).await?;
     Ok(())
 }

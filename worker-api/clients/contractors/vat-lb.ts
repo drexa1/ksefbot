@@ -29,7 +29,7 @@ export async function lookupVATLB(nip: string, env: Env): Promise<KsefContractor
     const vatPayer = await lbLookup.json() as { result?: { subject?: { nip?: string }} };
     if (!vatPayer?.result?.subject?.nip)
         throw new Error(`No VAT payers whitelist entry found for NIP ${nip}`);
-    const vatWhitelistLookupAvroSchema = await env.assets.fetch(new URL(env.VAT_LB_LOOKUP_SCHEMA)).then(res => res.json());
+    const vatWhitelistLookupAvroSchema = await env.ASSETS.fetch(new URL(env.VAT_LB_LOOKUP_SCHEMA)).then(res => res.json());
     return mapVATLB(vatPayer, vatWhitelistLookupAvroSchema);
 }
 

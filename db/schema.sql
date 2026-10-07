@@ -52,17 +52,41 @@ CREATE TABLE contractors (
 
 DROP TABLE IF EXISTS invoices;
 CREATE TABLE invoices (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     -- Owner
     ownerId TEXT NOT NULL REFERENCES users(id),
     -- Parties
     type TEXT NOT NULL CHECK (type IN ('sales', 'purchase')),
+    issueDate DATE NOT NULL,
     customerId TEXT REFERENCES contractors(id),  -- Nullable if 'purchase'
     -- Raw data
     rawXml  TEXT NOT NULL,
     jsonData TEXT NOT NULL CHECK (json_valid(jsonData)),
     notes TEXT,
     -- DBA
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT,
+    PRIMARY KEY (id, ownerId)
+);
+CREATE INDEX invoices_owner_type_date ON invoices(ownerId, type, issueDate);
+
+DROP TABLE IF EXISTS invoices_periods_synced;
+CREATE TABLE invoices_periods_synced (
+    ownerId TEXT NOT NULL REFERENCES users(id),
+    type TEXT NOT NULL CHECK (type IN ('sales', 'purchase')),
+    dateFrom DATE NOT NULL,
+    dateTo DATE NOT NULL,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT,
+    PRIMARY KEY (ownerId, type, dateFrom, dateTo)
+);
+
+DROP TABLE IF EXISTS invoices_backfill;
+CREATE TABLE invoices_backfill (
+    ownerId TEXT PRIMARY KEY REFERENCES users(id),
+    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+    invoicesDownloaded INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT
 );

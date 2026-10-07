@@ -1,0 +1,7 @@
+#@no-redirect
+@baseUrl = http://localhost:3001
+@apiKey = test
+
+### Trigger invoice backfill
+POST {{baseUrl}}/ksef/backfill
+X-API-Key: {{apiKey}}

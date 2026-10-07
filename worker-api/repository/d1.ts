@@ -49,13 +49,26 @@ export class Repository {
         return await this.driver.get(sql, values) as T;
     }
 
-    async getAll<T>(table: string, filters?: Record<string, any>, cols?: string[]): Promise<T[]> {
+    async getAll<T>(
+        table: string,
+        filters?: Record<string, any>,
+        range?: { field: string; start?: string; startInclusive?: boolean; end?: string; endInclusive?: boolean },
+        cols?: string[]
+    ): Promise<T[]> {
         const select = cols?.length ? cols.map(c => `"${c}"`).join(", ") : "*";
         const conditions: string[] = [];
         const values: any[] = [];
         for (const [field, value] of Object.entries(filters ?? {})) {
             conditions.push(`"${field}" = ?`);
             values.push(value);
+        }
+        if (range?.start) {
+            conditions.push(`"${range.field}" ${!range.startInclusive ? ">" : ">="} ?`);
+            values.push(range.start);
+        }
+        if (range?.end) {
+            conditions.push(`"${range.field}" ${!range.endInclusive ? "<" : "<="} ?`);
+            values.push(range.end);
         }
         const where = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
         const sql = `SELECT ${select} FROM ${table} ${where}`;

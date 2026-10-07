@@ -46,3 +46,8 @@ binding = "D1"
 database_name = "ksef-bot"
 database_id = "101428e1-3e1c-479b-a71b-374c1ee24412"
 remote = true
+
+[[workflows]]
+name = "invoices-backfill"
+binding = "INVOICES_BACKFILL"
+class_name = "InvoicesBackfillJob"

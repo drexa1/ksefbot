@@ -83,7 +83,6 @@
 - [ ] CLI: first time flow  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: login with phone  
-- [ ] CLI: implement RataTUI  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone  

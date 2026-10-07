@@ -14,15 +14,18 @@ const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(e
 export async function get(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const url = new URL(req.url);
-    // Allow fetching only owned invoices (except for superadmin)
-    const filters: Record<string, any> = appUser.tier === 0 ? {} : { ownerId: appUser.id };
-    for (const [key, value] of url.searchParams.entries()) {
-        filters[key] = value;
-    }
-    const rows = await getRepo(env).getAll<(AppInvoice & { rawXml: string })>("invoices", filters);
-    return rows.length === 0
+    const filters = Object.fromEntries([...url.searchParams].filter(([key]) => key === "id" || key === "type"));
+    if (appUser.tier !== 0) filters.ownerId = appUser.id;
+    // Query by dates range
+    const fromDate = url.searchParams.has("from") ? new Date(url.searchParams.get("from")!) : undefined;
+    const toDate = url.searchParams.has("to") ? new Date(url.searchParams.get("to")!) : undefined;
+    if ((fromDate && isNaN(fromDate.getTime())) || (toDate && isNaN(toDate.getTime())) || (fromDate && toDate && fromDate > toDate))
+        return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
+    const range = { field: "issueDate", start: fromDate?.toISOString().slice(0, 10), end: toDate?.toISOString().slice(0, 10) };
+    const result = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", filters, range);
+    return result.length === 0
         ? Response.json({ success: false, error: "No invoice found", filters }, { status: 404 })
-        : Response.json(rows.map(row => JSON.parse(row.jsonData)), { status: 200 });
+        : Response.json(result, { status: 200 });
 }
 
 export async function post(req: Request, env: Env): Promise<Response> {
@@ -85,12 +88,13 @@ export async function invoiceFromXml(
 ): Promise<AppInvoice & { ownerId: string }> {
     // Parse XML
     const invoiceXml = xmlParser.parse(xmlContent).Faktura;
-    const ksefInvoiceAvroSchema = await env.assets.fetch(new URL(env.KSEF_INVOICE_SCHEMA)).then((res) => res.json());
+    const ksefInvoiceAvroSchema = await env.ASSETS.fetch(new URL(env.KSEF_INVOICE_SCHEMA)).then((res) => res.json());
     const ksefInvoice = dtoFromAliases(invoiceXml, ksefInvoiceAvroSchema);
     return {
         id: ksefInvoice.InvoiceBody.InvoiceNumber,
         ownerId: appUser.id,
         type: type,
+        issueDate: ksefInvoice.InvoiceBody.IssueDate,
         // Only auto create customers for sales invoices
         ...(type === "sales" && {
             customerId: await getOrCreateContractor(env, {

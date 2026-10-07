@@ -2,6 +2,7 @@ export type AppInvoice = {
     id: string;
     // Parties
     type: "sales" | "purchase";
+    issueDate: string;
     customerId?: string;
     // Raw data
     rawXml: string;
@@ -10,4 +11,24 @@ export type AppInvoice = {
     // DBA
     createdAt?: string;
     updatedAt?: string;
+};
+
+export type InvoicesPeriodsSynced = {
+    ownerId: string;
+    type: "sales" | "purchase";
+    dateFrom: string;
+    dateTo: string;
+    // DBA
+    createdAt: string;
+    updatedAt?: string | null;
+};
+
+export type InvoiceBackfillJob = {
+    ownerId: string;
+    status: "queued" | "running" | "completed" | "failed";
+    invoicesDownloaded: number;
+    error?: string;
+    // DBA
+    createdAt: string;
+    updatedAt?: string | null;
 };

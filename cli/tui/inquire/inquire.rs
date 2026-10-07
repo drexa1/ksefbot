@@ -85,19 +85,19 @@ pub fn prompt_invoice_dates() -> Result<(String, String)> {
     let today = Local::now().date_naive();
     let (last_month_start, last_month_end) = month_range(today, 1);
     let (prev_month_start, prev_month_end) = month_range(today, 2);
-    let specific_dates = "Specific dates (max. allowed by KSeF: 3 months span)".to_string();
+    let specific_dates = "Specific dates (max. allowed by KSeF: 100 days)".to_string();
     let last_month_choice = last_month_start.format("%m %B").to_string();
     let prev_month_choice = prev_month_start.format("%m %B").to_string();
     let choices = vec![prev_month_choice.clone(), last_month_choice.clone(), specific_dates.clone()];
     let selected = Select::new("Invoice date range:", choices).prompt()?;
     if selected == prev_month_choice {
-        Ok((prev_month_start.format("%Y/%m/%d").to_string(), prev_month_end.format("%Y/%m/%d").to_string()))
+        Ok((prev_month_start.format("%Y-%m-%d").to_string(), prev_month_end.format("%Y-%m-%d").to_string()))
     } else if selected == last_month_choice {
-        Ok((last_month_start.format("%Y/%m/%d").to_string(), last_month_end.format("%Y/%m/%d").to_string()))
+        Ok((last_month_start.format("%Y-%m-%d").to_string(), last_month_end.format("%Y-%m-%d").to_string()))
     } else {
         let from = DateSelect::new("From date:").with_starting_date(today).prompt()?;
         let to = DateSelect::new("To date:").with_starting_date(today.max(from)).with_min_date(from).prompt()?;
-        Ok((from.format("%Y/%m/%d").to_string(), to.format("%Y/%m/%d").to_string()))
+        Ok((from.format("%Y-%m-%d").to_string(), to.format("%Y-%m-%d").to_string()))
     }
 }
 

@@ -32,15 +32,16 @@ impl InvoiceType {
 }
 
 pub async fn list_sales_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
-    browse_invoices(app_user, &InvoiceType::Sales, from, to).await
+    let sales_invoices = fetch_invoices(app_user, &InvoiceType::Sales, &from, &to).await?;
+    browse_invoices(&InvoiceType::Sales, sales_invoices).await
 }
 
 pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String) -> anyhow::Result<()> {
-    browse_invoices(app_user, &InvoiceType::Purchases, from, to).await
+    let purchase_invoices = fetch_invoices(app_user, &InvoiceType::Purchases, &from, &to).await?;
+    browse_invoices(&InvoiceType::Purchases, purchase_invoices).await
 }
 
-async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: String, to: String) -> anyhow::Result<()> {
-    let invoices = fetch_invoices(app_user, invoice_type, &from, &to).await?;
+async fn browse_invoices(invoice_type: &InvoiceType, invoices: Vec<serde_json::Value>) -> anyhow::Result<()> {
     if invoices.is_empty() {
         crate::tui::inquire::pause()?;
         return Ok(());
@@ -54,22 +55,23 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
         }
     };
     let item_description = |invoice: &serde_json::Value| -> String {
-        invoice["InvoiceBody"]["InvoiceLines"].as_array().into_iter().flatten()
+        invoice_data(invoice)["InvoiceBody"]["InvoiceLines"].as_array().into_iter().flatten()
             .filter_map(|line| line["ItemDescription"].as_str())
             .map(str::trim)
             .map(&capitalize)
             .collect::<Vec<_>>()
             .join(", ")
     };
-    let invoice_number_width = invoices.iter().map(|i| i["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().len()).max().unwrap_or(0);
-    let counterparty_width = invoices.iter().map(|i| i[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap().len()).max().unwrap_or(0);
+    let invoice_number_width = invoices.iter().map(|i| invoice_data(i)["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().len()).max().unwrap_or(0);
+    let counterparty_width = invoices.iter().map(|i| invoice_data(i)[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap().len()).max().unwrap_or(0);
     let item_description_width = invoices.iter().map(item_description).map(|d| d.len()).max().unwrap_or(0);
     let mut invoice_choices: Vec<String> = invoices.iter().enumerate().map(|(index, invoice)| {
-        let number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
-        let counterparty = invoice[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap();
+        let data = invoice_data(invoice);
+        let number = data["InvoiceBody"]["InvoiceNumber"].as_str().unwrap();
+        let counterparty = data[counterparty_key]["IdentificationData"]["Name"].as_str().unwrap();
         let items = item_description(invoice);
-        let amount = invoice["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
-        let currency = invoice["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
+        let amount = data["InvoiceBody"]["TotalGrossAmount"].as_f64().unwrap();
+        let currency = data["InvoiceBody"]["CurrencyCode"].as_str().unwrap();
         let amount_text = format!("{amount:.2} {currency}");
         let amount_styled = match invoice_type {
             InvoiceType::Sales => amount_text.blue().to_string(),
@@ -85,7 +87,7 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
     }
     let index = selected.split_once(". ").unwrap().0.parse::<usize>()? - 1;
     let invoice = &invoices[index];
-    let invoice_number = invoice["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().to_string();
+    let invoice_number = invoice_data(invoice)["InvoiceBody"]["InvoiceNumber"].as_str().unwrap().to_string();
     let action = Select::new(&format!("Invoice {}", invoice_number.clone().bold()), vec![
         "👀 Preview",
         "📂 Download XML",
@@ -97,7 +99,7 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
             crate::tui::inquire::pause()?;
         }
         "📂 Download XML" => {
-            let path = download_invoice_xml(app_user, invoice_type, invoice, &invoice_number, &from, &to).await?;
+            let path = download_invoice_xml(invoice_type, invoice, &invoice_number)?;
             println!("  📂 Invoice XML saved to {}", path.display().to_string().dark_yellow());
             crate::tui::inquire::pause()?;
         }
@@ -108,9 +110,10 @@ async fn browse_invoices(app_user: &AppUser, invoice_type: &InvoiceType, from: S
 
 fn print_invoice_preview(invoice: &serde_json::Value, invoice_type: &InvoiceType) {
     println!();
-    let body = &invoice["InvoiceBody"];
+    let invoice_data = invoice_data(invoice);
+    let body = &invoice_data["InvoiceBody"];
     let counterparty_key = match invoice_type { InvoiceType::Sales => "Buyer", InvoiceType::Purchases => "Seller" };
-    let counterparty = &invoice[counterparty_key]["IdentificationData"];
+    let counterparty = &invoice_data[counterparty_key]["IdentificationData"];
     let currency = body["CurrencyCode"].as_str().unwrap();
     let gross = format!("{:.2} {}", body["TotalGrossAmount"].as_f64().unwrap(), currency);
     let net = format!("{:.2} {}", body["TotalNetAmount"].as_f64().unwrap(), currency);
@@ -156,36 +159,34 @@ async fn fetch_invoices(app_user: &AppUser, endpoint: &InvoiceType, from: &str, 
         serde_json::Value::Array(array) => array,
         _ => Vec::new()
     };
-    println!("  API Response: {} invoices [{} {}] found", invoices.len(), endpoint.emoji(), endpoint);
-    Ok(invoices)
+    println!(
+        "  API Response: {} invoices [{} {}] found ({} existing, {} synced)",
+        invoices.len(),
+        endpoint.emoji(),
+        endpoint,
+        json["counts"]["fromDb"].as_u64().unwrap(),
+        json["counts"]["fromKsef"].as_u64().unwrap()
+    );
+    parse_invoice_rows(invoices)
 }
 
-async fn download_invoice_xml(app_user: &AppUser, invoice_type: &InvoiceType, invoice: &serde_json::Value, invoice_number: &str, from: &str, to: &str) -> anyhow::Result<PathBuf> {
-    let mut url = reqwest::Url::parse(&format!("{}/ksef/{invoice_type}", cf_worker_url!()))?;
-    url.query_pairs_mut()
-        .append_pair("invoiceNumber", invoice_number)
-        .append_pair("from", from)
-        .append_pair("to", to);
-    let response = crate::api::client::http_client()
-        .get(url)
-        .header("CF-Access-Client-Id", cf_client_id!())
-        .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
-        .header("X-User-Id", &app_user.id)
-        .header("Accept", "application/xml")
-        .send()
-        .await?
-        .error_for_status()?;
-    let content_type = response.headers().get(reqwest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("missing Content-Type")
-        .to_string();
-    let xml = response.text().await?;
-    if !content_type.to_ascii_lowercase().contains("xml") || !xml.trim_start().starts_with("<?xml")
-    {
-        anyhow::bail!("Expected invoice XML, but the server returned {content_type}.");
-    }
-    let issue_date = invoice["InvoiceBody"]["IssueDate"].as_str()
+fn parse_invoice_rows(rows: Vec<serde_json::Value>) -> anyhow::Result<Vec<serde_json::Value>> {
+    rows.into_iter().map(|mut row| {
+        if let Some(json_data) = row.get("jsonData").and_then(serde_json::Value::as_str).map(str::to_owned) {
+            let parsed = serde_json::from_str(&json_data)?;
+            row["jsonData"] = parsed;
+        }
+        Ok(row)
+    }).collect()
+}
+
+pub fn invoice_data(invoice: &serde_json::Value) -> &serde_json::Value {
+    invoice.get("jsonData").filter(|data| data.is_object()).unwrap()
+}
+
+fn download_invoice_xml(invoice_type: &InvoiceType, invoice: &serde_json::Value, invoice_number: &str) -> anyhow::Result<PathBuf> {
+    let xml = invoice["rawXml"].as_str().ok_or_else(|| anyhow::anyhow!("Invoice missing XML content"))?;
+    let issue_date = invoice_data(invoice)["InvoiceBody"]["IssueDate"].as_str()
         .and_then(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
         .ok_or_else(|| anyhow::anyhow!("Invoice is missing a valid issue date"))?;
     let safe_number: String = invoice_number.chars().map(|character| {
