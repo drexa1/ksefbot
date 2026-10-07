@@ -81,29 +81,30 @@ export async function getByDatesRange(env: Env, appUser: AppUser, type: "sales" 
     const ksefInvoices = await syncWithKsef(env, appUser, type, fromDate, toDate);
     // Retrieve the final list including those newly saved invoices
     const appInvoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", {ownerId: appUser.id, type}, range);
-    return { appInvoices, fromDb: existingAppInvoices.length, fromKsef: ksefInvoices.count };
+    return { appInvoices, fromDb: existingAppInvoices.length, fromKsef: ksefInvoices.downloaded };
 }
 
 async function syncWithKsef(env: Env, appUser: AppUser, type: "sales" | "purchase", from: string, to: string) {
     const uncoveredPeriods = await findUncoveredPeriods(env, appUser.id, type, from, to);
-    let count = 0;
+    let downloaded = 0;
     let inserted = 0;
     for (const period of uncoveredPeriods) {
         const fromDate = new Date(period.from);
         const toDate = new Date(`${period.to}T23:59:59.999Z`);
-        const result = await fetchFromKsefForPeriod(env, appUser, type, fromDate, toDate);
-        count += result.count;
+        const result = await downloadFromKsefForPeriod(env, appUser, type, fromDate, toDate);
+        downloaded += result.downloaded;
         inserted += result.inserted;
     }
-    return { count, inserted };
+    return { downloaded, inserted };
 }
 
-async function fetchFromKsefForPeriod(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date) {
+async function downloadFromKsefForPeriod(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date) {
     const client = new KsefClient(env);
-    const invoiceMetadata = await client.queryInvoiceMetadata(appUser, type, undefined, from, to);
+    const invoicesMetadata = await client.queryInvoiceMetadata(appUser, type, undefined, from, to);
     let inserted = 0;
-    for (let batchStart = 0; batchStart < invoiceMetadata.invoices.length; batchStart += 20) {
-        const invoices = await Promise.all(invoiceMetadata.invoices.slice(batchStart, batchStart + 20).map(async invoiceMetadata => {
+    // FIXME: why looping?
+    for (let batchStart = 0; batchStart < invoicesMetadata.invoices.length; batchStart += 20) {
+        const invoices = await Promise.all(invoicesMetadata.invoices.slice(batchStart, batchStart + 20).map(async invoiceMetadata => {
             const xml = await client.downloadInvoice(invoiceMetadata.ksefNumber);
             return invoiceFromXml(env, xml, appUser, type, "Downloaded from KSeF");
         }));
@@ -112,5 +113,5 @@ async function fetchFromKsefForPeriod(env: Env, appUser: AppUser, type: "sales" 
     }
     if (type === "sales")
         await saveSyncPeriod(env, appUser.id, "sales", from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
-    return { count: invoiceMetadata.invoices.length, inserted };
+    return { downloaded: invoicesMetadata.invoices.length, inserted: inserted };
 }
