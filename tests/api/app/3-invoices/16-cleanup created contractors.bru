@@ -1,14 +1,14 @@
 delete {
-    url: {{baseUrl}}/app/contractors
+    url: {{baseUrl}}/app/contractors?id={{createdCustomerId}}
 }
 headers {
     Content-Type: application/json
     X-API-Key: {{apiKey}}
 }
 tests {
-    test("Delete all contractors", function() {
+    test("Delete the contractor created by the invoice", function() {
         console.info(res.body);
-        const createdCustomers = JSON.parse(bru.getCollectionVar("createdCustomers"));
-        expect(res.body.changes).to.equal(createdCustomers.length);
+        expect(res.status).to.equal(200);
+        expect(res.body.changes).to.equal(1);
     })
 }

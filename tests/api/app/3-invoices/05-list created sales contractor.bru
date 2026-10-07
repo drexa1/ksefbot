@@ -11,3 +11,6 @@ tests {
         expect(res.body[0].nip).to.equal(bru.getCollectionVar("salesInvoiceCustomerId"));
     })
 }
+script:post-response {
+    bru.setCollectionVar("createdCustomerId", res.body[0].id);
+}

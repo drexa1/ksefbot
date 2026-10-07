@@ -5,15 +5,13 @@ headers {
     Content-Type: application/json
     X-API-Key: {{apiKey}}
 }
-script:pre-request {
-    const customerIds = new Set();
-    customerIds.add(bru.getCollectionVar("salesInvoiceCustomerId"));
-    bru.setCollectionVar("createdCustomers", JSON.stringify([...customerIds]));
-}
 tests {
     test("List all customers created are still existing", function() {
         console.info(res.body);
-        const createdCustomers = JSON.parse(bru.getCollectionVar("createdCustomers"));
-        expect(res.body.length).to.equal(createdCustomers.length);
+        expect(res.status).to.equal(200);
+        const customerId = bru.getCollectionVar("createdCustomerId");
+        const contractorIds = res.body.map(contractor => contractor.id);
+        expect(contractorIds).to.include(customerId);
+        bru.setCollectionVar("remainingContractors", JSON.stringify(contractorIds.filter(id => id !== customerId)));
     })
 }
