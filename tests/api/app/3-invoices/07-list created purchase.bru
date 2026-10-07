@@ -7,9 +7,11 @@ headers {
 }
 tests {
     test("List the recently created purchases invoice", function() {
-        expect(res.body[0].InvoiceBody.InvoiceNumber).to.equal(bru.getCollectionVar("purchaseInvoiceId"));
+        const invoice = JSON.parse(res.body[0].jsonData);
+        expect(invoice.InvoiceBody.InvoiceNumber).to.equal(bru.getCollectionVar("purchaseInvoiceId"));
     })
 }
 script:post-response {
-     bru.setCollectionVar("purchaseInvoiceContractorId", res.body[0].Seller.IdentificationData.NIP);
+     const invoice = JSON.parse(res.body[0].jsonData);
+     bru.setCollectionVar("purchaseInvoiceContractorId", invoice.Seller.IdentificationData.NIP);
 }
