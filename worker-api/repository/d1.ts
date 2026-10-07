@@ -75,17 +75,17 @@ export class Repository {
         return await this.driver.getAll(sql, values) as T[];
     }
 
-    async save<T>(table: string, data: T): Promise<DBResult> {
-        const { sql, values } = this.buildInsert(table, data);
+    async save<T>(table: string, data: T, ignore = false): Promise<DBResult> {
+        const { sql, values } = this.buildInsert(table, data, ignore);
         return this.driver.save(sql, values);
     }
 
-    private buildInsert<T>(table: string, data: T) {
+    private buildInsert<T>(table: string, data: T, ignore = false) {
         const entries = Object.entries(data as any);
         const columns = entries.map(([k]) => `"${k}"`).join(", ");
         const placeholders = entries.map(() => "?").join(", ");
         const values = entries.map(([_, v]) => v instanceof Date ? v.toISOString() : v);
-        const sql = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`;
+        const sql = `INSERT ${ignore ? "OR IGNORE " : ""}INTO ${table} (${columns}) VALUES (${placeholders})`;
         return { sql, values };
     }
 
