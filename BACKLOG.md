@@ -79,7 +79,7 @@
 - [x] Schedule daily tests  
 - [x] Remove testing contractors from populate script  
 - [x] CLI: create customer from online lookup  
-- [ ] CLI: show periods coverage widget  
+- [x CLI: show periods coverage widget  
 - [ ] Manual testing of CLI backfill option  
 - [ ] Move invoiceToXml completely to worker
 - [ ] CLI: first time flow  
