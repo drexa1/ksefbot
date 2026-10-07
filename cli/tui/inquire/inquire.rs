@@ -111,7 +111,7 @@ fn invoice_months(today: NaiveDate, months: &[bool; 12]) -> String {
     months.iter().enumerate().map(|(index, present)| {
         let marker = if *present { "🧾" } else { " " };
         if index == today.month0() as usize {
-            format!("{}{marker}{}", "[".cyan(), "]".cyan())
+            format!("{}{}*{}", "[".dark_yellow(), if *present { "🧾" } else { "" }, "]".dark_yellow())
         } else {
             format!("[{marker}]")
         }
@@ -295,7 +295,6 @@ fn move_to_submitted(source: &Path) -> Result<PathBuf> {
 }
 
 pub fn pause() -> Result<()> {
-    println!();
     Text::new("Press [Enter] to go back to the main menu...").prompt()?;
     execute!(io::stdout(), Clear(ClearType::All), MoveTo(0, 0))?;
     Ok(())

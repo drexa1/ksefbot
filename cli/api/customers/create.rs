@@ -48,7 +48,7 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
                 println!("  We found the contractor but it is no longer active.");
             }
             if !Confirm::new(&format!(
-                "A customer with NIP {nip} could not be found in the government databases. \
+                "A company with NIP {nip} could not be found in the government databases.\n\
                  Do you want to create it by filling in the details?:"
             )).with_default(true).prompt()? {
                 return Ok(());
@@ -75,11 +75,10 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     let status = response.status();
     let body: serde_json::Value = response.json().await?;
     if !status.is_success() || body["success"].as_bool() != Some(true) {
-        anyhow::bail!("Contractor creation failed: {}", body["error"].as_str().unwrap_or("unknown error"));
+        anyhow::bail!("Contractor creation failed: {}", body["error"].as_str().unwrap());
     }
     println!();
-    println!("  ✅ Contractor created successfully.");
-    println!("  Contractor ID: {}", body["id"].as_str().unwrap_or("-"));
+    println!("  💼 Contractor created successfully.");
     Ok(())
 }
 
