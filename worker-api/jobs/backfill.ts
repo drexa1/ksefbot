@@ -28,7 +28,13 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
             fromDate.setUTCDate(fromDate.getUTCDate() - this.env.KSEF_MAX_DATES_RANGE + 1);
             if (fromDate < historyStart) fromDate.setTime(historyStart.getTime());
             for (const type of ["sales", "purchase"] as const) {
-                const downloadedFromKsef = await step.do(`metadata-${type}-${windowNumber}`, async () => {
+                const downloadedFromKsef = await step.do(`metadata-${type}-${windowNumber}`, {
+                    retries: {
+                        limit: 3,
+                        // KSeF published limits for metadata queries: 8/sec, 16/min, and 20/hour
+                        delay: ({ctx, error}) => String(error).includes("429") ? "1 hour" : `${10 * 2 ** (ctx.attempt - 1)} seconds`
+                    }
+                }, async () => {
                     const appInvoices = await getByDatesRange(this.env, appUser, type, fromDate, toDate);
                     console.info(`⏪ [${type}] Backfill step (${windowNumber}) from ${fromDate.toISOString()} to ${toDate.toISOString()}: ${appInvoices.fromKsef} invoices`);
                     return appInvoices.fromKsef;
