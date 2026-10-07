@@ -48,7 +48,7 @@ function mapCEIDG(result: any, schema: any): KsefContractor {
     const company = dto.companies?.[0];
     const address = company.correspondenceAddress;
     const building = [address?.buildingNumber, address?.apartmentNumber ? `/${address.apartmentNumber}` : undefined].filter(Boolean).join("");
-    const addressLine = [address?.city, address?.postalCode, building].filter(Boolean).join(", ");
+    const addressLine = [address?.city, address?.postalCode, [address?.street, building].filter(Boolean).join(" ")].filter(Boolean).join(", ");
     return {
         source: "CEIDG",
         name: titleCase(company?.name),
