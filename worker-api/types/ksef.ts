@@ -1,8 +1,3 @@
-export interface KsefContextIdentifier {
-    type: "Nip" | "InternalId" | "NipVatUe" | "PeppolId";
-    value: string;
-}
-
 export type KsefAuthenticationStatus = {
     status: {
         code: number;
