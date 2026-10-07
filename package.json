@@ -46,6 +46,7 @@
         "concurrently": "latest",
         "fast-xml-builder": "latest",
         "fast-xml-parser": "latest",
+        "modern-tar": "latest",
         "p-retry": "latest",
         "pkijs": "latest",
         "vite": "latest"
