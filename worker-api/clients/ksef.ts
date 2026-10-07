@@ -5,15 +5,14 @@ import {
     KsefContextIdentifier,
     InvoiceEncryptionData,
     KsefAuthenticationStatus,
-    KsefInvoiceQueryResult
+    KsefInvoiceQueryResult,
+    KsefBackfillStatus
 } from "../types/ksef";
-import {invoiceFromXml} from "../routes/app/invoices";
 import * as asn1js from "asn1js";
 import * as pkijs from "pkijs";
 
 class KsefClientBase {
     token?: string;
-
     constructor(protected env: Env) {}
 
     async authenticate(appUser: AppUser): Promise<void> {
@@ -259,7 +258,12 @@ class KsefClientBase {
         return btoa(binary);
     }
 
-    private toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+    async decryptExportPart(encrypted: Uint8Array, cipherKey: Uint8Array, cipherIv: Uint8Array): Promise<Uint8Array> {
+        const key = await crypto.subtle.importKey("raw", this.toArrayBuffer(cipherKey), { name: "AES-CBC" }, false, ["decrypt"]);
+        return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-CBC", iv: this.toArrayBuffer(cipherIv) }, key, this.toArrayBuffer(encrypted)));
+    }
+
+    protected toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
         const buffer = new ArrayBuffer(bytes.byteLength);
         new Uint8Array(buffer).set(bytes);
         return buffer;
@@ -289,25 +293,15 @@ class KsefClientBase {
 
 export class KsefClient extends KsefClientBase {
 
-    async queryPurchaseInvoices(env: Env, appUser: AppUser, subjectType: "Subject1" | "Subject2", from: Date, to: Date) {
+    async queryInvoiceMetadata(appUser: AppUser, type: "sales" | "purchase", invoiceNumber?: string, from?: Date, to?: Date): Promise<KsefInvoiceQueryResult> {
         // Authentication
         await super.authenticate(appUser);
-        // Query invoice metadata
-        const metadataResult = await this.queryInvoiceMetadata(subjectType, undefined, from, to);
-        console.info("📋️️ Downloaded invoices metadata...");
-        // Download invoice XML files
-        return await Promise.all(metadataResult.invoices.map(async invoiceMetadata => {
-            const xmlContent = await this.downloadInvoice(invoiceMetadata.ksefNumber);
-            console.info(`${subjectType === "Subject1" ? "💵" : "💳" }`+ "️ Downloaded invoice:", invoiceMetadata.invoiceNumber);
-            const type = subjectType === "Subject1" ? "sales" : "purchase";
-            return await invoiceFromXml(env, xmlContent, appUser, type, "Downloaded from KSeF");
-        }));
-    }
-
-    async queryInvoiceMetadata(subjectType: "Subject1" | "Subject2", invoiceNumber?: string, from?: Date, to?: Date): Promise<KsefInvoiceQueryResult> {
+        // Request body
+        const subjectType = type === "sales" ? "Subject1" : "Subject2";
         const dateRange = {
             dateType: "Issue" as const,
-            from: (from ?? new Date(Date.now() - 100 * 86_400_000)).toISOString(), ...(to && { to: to.toISOString() })
+            from: (from ?? new Date(Date.now() - 100 * 86_400_000)).toISOString(),
+            ...(to && { to: to.toISOString() })
         };
         const response = await fetch(`${this.env.KSEF_URL}/invoices/query/metadata?pageOffset=0&pageSize=100`, {
             method: "POST",
@@ -318,6 +312,7 @@ export class KsefClient extends KsefClientBase {
             const errorBody = await response.text();
             throw new Error(`KSeF query failed ${response.status}: ${errorBody}`);
         }
+        console.info("📋️️ Downloaded invoices metadata...");
         return await response.json() as KsefInvoiceQueryResult;
     }
 
@@ -359,6 +354,8 @@ export class KsefClient extends KsefClientBase {
         }
     }
 
+    // Session debug ---------------------------------------------------------------------------------------------------
+
     async getSessionStatus(sessionReferenceNumber?: string) {
         const url = sessionReferenceNumber
             ? `${this.env.KSEF_URL}/sessions/${sessionReferenceNumber}`
@@ -370,6 +367,7 @@ export class KsefClient extends KsefClientBase {
         return JSON.parse(body);
     }
 
+    // noinspection JSUnusedGlobalSymbols
     async getSessionInvoices(sessionReferenceNumber: string) {
         const url = `${this.env.KSEF_URL}/sessions/${sessionReferenceNumber}/invoices`;
         const response = await fetch(url, { headers: { Authorization: `Bearer ${this.token}` }});
@@ -386,5 +384,36 @@ export class KsefClient extends KsefClientBase {
         if (!response.ok)
             throw new Error(`KSeF invoice status failed ${response.status}: ${body}`);
         return JSON.parse(body);
+    }
+
+    // 🐣 Initial backfill ---------------------------------------------------------------------------------------------
+
+    async triggerInvoicesExport(type: "sales" | "purchase", from: string, to: string) {
+        const subjectType = type === "sales" ? "Subject1" : "Subject2";
+        const { certificate } = await this.getKsefEncryptionCertificate(this.env, "SymmetricKeyEncryption");
+        const publicKey = await this.importKsefPublicKey(certificate);
+        const encryption = await this.createInvoiceEncryptionData(publicKey);
+        const response = await fetch(`${this.env.KSEF_URL}/invoices/exports`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                encryption: { encryptedSymmetricKey: encryption.encryptedSymmetricKey, initializationVector: encryption.initializationVector },
+                filters: { subjectType, dateRange: { dateType: "PermanentStorage", from, to, restrictToPermanentStorageHwmDate: true } },
+                compressionType: "TarGz"
+            })
+        });
+        if (!response.ok)
+            throw new Error(`KSeF invoice export failed ${response.status}: ${await response.text()}`);
+        const result = await response.json() as { referenceNumber: string };
+        return { referenceNumber: result.referenceNumber, cipherKey: encryption.cipherKey, cipherIv: encryption.cipherIv };
+    }
+
+    async getExportStatus(referenceNumber: string): Promise<KsefBackfillStatus> {
+        const response = await fetch(`${this.env.KSEF_URL}/invoices/exports/${referenceNumber}`, {
+            headers: { Authorization: `Bearer ${this.token}` }
+        });
+        if (!response.ok)
+            throw new Error(`KSeF invoice export status failed ${response.status}: ${await response.text()}`);
+        return await response.json() as KsefBackfillStatus;
     }
 }
