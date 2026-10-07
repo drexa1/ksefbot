@@ -1,5 +1,5 @@
 import {Env} from "../../worker";
-import {getInvoices} from "./ksef";
+import {getInvoices} from "./ksef-common";
 
 /**
  * Invoices where the user is the invoicee.
