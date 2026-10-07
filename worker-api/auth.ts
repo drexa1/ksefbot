@@ -35,12 +35,12 @@ export async function auth(req: Request, env: Env): Promise<boolean> {
             return true;
         //🔒 Protected routes
         case "/whoami":
+        case "/ksef/backfill":
         case "/ksef/sales":
         case "/ksef/sales/sessions":
         case "/ksef/sales/status":
         case "/ksef/sales/receipt":
         case "/ksef/purchases":
-        case "/ksef/backfill":
         case "/gov/contractors":
         case "/gov/ceidg":
         case "/gov/krs":

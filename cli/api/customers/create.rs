@@ -77,7 +77,6 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     if !status.is_success() || body["success"].as_bool() != Some(true) {
         anyhow::bail!("Contractor creation failed: {}", body["error"].as_str().unwrap());
     }
-    println!();
     println!("  💼 Contractor created successfully.");
     Ok(())
 }

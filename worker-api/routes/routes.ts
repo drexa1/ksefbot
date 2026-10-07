@@ -52,12 +52,12 @@ export const routes: Record<string, Routes> =  {
     "/health":              { GET: healthGET },
     //🔒 Requiring authentication
     "/whoami":               withErrorHandling({ GET: whoamiGET }),
+    "/ksef/backfill":        withErrorHandling({ GET: status, POST: start }),
     "/ksef/sales":           withErrorHandling({ GET: salesGET, POST: salesPOST }),
     "/ksef/sales/status":    withErrorHandling({ GET: invoiceStatusGET }),
     "/ksef/sales/sessions":  withErrorHandling({ GET: sessionsGET }),
     "/ksef/sales/receipt":   withErrorHandling({ GET: receiptGET }),
     "/ksef/purchases":       withErrorHandling({ GET: purchaseGET }),
-    "/ksef/backfill":        withErrorHandling({ GET: status, POST: start }),
     "/gov/contractors":      withErrorHandling({ GET: govContractorsGET }),
     "/gov/ceidg":            withErrorHandling({ GET: ceidgGET }),
     "/gov/krs":              withErrorHandling({ GET: krsGET }),
