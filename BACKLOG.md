@@ -75,11 +75,11 @@
 - [x] Fix tests failing after refactor  
 - [x] Review invoice xml vs json modes  
 - [x] Review invoice caching  
-- [x] Add backfill REST tests for entrypoint
+- [x] Add backfill REST tests for entrypoint  
+- [x] Schedule daily tests  
 - [ ] CLI: show periods coverage widget  
 - [ ] Manual testing of CLI backfill option  
-- [ ] Move invoiceToXml completely to worker  
-- [ ] Schedule daily tests
+- [ ] Move invoiceToXml completely to worker
 - [ ] CLI: create customer from online lookup  
 - [ ] CLI: first time flow  
 - [ ] CLI: simplified vs custom invoice create  
