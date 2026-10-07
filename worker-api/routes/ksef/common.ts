@@ -3,6 +3,7 @@ import {getAuthUser} from "../../auth";
 import {AppUser} from "../../types/users";
 import {AppInvoice} from "../../types/invoices";
 import {KsefClient} from "../../clients/ksef";
+import {KsefInvoiceMetadata} from "../../types/ksef";
 import {D1Driver, Repository} from "../../repository/d1";
 import {invoiceFromXml} from "../app/invoices";
 import {findUncoveredPeriods, saveSyncPeriod} from "./sync-periods";
@@ -47,71 +48,56 @@ export async function getInvoices(req: Request, env: Env, type: "sales" | "purch
 }
 
 async function getByInvoiceNumber(env: Env, appUser: AppUser, type: "sales" | "purchase", invoiceNumber: string, from?: Date, to?: Date) {
-    // Try first to find app invoice in database
-    const appInvoice = await getRepo(env).get<AppInvoice & { ownerId: string }>("invoices", {
-        id: invoiceNumber,
-        ownerId: appUser.id,
-        type: type
-    });
+    const appInvoice = await getRepo(env).get<AppInvoice & { ownerId: string }>("invoices", {id: invoiceNumber, ownerId: appUser.id, type});
     if (appInvoice)
         return { invoice: appInvoice, fromDb: 1, fromKsef: 0 };
-    // Try to find it in KSeF
     const client = new KsefClient(env);
-    // Query KSeF invoices metadata
     const metadata = await client.queryInvoiceMetadata(appUser, type, invoiceNumber, from, to);
-    if (!metadata.invoices[0])
+    const [ksefInvoice] = await downloadInvoices(env, appUser, type, client, metadata.invoices.slice(0, 1));
+    if (!ksefInvoice)
         return { invoice: null, fromDb: 0, fromKsef: 0 };
-    // Request invoice XML
-    const ksefInvoiceXml = await client.downloadInvoice(metadata.invoices[0]?.ksefNumber);
-    // Map KSeF invoice XML to app invoice
-    const ksefInvoice = await invoiceFromXml(env, ksefInvoiceXml, appUser, type, "Downloaded from KSeF");
-    // Save as app invoice
-    await getRepo(env).save("invoices", ksefInvoice, true);
     return { invoice: ksefInvoice, fromDb: 0, fromKsef: 1 };
 }
 
 /// Also used from tax record computations
 export async function getByDatesRange(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date) {
-    const fromDate = from.toISOString().slice(0, 10);
-    const toDate = to.toISOString().slice(0, 10);
-    const range = {field: "issueDate", start: fromDate, startInclusive: true, end: toDate, endInclusive: true};
+    const range = {
+        field: "issueDate",
+        start: from.toISOString().slice(0, 10),
+        end: to.toISOString().slice(0, 10),
+        startInclusive: true,
+        endInclusive: true
+    };
     // Read matching invoices already in the database
-    const existingAppInvoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", {ownerId: appUser.id, type}, range);
+    const existingAppInvoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", { ownerId: appUser.id, type }, range);
     // This might download more invoices
-    const ksefInvoices = await syncWithKsef(env, appUser, type, fromDate, toDate);
+    const ksefInvoices = await syncWithKsef(env, appUser, type, from, to);
     // Retrieve the final list including those newly saved invoices
-    const appInvoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", {ownerId: appUser.id, type}, range);
+    const appInvoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", { ownerId: appUser.id, type }, range);
     return { appInvoices, fromDb: existingAppInvoices.length, fromKsef: ksefInvoices.downloaded };
 }
 
-async function syncWithKsef(env: Env, appUser: AppUser, type: "sales" | "purchase", from: string, to: string) {
+async function syncWithKsef(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date) {
+    // Compute periods without sync coverage
     const uncoveredPeriods = await findUncoveredPeriods(env, appUser.id, type, from, to);
-    let downloaded = 0;
-    let inserted = 0;
-    for (const period of uncoveredPeriods) {
-        const fromDate = new Date(period.from);
-        const toDate = new Date(`${period.to}T23:59:59.999Z`);
-        const result = await downloadFromKsefForPeriod(env, appUser, type, fromDate, toDate);
-        downloaded += result.downloaded;
-        inserted += result.inserted;
-    }
-    return { downloaded, inserted };
+    const client = new KsefClient(env);
+    return {
+        downloaded: await uncoveredPeriods.reduce(async (total, period) => {
+            const fromDate = new Date(period.from);
+            const toDate = new Date(`${period.to}T23:59:59.999Z`);
+            const invoicesMetadata = await client.queryInvoiceMetadata(appUser, type, undefined, fromDate, toDate);
+            const invoices = await downloadInvoices(env, appUser, type, client, invoicesMetadata.invoices);
+            await saveSyncPeriod(env, appUser.id, type, period.from, period.to);
+            return await total + invoices.length;
+        }, Promise.resolve(0))
+    };
 }
 
-async function downloadFromKsefForPeriod(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date) {
-    const client = new KsefClient(env);
-    const invoicesMetadata = await client.queryInvoiceMetadata(appUser, type, undefined, from, to);
-    let inserted = 0;
-    // FIXME: why looping?
-    for (let batchStart = 0; batchStart < invoicesMetadata.invoices.length; batchStart += 20) {
-        const invoices = await Promise.all(invoicesMetadata.invoices.slice(batchStart, batchStart + 20).map(async invoiceMetadata => {
-            const xml = await client.downloadInvoice(invoiceMetadata.ksefNumber);
-            return invoiceFromXml(env, xml, appUser, type, "Downloaded from KSeF");
-        }));
-        for (const invoice of invoices)
-            inserted += (await getRepo(env).save("invoices", invoice, true)).changes;
-    }
-    if (type === "sales")
-        await saveSyncPeriod(env, appUser.id, "sales", from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
-    return { downloaded: invoicesMetadata.invoices.length, inserted: inserted };
+async function downloadInvoices(env: Env, appUser: AppUser, type: "sales" | "purchase", client: KsefClient, metadata: KsefInvoiceMetadata[]) {
+    return await Promise.all(metadata.map(async invoiceMetadata => {
+        const invoiceXml = await client.downloadInvoice(invoiceMetadata.ksefNumber);
+        const appInvoice = await invoiceFromXml(env, invoiceXml, appUser, type, "Downloaded from KSeF");
+        await getRepo(env).save("invoices", appInvoice, true);
+        return appInvoice;
+    }));
 }
