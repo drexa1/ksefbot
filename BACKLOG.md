@@ -77,10 +77,11 @@
 - [x] Review invoice caching  
 - [x] Add backfill REST tests for entrypoint  
 - [x] Schedule daily tests  
+- [x] Remove testing contractors from populate script  
+- [x] CLI: create customer from online lookup  
 - [ ] CLI: show periods coverage widget  
 - [ ] Manual testing of CLI backfill option  
 - [ ] Move invoiceToXml completely to worker
-- [ ] CLI: create customer from online lookup  
 - [ ] CLI: first time flow  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: login with phone  

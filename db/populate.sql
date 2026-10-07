@@ -13,3 +13,13 @@ INSERT INTO users (id, language, phone, email, apiKey, tier, ksefApiToken, defau
     '80102028920000550210154088'
 );
 --companyLogo: X'0000010001002020000001002000A8040000160000002800000020000000400000000100200000000000000000000000000000000000000000000000000029B880FF2AB880FF2BB880FF2CB980FF2DB980FF2EB980FF2FB980FF30BA80FF31BA80FF32BA80FF',
+
+-- Create the associated contractor data
+INSERT INTO contractors (id, ownerId, name, nip, addressL1, notes) VALUES (
+    '6751577878',
+    '6751577878',
+    'Diego Ruiz Barbero Software Engineering & Data Science',
+    '6751577878',
+    'Kraków, 30-638, 15/32',
+    'seller'
+);
