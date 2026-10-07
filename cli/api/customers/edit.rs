@@ -1,4 +1,4 @@
-use super::{assemble_address_l1, other_contractors, parse_address_l1};
+use super::{assemble_address_line, other_contractors, parse_address_l1};
 use crate::api::users::AppUser;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
 use crossterm::style::Stylize;
@@ -47,7 +47,7 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
     let original = contractor.clone();
     let (mut city, mut postal_code, mut street, mut building_number, mut apartment_number) = parse_address_l1(&contractor.address_l1);
     loop {
-        contractor.address_l1 = assemble_address_l1(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
+        contractor.address_l1 = assemble_address_line(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
         println!();
         let keys = ["Name", "NIP", "PESEL", "REGON", "Internal identifier", "City", "Postal code", "Street", "Building number", "Apartment number", "Notes"];
         let values = [
@@ -88,7 +88,7 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
             _ => return Ok(false),
         }
     }
-    contractor.address_l1 = assemble_address_l1(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
+    contractor.address_l1 = assemble_address_line(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
     println!();
     if contractor == original {
         println!("  No changes made.");

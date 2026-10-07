@@ -60,7 +60,7 @@ pub(super) async fn other_contractors(app_user: &AppUser) -> anyhow::Result<Vec<
         .collect())
 }
 
-pub(super) fn assemble_address_l1(city: &str, postal_code: &str, street: Option<&str>, building_number: &str, apartment_number: Option<&str>) -> String {
+pub(super) fn assemble_address_line(city: &str, postal_code: &str, street: Option<&str>, building_number: &str, apartment_number: Option<&str>) -> String {
     format!(
         "{city}, {postal_code}, {}{building_number}{}",
         street.map(|street| format!("{street} ")).unwrap_or_default(),
