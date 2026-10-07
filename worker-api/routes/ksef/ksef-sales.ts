@@ -1,14 +1,19 @@
 import {Env} from "../../worker";
-import {getInvoices} from "./ksef";
+import {getInvoices} from "./ksef-common";
 import {getAuthUser} from "../../auth";
 import { XMLParser } from "fast-xml-parser";
 import {KsefClient} from "../../clients/ksef";
+import {invoiceFromXml} from "../app/invoices";
+import {D1Driver, Repository} from "../../repository/d1";
+
+let repo: Repository;
+const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
 
 /**
  * Invoices where the user is the issuer.
  */
 export async function get(req: Request, env: Env): Promise<Response> {
-    return await getInvoices(req, env, "Subject1");
+    return await getInvoices(req, env, "sales");
 }
 
 export async function post(req: Request, env: Env): Promise<Response> {
@@ -19,8 +24,10 @@ export async function post(req: Request, env: Env): Promise<Response> {
     try {
         const invoiceBytes = new Uint8Array(await file.arrayBuffer());
         console.info("⚖️ Input file:", { size: invoiceBytes.length });
+        const appInvoice = await invoiceFromXml(env, new TextDecoder().decode(invoiceBytes), appUser, "sales", "Submitted to KSeF");
         const ksefClient = new KsefClient(env);
         const result = await ksefClient.postInvoice(appUser, invoiceBytes);
+        await getRepo(env).save("invoices", appInvoice);
         return Response.json({ success: true, result }, { status: 200 });
     } catch (error) {
         if (String(error).includes("Too Many Requests"))
