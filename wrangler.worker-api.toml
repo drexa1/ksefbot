@@ -12,6 +12,7 @@ GOOGLE_CALLBACK_URI = "https://ksefbot-api.druizbarbero.workers.dev/sso/google/c
 # KSeF
 KSEF_URL = "https://api.ksef.mf.gov.pl/v2"
 KSEF_INVOICE_SCHEMA = "https://assets.local/schemas/KSeFInvoice.avsc"
+KSEF_MAX_DATES_RANGE = 100
 KSEF_MIN_TIMEOUT = 100
 KSEF_MAX_TIMEOUT = 3000
 # CEIDG

@@ -15,6 +15,7 @@ export interface Env {
     // KSeF (National e-Invoicing System)
     KSEF_URL: string;
     KSEF_INVOICE_SCHEMA: string;
+    KSEF_MAX_DATES_RANGE: number;
     KSEF_MIN_TIMEOUT: number;
     KSEF_MAX_TIMEOUT: number;
     // CEIDG (Central Register on Business Activity)
