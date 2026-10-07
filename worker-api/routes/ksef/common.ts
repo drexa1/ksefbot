@@ -5,7 +5,7 @@ import {AppInvoice} from "../../types/invoices";
 import {KsefClient} from "../../clients/ksef";
 import {D1Driver, Repository} from "../../repository/d1";
 import {invoiceFromXml} from "../app/invoices";
-import {findUncoveredPeriods, saveSyncedPeriod} from "./sync-periods";
+import {findUncoveredPeriods, saveSyncPeriod} from "./sync-periods";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
@@ -111,6 +111,6 @@ async function fetchFromKsefForPeriod(env: Env, appUser: AppUser, type: "sales" 
             inserted += (await getRepo(env).save("invoices", invoice, true)).changes;
     }
     if (type === "sales")
-        await saveSyncedPeriod(env, appUser.id, "sales", from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
+        await saveSyncPeriod(env, appUser.id, "sales", from.toISOString().slice(0, 10), to.toISOString().slice(0, 10));
     return { count: invoiceMetadata.invoices.length, inserted };
 }

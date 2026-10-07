@@ -11,12 +11,12 @@ const getRepo = (env: Env) => repo ??= new Repository(new D1Driver(env.D1));
 export async function findUncoveredPeriods(env: Env, ownerId: string, type: "sales" | "purchase", from: string, to: string) {
     const requestedEnd = Date.parse(to);
     let nextDate = Date.parse(from);
-    const overlappingPeriods = (type !== "sales" ? [] : await getRepo(env).getAll<InvoicesSyncPeriod>("invoices_sync_periods", {ownerId, type}))
+    const overlappingPeriods = (type !== "sales" ? [] : await getRepo(env).getAll<InvoicesSyncPeriod>("invoices_sync_periods", { ownerId, type }))
         .filter(syncedPeriod => Date.parse(syncedPeriod.updatedAt ?? "") >= Date.now() - msPerCoverageTtl)
         .filter(syncedPeriod => syncedPeriod.dateTo >= from && syncedPeriod.dateFrom <= to)
         .sort((p1, p2) => p1.dateFrom.localeCompare(p2.dateFrom));
 
-    const uncoveredPeriods: { from: string; to: string }[] = [];
+    const uncoveredPeriods = [];
     for (const syncedPeriod of overlappingPeriods) {
         const syncedFrom = Date.parse(syncedPeriod.dateFrom);
         const syncedTo = Date.parse(syncedPeriod.dateTo);
@@ -31,7 +31,7 @@ export async function findUncoveredPeriods(env: Env, ownerId: string, type: "sal
     return uncoveredPeriods;
 }
 
-export async function saveSyncedPeriod(env: Env, ownerId: string, type: "sales", from: string, to: string) {
+export async function saveSyncPeriod(env: Env, ownerId: string, type: "sales", from: string, to: string) {
     const periodKey = { ownerId, type, dateFrom: from, dateTo: to };
     const updatedAt = new Date().toISOString();
     // Save new sync period or update existing one
