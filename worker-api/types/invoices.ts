@@ -23,7 +23,7 @@ export type InvoicesSyncPeriod = {
     updatedAt?: string;
 };
 
-export type InvoiceBackfillJob = {
+export type InvoicesBackfillJob = {
     ownerId: string;
     status: "queued" | "running" | "completed" | "failed";
     invoicesDownloaded: number;
