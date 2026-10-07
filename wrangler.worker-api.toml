@@ -39,7 +39,7 @@ invocation_logs = true
 enabled = true
 
 [assets]
-binding = "assets"
+binding = "ASSETS"
 directory = "./dist"
 
 [[d1_databases]]

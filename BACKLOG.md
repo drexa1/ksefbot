@@ -73,9 +73,10 @@
 - [x] CLI: edit user settings  
 - [x] Bug: all cached invoices seem to be type sales  
 - [x] Fix tests failing after refactor  
-- [ ] Review invoice xml vs json modes  
-- [ ] Review invoice caching  
-- [ ] Add backfill REST tests for entrypoint  
+- [x] Review invoice xml vs json modes  
+- [x] Review invoice caching  
+- [x] Add backfill REST tests for entrypoint
+- [ ] CLI: show periods coverage widget  
 - [ ] Manual testing of CLI backfill option  
 - [ ] Move invoiceToXml completely to worker  
 - [ ] Schedule daily tests
