@@ -70,8 +70,8 @@ CREATE TABLE invoices (
 );
 CREATE INDEX invoices_owner_type_date ON invoices(ownerId, type, issueDate);
 
-DROP TABLE IF EXISTS invoices_periods_synced;
-CREATE TABLE invoices_periods_synced (
+DROP TABLE IF EXISTS invoice_sync_periods;
+CREATE TABLE invoice_sync_periods (
     ownerId TEXT NOT NULL REFERENCES users(id),
     type TEXT NOT NULL CHECK (type IN ('sales', 'purchase')),
     dateFrom DATE NOT NULL,
