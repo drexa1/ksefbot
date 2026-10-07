@@ -2,6 +2,7 @@
 @baseUrl = http://localhost:3001
 @apiKey = test
 @invoiceId = eFV/2026/06/29/1/KSeF
+@year = 2026
 
 ### List all
 GET {{baseUrl}}/app/invoices
@@ -15,5 +16,10 @@ X-API-Key: {{apiKey}}
 
 ### List existing invoice
 GET {{baseUrl}}/app/invoices?id={{invoiceId}}
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+### Months with sales invoices
+GET {{baseUrl}}/invoices/monthly?year={{year}}
 Content-Type: application/json
 X-API-Key: {{apiKey}}
