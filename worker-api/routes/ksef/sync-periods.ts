@@ -31,7 +31,8 @@ export async function findUncoveredPeriods(env: Env, ownerId: string, type: "sal
     return uncoveredPeriods;
 }
 
-export async function saveSyncPeriod(env: Env, ownerId: string, type: "sales", from: string, to: string) {
+export async function saveSyncPeriod(env: Env, ownerId: string, type: "sales" | "purchase", from: string, to: string) {
+    if (type !== "sales") return;  // For purchase invoices we enforce to always sync against KSeF
     const periodKey = { ownerId, type, dateFrom: from, dateTo: to };
     const updatedAt = new Date().toISOString();
     // Save new sync period or update existing one
