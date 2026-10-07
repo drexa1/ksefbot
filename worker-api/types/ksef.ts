@@ -1,3 +1,8 @@
+export type KsefAccessToken = {
+    token: string;
+    validUntil: string;
+};
+
 export type KsefAuthenticationStatus = {
     status: {
         code: number;

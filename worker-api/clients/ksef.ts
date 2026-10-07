@@ -2,21 +2,49 @@ import {Env} from "../worker";
 import pRetry, {AbortError} from "p-retry";
 import {AppUser} from "../types/users";
 import {
-    KsefContextIdentifier,
     InvoiceEncryptionData,
     KsefAuthenticationStatus,
     KsefInvoiceQueryResult,
-    KsefBackfillStatus
+    KsefBackfillStatus,
+    KsefAccessToken
 } from "../types/ksef";
 import * as asn1js from "asn1js";
 import * as pkijs from "pkijs";
 
 class KsefClientBase {
+
     token?: string;
+    tokenValidUntil?: number;
+
+    refreshToken?: string;
+    refreshTokenValidUntil?: number;
+
     constructor(protected env: Env) {}
 
     async authenticate(appUser: AppUser): Promise<void> {
-        this.token = await this.getKsefToken(this.env, appUser);
+        // Current token still valid
+        if (this.token && this.tokenValidUntil! > Date.now() + 60_000) return;
+        if (this.refreshToken && this.refreshTokenValidUntil! > Date.now() + 60_000) {
+            const response = await fetch(`${this.env.KSEF_URL}/auth/token/refresh`, { method: "POST", headers: {
+                Authorization: `Bearer ${this.refreshToken}`
+            }});
+            if (![400, 401, 403].includes(response.status))
+                throw new Error(`KSeF token refresh failed ${response.status}: ${await response.text()}`);
+            if (response.ok) {
+                const { accessToken } = await response.json() as { accessToken: KsefAccessToken };
+                this.token = accessToken.token;
+                this.tokenValidUntil = Date.parse(accessToken.validUntil);
+                console.info("🔄 KSeF token refreshed");
+                return;
+            }
+            this.refreshToken = undefined;
+            this.refreshTokenValidUntil = undefined;
+        }
+        const tokens = await this.getKsefToken(this.env, appUser);
+        this.token = tokens.accessToken.token;
+        this.tokenValidUntil = Date.parse(tokens.accessToken.validUntil);
+        this.refreshToken = tokens.refreshToken.token;
+        this.refreshTokenValidUntil = Date.parse(tokens.refreshToken.validUntil);
         console.info("🪪 KSeF token acquired")
     }
 
@@ -37,12 +65,11 @@ class KsefClientBase {
             new Date(c.validFrom).getTime() <= now &&
             new Date(c.validTo).getTime() > now
         ).sort((a, b) => new Date(b.validFrom).getTime() - new Date(a.validFrom).getTime())[0];
-        if (!cert)
-            throw new Error(`No valid KSeF certificate for ${usage}`);
+        if (!cert) throw new Error(`No valid KSeF certificate for ${usage}`);
         return { certificate: cert.certificate, publicKeyId: cert.publicKeyId };
     }
 
-    private async getKsefToken(env: Env, user: AppUser): Promise<string> {
+    private async getKsefToken(env: Env, user: AppUser): Promise<{ accessToken: KsefAccessToken, refreshToken: KsefAccessToken }> {
         console.info("1️⃣️ Requesting KSeF auth challenge...");
         const ksefChallenge = await this.getKsefChallenge(env);
         console.info("2️⃣️ Requesting KSeF public key certificates...");
@@ -88,7 +115,7 @@ class KsefClientBase {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 challenge,
-                contextIdentifier: this.contextIdentifier(user),
+                contextIdentifier: { type: "Nip", value: user.id },
                 encryptedToken,
                 publicKeyId
             })
@@ -99,13 +126,6 @@ class KsefClientBase {
         }
         const data = await response.json() as { referenceNumber: string; authenticationToken: { token: string, validUntil: string }};
         return { referenceNumber: data.referenceNumber, authenticationToken: data.authenticationToken.token};
-    }
-
-    private contextIdentifier(user: AppUser): KsefContextIdentifier {
-        if (user.id) return { type: "Nip", value: user.id };
-        // REVIEW: NIP/Regon/Pesel are contractor data, no longer application user fields
-        // if (user.pesel) return { type: "InternalId", value: user.pesel };
-        throw new Error("Unsupported tax identifier");
     }
 
     private async waitForKsefAuthentication(env: Env, referenceNumber: string, authenticationToken: string): Promise<void> {
@@ -127,12 +147,11 @@ class KsefClientBase {
         );
     }
 
-    private async redeemKsefToken(env: Env, authenticationToken: string): Promise<string> {
+    private async redeemKsefToken(env: Env, authenticationToken: string): Promise<{ accessToken: KsefAccessToken, refreshToken: KsefAccessToken }> {
         const response = await fetch(`${env.KSEF_URL}/auth/token/redeem`, { method: "POST", headers: {
             Authorization: `Bearer ${authenticationToken}`
         }});
-        const tokens = await response.json() as { accessToken: { token: string }};
-        return tokens.accessToken.token;
+        return await response.json();
     }
 
     protected async importKsefPublicKey(certificate: string): Promise<CryptoKey> {
