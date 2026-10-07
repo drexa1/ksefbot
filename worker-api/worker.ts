@@ -37,7 +37,7 @@ export interface Env {
     API_KEY: string;
     ASSETS: Fetcher;
     D1: D1Database;
-    INVOICES_BACKFILL: Workflow<{ userId: string }>;
+    BACKFILL_JOB: Workflow<{ userId: string }>;
 }
 
 // noinspection JSUnusedGlobalSymbols

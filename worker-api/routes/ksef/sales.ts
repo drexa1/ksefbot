@@ -1,5 +1,5 @@
 import {Env} from "../../worker";
-import {getInvoices} from "./ksef-common";
+import {getInvoices} from "./common";
 import {getAuthUser} from "../../auth";
 import { XMLParser } from "fast-xml-parser";
 import {KsefClient} from "../../clients/ksef";

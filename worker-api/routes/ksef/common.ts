@@ -5,7 +5,7 @@ import {AppInvoice} from "../../types/invoices";
 import {KsefClient} from "../../clients/ksef";
 import {D1Driver, Repository} from "../../repository/d1";
 import {invoiceFromXml} from "../app/invoices";
-import {findUncoveredPeriods, saveSyncedPeriod} from "./ksef-sync-periods";
+import {findUncoveredPeriods, saveSyncedPeriod} from "./sync-periods";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));

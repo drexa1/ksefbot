@@ -1,7 +1,7 @@
 import {Env} from "../../worker";
 import {D1Driver, Repository} from "../../repository/d1";
 import {getAuthUser} from "../../auth";
-import {getByDatesRange} from "../ksef/ksef-common";
+import {getByDatesRange} from "../ksef/common";
 import {AppTaxRecord, AppTaxRecordDb, TaxRecordObligations} from "../../types/taxes";
 import {AppUser} from "../../types/users";
 

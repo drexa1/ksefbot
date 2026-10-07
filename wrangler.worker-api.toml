@@ -49,5 +49,5 @@ remote = true
 
 [[workflows]]
 name = "invoices-backfill"
-binding = "INVOICES_BACKFILL"
+binding = "BACKFILL_JOB"
 class_name = "InvoicesBackfillJob"

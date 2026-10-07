@@ -9,9 +9,9 @@ import {
     sessions as sessionsGET,
     invoiceStatus as invoiceStatusGET,
     downloadReceipt as receiptGET
-} from "./ksef/ksef-sales";
-import {get as purchaseGET} from "./ksef/ksef-purchases";
-import {trigger, status} from "./ksef/backfill";
+} from "./ksef/sales";
+import {get as purchaseGET} from "./ksef/purchases";
+import {start, status} from "./ksef/backfill";
 import {contractors as govContractorsGET} from "../clients/contractors";
 import {contractors as ceidgGET} from "../clients/contractors/ceidg";
 import {contractors as krsGET} from "../clients/contractors/krs";
@@ -57,7 +57,7 @@ export const routes: Record<string, Routes> =  {
     "/ksef/sales/sessions":  withErrorHandling({ GET: sessionsGET }),
     "/ksef/sales/receipt":   withErrorHandling({ GET: receiptGET }),
     "/ksef/purchases":       withErrorHandling({ GET: purchaseGET }),
-    "/ksef/backfill":        withErrorHandling({ GET: status, POST: trigger }),
+    "/ksef/backfill":        withErrorHandling({ GET: status, POST: start }),
     "/gov/contractors":      withErrorHandling({ GET: govContractorsGET }),
     "/gov/ceidg":            withErrorHandling({ GET: ceidgGET }),
     "/gov/krs":              withErrorHandling({ GET: krsGET }),

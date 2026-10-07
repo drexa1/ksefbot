@@ -260,13 +260,8 @@ class KsefClientBase {
 
     async decryptExportPart(encrypted: Uint8Array, cipherKey: Uint8Array, cipherIv: Uint8Array): Promise<Uint8Array> {
         const key = await crypto.subtle.importKey("raw", this.toArrayBuffer(cipherKey), { name: "AES-CBC" }, false, ["decrypt"]);
-        return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-CBC", iv: this.toArrayBuffer(cipherIv) }, key, this.toArrayBuffer(encrypted)));
-    }
-
-    protected toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-        const buffer = new ArrayBuffer(bytes.byteLength);
-        new Uint8Array(buffer).set(bytes);
-        return buffer;
+        const decrypted = await crypto.subtle.decrypt({ name: "AES-CBC", iv: this.toArrayBuffer(cipherIv) }, key, this.toArrayBuffer(encrypted));
+        return new Uint8Array(decrypted);
     }
 
     private arrayBufferToBase64(data: ArrayBuffer | Uint8Array): string {
@@ -277,6 +272,12 @@ class KsefClientBase {
             binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
         }
         return btoa(binary);
+    }
+
+    protected toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+        const buffer = new ArrayBuffer(bytes.byteLength);
+        new Uint8Array(buffer).set(bytes);
+        return buffer;
     }
 
     protected async closeOnlineSession(sessionReferenceNumber: string): Promise<void> {
