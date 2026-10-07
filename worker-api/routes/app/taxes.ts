@@ -1,7 +1,7 @@
 import {Env} from "../../worker";
 import {D1Driver, Repository} from "../../repository/d1";
 import {getAuthUser} from "../../auth";
-import {fetchInvoices} from "../ksef/ksef";
+import {getInvoicesByDateRange} from "../ksef/ksef";
 import {AppTaxRecord, AppTaxRecordDb, TaxRecordObligations} from "../../types/taxes";
 import {AppUser} from "../../types/users";
 
@@ -136,7 +136,9 @@ async function computeObligations(env: Env, appUser: AppUser, taxRecord: AppTaxR
     const healthInsuranceRate = taxRecord.healthInsuranceRate ?? env.DEFAULT_HEALTH_INSURANCE_RATE;
     const healthContribution = Number((healthInsuranceBase * healthInsuranceRate / 100).toFixed(2));
     // Purchases deductions
-    const purchasesInvoices = env.TEST_MODE ? [] : await fetchInvoices(env, appUser, "Subject2", from, to);
+    const purchasesInvoices = env.TEST_MODE ? [] : (await getInvoicesByDateRange(env, appUser, "purchase", from, to))
+        .invoices
+        .map(invoice => JSON.parse(invoice.jsonData));
     const purchasesSummary = purchasesInvoices.map((invoice) => ({
         InvoiceNumber: invoice.InvoiceBody?.InvoiceNumber,
         TotalGrossAmount: invoice.InvoiceBody?.TotalGrossAmount,
@@ -154,6 +156,6 @@ async function computeObligations(env: Env, appUser: AppUser, taxRecord: AppTaxR
         healthInsuranceRate,
         healthContribution,
         purchasesDeductions,
-        purchasesSummary,
+        purchasesSummary
     };
 }
