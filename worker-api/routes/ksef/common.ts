@@ -77,20 +77,20 @@ export async function getByDatesRange(env: Env, appUser: AppUser, type: "sales" 
     return { appInvoices, fromDb: existingAppInvoices.length, fromKsef: ksefInvoices.downloaded };
 }
 
-async function syncWithKsef(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date) {
+async function syncWithKsef(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date): Promise<{ downloaded: number }> {
     // Compute periods without sync coverage
     const uncoveredPeriods = await findUncoveredPeriods(env, appUser.id, type, from, to);
     const client = new KsefClient(env);
-    return {
-        downloaded: await uncoveredPeriods.reduce(async (total, period) => {
-            const fromDate = new Date(period.from);
-            const toDate = new Date(`${period.to}T23:59:59.999Z`);
-            const invoicesMetadata = await client.queryInvoiceMetadata(appUser, type, undefined, fromDate, toDate);
-            const invoices = await downloadInvoices(env, appUser, type, client, invoicesMetadata.invoices);
-            await saveSyncPeriod(env, appUser.id, type, period.from, period.to);
-            return await total + invoices.length;
-        }, Promise.resolve(0))
-    };
+    let downloaded = 0;
+    for (const period of uncoveredPeriods) {
+        const fromDate = new Date(period.from);
+        const toDate = new Date(`${period.to}T23:59:59.999Z`);
+        const invoicesMetadata = await client.queryInvoiceMetadata(appUser, type, undefined, fromDate, toDate);
+        const invoices = await downloadInvoices(env, appUser, type, client, invoicesMetadata.invoices);
+        await saveSyncPeriod(env, appUser.id, type, period.from, period.to);
+        downloaded += invoices.length;
+    }
+    return { downloaded };
 }
 
 async function downloadInvoices(env: Env, appUser: AppUser, type: "sales" | "purchase", client: KsefClient, metadata: KsefInvoiceMetadata[]) {
