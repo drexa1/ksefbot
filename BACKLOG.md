@@ -81,7 +81,7 @@
 - [x] CLI: create customer from online lookup  
 - [x] CLI: show periods coverage widget  
 - [x] Manual testing of CLI backfill option  
-- [ ] Move invoiceToXml completely to worker
+- [ ] Move invoiceToXml completely to worker  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: first time flow  
 - [ ] CLI: login with phone
