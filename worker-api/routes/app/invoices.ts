@@ -148,8 +148,11 @@ async function getOrCreateContractor(env: Env, contractorParts: {
         addressL1: contractorParts.addressL1 ?? "",
         createdAt: new Date().toISOString(),
     };
-    await getRepo(env).save("contractors", contractor);
-    return contractor.id!;
+    const saved = await getRepo(env).save("contractors", contractor, true);
+    // Reuse the contractor if another import inserted it first (or duplicate inserts will fail workflow steps)
+    return saved.changes
+        ? contractor.id!
+        : (await getRepo(env).get<AppContractor>("contractors", { [idField]: idValue })).id;
 }
 
 function getContractorIdentifier(contractorId: KsefIdentifiable): { idField: "nip" | "pesel" | "regon", idValue: string } {
