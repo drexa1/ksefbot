@@ -16,27 +16,28 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
         // Change job to running
         await this.updateJob(userId, { status: "running" });
 
-        let windowNumber = 0;
-        let totalDownloaded = 0;
-
+        // Backwards from now, the current ongoing year, and the previous one
         let toDate = new Date();
         const historyStart = new Date(Date.UTC(toDate.getUTCFullYear() - 1, 0, 1));
 
+        let windowStep = 0;
+        let totalDownloaded = 0;
         while (toDate >= historyStart) {
             const fromDate = new Date(toDate);
             fromDate.setUTCHours(0, 0, 0, 0);
             fromDate.setUTCDate(fromDate.getUTCDate() - this.env.KSEF_MAX_DATES_RANGE + 1);
             if (fromDate < historyStart) fromDate.setTime(historyStart.getTime());
             for (const type of ["sales", "purchase"] as const) {
-                const downloadedFromKsef = await step.do(`metadata-${type}-${windowNumber}`, {
+                const downloadedFromKsef = await step.do(`metadata-${type}-${windowStep}`, {
                     retries: {
                         limit: 3,
                         // KSeF published limits for metadata queries: 8/sec, 16/min, and 20/hour
-                        delay: ({ctx, error}) => String(error).includes("429") ? "1 hour" : `${10 * 2 ** (ctx.attempt - 1)} seconds`
+                        delay: ({ctx, error}) =>
+                            String(error).includes("429") ? "1 hour" : `${10 * 2 ** (ctx.attempt - 1)} seconds`
                     }
                 }, async () => {
                     const appInvoices = await this.getBackfillInvoices(userId, appUser, type, fromDate, toDate);
-                    console.info(`⏪ [${type}] Backfill step (${windowNumber}) from ${fromDate.toISOString()} to ${toDate.toISOString()}: ${appInvoices.fromKsef} invoices`);
+                    console.info(`⏪ [${type}] Backfill step (${windowStep}) from ${fromDate.toISOString()} to ${toDate.toISOString()}: ${appInvoices.fromKsef} invoices`);
                     return appInvoices.fromKsef;
                 });
                 totalDownloaded += downloadedFromKsef;
@@ -45,7 +46,7 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
             toDate = new Date(fromDate);
             toDate.setUTCDate(toDate.getUTCDate() - 1);
             toDate.setUTCHours(23, 59, 59, 999);
-            windowNumber += 1;
+            windowStep += 1;
         }
         await this.updateJob(userId, { status: "completed", invoicesDownloaded: totalDownloaded });
     }
