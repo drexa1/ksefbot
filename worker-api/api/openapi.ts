@@ -395,6 +395,67 @@ export const getOpenApiSpec = () => ({
                 }
             }
         },
+        "/ksef/backfill": {
+            get: {
+                summary: "Get invoices backfill status for the authenticated user.",
+                tags: ["KSeF"],
+                security: [{ ApiKeyAuth: [] }],
+                responses: {
+                    "200": {
+                        description: "Backfill status.",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    required: ["success", "ownerId", "status", "invoicesDownloaded", "createdAt"],
+                                    properties: {
+                                        success: { type: "boolean" },
+                                        ownerId: { type: "string" },
+                                        status: {
+                                            type: "string",
+                                            enum: ["queued", "running", "throttled", "completed", "failed"]
+                                        },
+                                        invoicesDownloaded: { type: "integer" },
+                                        error: { type: "string", nullable: true },
+                                        createdAt: { type: "string", nullable: true },
+                                        updatedAt: { type: "string", nullable: true }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { description: "Unauthorized." },
+                    "404": { description: "Backfill job or authenticated user not found." },
+                    "500": { description: "Failed to retrieve backfill status." }
+                }
+            },
+            post: {
+                summary: "Start invoices backfill for the authenticated user.",
+                tags: ["KSeF"],
+                security: [{ ApiKeyAuth: [] }],
+                responses: {
+                    "202": {
+                        description: "Backfill accepted or already exists.",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    required: ["success", "existing"],
+                                    properties: {
+                                        success: { type: "boolean" },
+                                        existing: { type: "boolean", description: "If a backfill job already exists." }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { description: "Unauthorized." },
+                    "404": { description: "Authenticated user not found." },
+                    "500": { description: "Failed to create backfill record." },
+                    "502": { description: "Failed to create backfill workflow." }
+                }
+            }
+        },
         "/ksef/sales": {
             get: {
                 summary: "List sales invoices at KSeF - Restricted to resources owned by the authenticated user.",
