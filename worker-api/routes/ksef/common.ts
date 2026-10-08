@@ -19,10 +19,11 @@ export async function getInvoices(req: Request, env: Env, type: "sales" | "purch
     if ((fromDate && isNaN(fromDate.getTime())) || (toDate && isNaN(toDate.getTime())) || (fromDate && toDate && fromDate > toDate))
         return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
     try {
+        const client = new KsefClient(env);
         // Query by invoice number
         if (url.searchParams.has("invoiceNumber")) {
             const invoiceNumber = url.searchParams.get("invoiceNumber")!;
-            const {invoice, fromDb, fromKsef} = await getByInvoiceNumber(env, appUser, type, invoiceNumber, fromDate, toDate);
+            const {invoice, fromDb, fromKsef} = await getByInvoiceNumber(env, client, type, appUser, invoiceNumber, fromDate, toDate);
             return invoice
                 ? Response.json({ success: true, count: 1, counts: { fromDb, fromKsef }, result: [invoice] })
                 : Response.json({ success: false, error: "Invoice not found at KSeF." }, { status: 404 });
@@ -32,7 +33,7 @@ export async function getInvoices(req: Request, env: Env, type: "sales" | "purch
             return Response.json({ success: false, error: "From and To are required together" }, { status: 400 });
         if ((Date.parse(toDate.toISOString().slice(0, 10)) - Date.parse(fromDate.toISOString().slice(0, 10))) / 86_400_000 + 1 > 100)
             return Response.json({ success: false, error: "The maximum date range supported by KSeF is 100 days." }, { status: 400 });
-        const {appInvoices, fromDb, fromKsef} = await getByDatesRange(env, appUser, type, fromDate, toDate);
+        const {appInvoices, fromDb, fromKsef} = await getByDatesRange(env, client, type, appUser, fromDate, toDate);
         return Response.json({
             success: appInvoices.length > 0,
             count: appInvoices.length,
@@ -47,11 +48,10 @@ export async function getInvoices(req: Request, env: Env, type: "sales" | "purch
     }
 }
 
-async function getByInvoiceNumber(env: Env, appUser: AppUser, type: "sales" | "purchase", invoiceNumber: string, from?: Date, to?: Date) {
+async function getByInvoiceNumber(env: Env, client: KsefClient, type: "sales" | "purchase", appUser: AppUser, invoiceNumber: string, from?: Date, to?: Date) {
     const appInvoice = await getRepo(env).get<AppInvoice & { ownerId: string }>("invoices", {id: invoiceNumber, ownerId: appUser.id, type});
     if (appInvoice)
         return { invoice: appInvoice, fromDb: 1, fromKsef: 0 };
-    const client = new KsefClient(env);
     const metadata = await client.queryInvoiceMetadata(appUser, type, invoiceNumber, from, to);
     const [ksefInvoice] = await downloadInvoices(env, appUser, type, client, metadata.invoices.slice(0, 1));
     if (!ksefInvoice)
@@ -60,7 +60,7 @@ async function getByInvoiceNumber(env: Env, appUser: AppUser, type: "sales" | "p
 }
 
 /// Also used from tax record computations
-export async function getByDatesRange(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date) {
+export async function getByDatesRange(env: Env, client: KsefClient,  type: "sales" | "purchase", appUser: AppUser, from: Date, to: Date) {
     const range = {
         field: "issueDate",
         start: from.toISOString().slice(0, 10),
@@ -71,16 +71,15 @@ export async function getByDatesRange(env: Env, appUser: AppUser, type: "sales" 
     // Read matching invoices already in the database
     const existingAppInvoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", { ownerId: appUser.id, type }, range);
     // This might download more invoices
-    const ksefInvoices = await syncWithKsef(env, appUser, type, from, to);
+    const ksefInvoices = await syncWithKsef(env, type, appUser, from, to, client);
     // Retrieve the final list including those newly saved invoices
     const appInvoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", { ownerId: appUser.id, type }, range);
     return { appInvoices, fromDb: existingAppInvoices.length, fromKsef: ksefInvoices.downloaded };
 }
 
-async function syncWithKsef(env: Env, appUser: AppUser, type: "sales" | "purchase", from: Date, to: Date): Promise<{ downloaded: number }> {
+async function syncWithKsef(env: Env, type: "sales" | "purchase", appUser: AppUser, from: Date, to: Date, client: KsefClient): Promise<{ downloaded: number }> {
     // Compute periods without sync coverage
     const uncoveredPeriods = await findUncoveredPeriods(env, appUser.id, type, from, to);
-    const client = new KsefClient(env);
     let downloaded = 0;
     for (const period of uncoveredPeriods) {
         const fromDate = new Date(period.from);
