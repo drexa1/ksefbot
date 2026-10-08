@@ -133,7 +133,8 @@ class KsefClientBase {
                 const response = await fetch(`${env.KSEF_URL}/auth/${referenceNumber}`, {
                     headers: { Authorization: `Bearer ${authenticationToken}` }
                 });
-                if (!response.ok) throw new Error(`KSeF authentication status failed: ${response.status}`);
+                if (!response.ok)
+                    throw new Error(`KSeF authentication status failed: ${response.status}`);
                 const ksefAuthenticationStatus = await response.json() as KsefAuthenticationStatus;
                 switch (ksefAuthenticationStatus.status.code) {
                     // Authentication in progress

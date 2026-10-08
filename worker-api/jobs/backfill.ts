@@ -40,7 +40,7 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
                 const downloadedFromKsef = await step.do(stepName, {
                     retries: {
                         limit: 3,
-                        delay: this.delay()
+                        delay: this.dynamicDelay()
                     },
                     timeout: "5 minutes"
                 }, async () => {
@@ -75,7 +75,7 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
     }
 
     /// KSeF published limits for metadata queries: 8/sec, 16/min, and 20/hour
-    private delay(): WorkflowDelayFunction {
-        return ({ctx, error}) => String(error).includes("429") ? "1 hour" : `${10 * 2 ** (ctx.attempt - 1)} seconds`;
+    private dynamicDelay(): WorkflowDelayFunction {
+        return ({ ctx, error }) => String(error).includes("429") ? "1 hour" : `${10 * 2 ** (ctx.attempt - 1)} seconds`;
     }
 }
