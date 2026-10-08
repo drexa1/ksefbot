@@ -114,8 +114,8 @@ export async function invoiceFromXml(
                 ownerId: appUser.id,
                 name: ksefInvoice.Buyer.IdentificationData.Name,
                 nip: ksefInvoice.Buyer.IdentificationData.NIP,
-                countryCode: ksefInvoice.Buyer.Address.CountryCode,
-                addressL1: ksefInvoice.Buyer.Address.AddressLine1,
+                countryCode: ksefInvoice.Buyer.Address?.CountryCode,
+                addressL1: ksefInvoice.Buyer.Address?.AddressLine1,
             })
         }),
         rawXml: xmlContent,
