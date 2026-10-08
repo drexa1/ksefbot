@@ -33,10 +33,14 @@ const withErrorHandling = (routes: Routes): Routes => {
             try {
                 return await route(req, env);
             } catch (error: unknown) {
-                console.error(error);
+                console.error("Request failed", {
+                    method: req.method,
+                    path: new URL(req.url).pathname,
+                    error: error instanceof Error ? error.message : String(error)
+                });
                 if (error instanceof AuthError)
                     return Response.json({ error: error.message, details: error.details }, { status: error.status, headers: corsHeaders });
-                return Response.json({ error: error }, { status: 500, headers: corsHeaders });
+                return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500, headers: corsHeaders });
             }
         };
     }
