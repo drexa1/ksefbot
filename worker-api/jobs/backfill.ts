@@ -34,12 +34,15 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
             if (fromDate < historyStart)
                 fromDate.setTime(historyStart.getTime());
             for (const type of ["sales", "purchase"] as const) {
-                const stepName = `invoices-${type}-${dateFormat.format(fromDate).replace(" ", "")}-${dateFormat.format(toDate).replace(" ", "")}`;
+                const stepName = `backfill[${type}]-
+                    ${dateFormat.format(fromDate).replace(" ", "")}-
+                    ${dateFormat.format(toDate).replace(" ", "")}-`;
                 const downloadedFromKsef = await step.do(stepName, {
                     retries: {
                         limit: 3,
                         delay: this.delay()
-                    }
+                    },
+                    timeout: "5 minutes"
                 }, async () => {
                     const appInvoices = await this.getBackfillInvoices(client, userId, appUser, type, fromDate, toDate);
                     console.info(`⏪ [${type}] Backfill step (${windowStep}) from ${fromDate.toISOString()} to ${toDate.toISOString()}: ${appInvoices.fromKsef} invoices`);

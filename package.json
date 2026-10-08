@@ -37,6 +37,8 @@
         "worker-api:prod:deploy": "npm run client:prod:build && wrangler deploy --config wrangler.worker-api.toml",
         "worker-api:prod:logs": "wrangler tail ksefbot-api",
 
+        "worker-api:backfill:reset": "npx wrangler workflows instances delete invoices-backfill 6751577878 --config wrangler.worker-api.toml",
+
         "worker-whatsapp:prod:deploy": "wrangler deploy --config wrangler.worker-whatsapp.toml",
         "worker-whatsapp:prod:logs": "wrangler tail ksefbot-whatsapp"
     },
