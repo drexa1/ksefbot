@@ -27,7 +27,7 @@ export async function status(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const invoicesBackfill = await getRepo(env).get<InvoicesBackfill>("invoices_backfill", {ownerId: appUser.id});
     if (!invoicesBackfill)
-        return Response.json({ success: false, error: "Backfill job not found" }, { status: 404 });
+        return Response.json({ success: false, error: "No Backfill job found" }, { status: 404 });
     const job = await refreshJob(env, invoicesBackfill);
     return Response.json({ success: true, ...job });
 }
