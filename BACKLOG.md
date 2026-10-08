@@ -80,18 +80,18 @@
 - [x] Remove testing contractors from populate script  
 - [x] CLI: create customer from online lookup  
 - [x] CLI: show periods coverage widget  
-- [ ] Manual testing of CLI backfill option  
-- [ ] Move invoiceToXml completely to worker  
-- [ ] CLI: first time flow  
+- [x] Manual testing of CLI backfill option  
+- [ ] Move invoiceToXml completely to worker
 - [ ] CLI: simplified vs custom invoice create  
-- [ ] CLI: login with phone  
+- [ ] CLI: first time flow  
+- [ ] CLI: login with phone
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone  
 - [ ] Whatsapp bot bruno tests  
-- [ ] First time frontend workflow
-- [ ] Review security architecture
 - [ ] Login frontend (inspiration: https://nosible.world/login)  
+- [ ] First time frontend workflow  
+- [ ] Review security architecture and keys passthrough  
 - [ ] Admin contractors frontend  
 - [ ] Invoice generator frontend: wrangle up CSS  
 - [ ] Invoice generator frontend: smoke mobile  
