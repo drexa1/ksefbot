@@ -134,25 +134,26 @@ async function getOrCreateContractor(env: Env, contractorParts: {
     countryCode?: string
     addressL1?: string
 }): Promise<string> {
+    const repo = getRepo(env);
     const { idField, idValue } = getContractorIdentifier(contractorParts);
-    const existing = await getRepo(env).get<AppContractor>("contractors", { [idField]: idValue });
+    const lookup = { [idField]: idValue };
+    const existing = await repo.get<AppContractor>("contractors", lookup);
     if (existing) return existing.id!;
     const contractor: AppContractor = {
         id: nanoid(),
         ...({ ownerId: contractorParts.ownerId }),
         name: contractorParts.name,
-        ...(contractorParts.nip   && { nip:   contractorParts.nip }),
+        ...(contractorParts.nip && { nip: contractorParts.nip }),
         ...(contractorParts.pesel && { pesel: contractorParts.pesel }),
         ...(contractorParts.regon && { regon: contractorParts.regon }),
         countryCode: contractorParts.countryCode ?? "PL",
         addressL1: contractorParts.addressL1 ?? "",
         createdAt: new Date().toISOString(),
     };
-    const saved = await getRepo(env).save("contractors", contractor, true);
-    // Reuse the contractor if another import inserted it first (or duplicate inserts will fail workflow steps)
-    return saved.changes
-        ? contractor.id!
-        : (await getRepo(env).get<AppContractor>("contractors", { [idField]: idValue })).id;
+    const { changes } = await repo.save("contractors", contractor, true);
+    if (changes) return contractor.id!;
+    const saved = await repo.get<AppContractor>("contractors", lookup);
+    return saved.id;
 }
 
 function getContractorIdentifier(contractorId: KsefIdentifiable): { idField: "nip" | "pesel" | "regon", idValue: string } {
