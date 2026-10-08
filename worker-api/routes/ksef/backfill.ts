@@ -10,10 +10,10 @@ export async function start(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
     const backfillStatus = await getRepo(env).get<InvoicesBackfill>("invoices_backfill", { ownerId: appUser.id });
     if (backfillStatus)
-        return Response.json({ success: true, existing: true }, { status: 202 });
+        return Response.json({ success: false, existing: true }, { status: 409 });
     const createdBackfillStatus = await getRepo(env).save("invoices_backfill", { ownerId: appUser.id, status: "queued" }, true);
     if (!createdBackfillStatus.changes)
-        return Response.json({ success: true, existing: true }, { status: 202 });
+        return Response.json({ success: false, existing: true }, { status: 409 });
     try {
         await env.BACKFILL_JOB.create({ id: appUser.id, params: { userId: appUser.id } });
     } catch (error) {

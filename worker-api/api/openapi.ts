@@ -435,15 +435,15 @@ export const getOpenApiSpec = () => ({
                 security: [{ ApiKeyAuth: [] }],
                 responses: {
                     "202": {
-                        description: "Backfill accepted or already exists.",
+                        description: "Backfill accepted.",
                         content: {
                             "application/json": {
                                 schema: {
                                     type: "object",
                                     required: ["success", "existing"],
                                     properties: {
-                                        success: { type: "boolean" },
-                                        existing: { type: "boolean", description: "If a backfill job already exists." }
+                                        success: { type: "boolean", enum: [true] },
+                                        existing: { type: "boolean", enum: [false] }
                                     }
                                 }
                             }
@@ -451,6 +451,21 @@ export const getOpenApiSpec = () => ({
                     },
                     "401": { description: "Unauthorized." },
                     "404": { description: "Authenticated user not found." },
+                    "409": {
+                        description: "Backfill job already exists.",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    required: ["success", "existing"],
+                                    properties: {
+                                        success: { type: "boolean", enum: [false] },
+                                        existing: { type: "boolean", enum: [true] }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     "500": { description: "Failed to create backfill record." },
                     "502": { description: "Failed to create backfill workflow." }
                 }
