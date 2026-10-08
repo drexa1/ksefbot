@@ -101,7 +101,7 @@
 - [ ] Create user frontend  
 - [ ] Invoice generator frontend: help hints
 - [ ] Invoice generator frontend: import logic  
-- [ ] Encrypt KSeF/Baking keys
+- [ ] Encrypt KSeF/Baking keys  
 - [ ] Bank client PoC  
 - [ ] Scheduling  
 - [ ] Rust client installer  
