@@ -27,7 +27,7 @@ class KsefClientBase {
             const response = await fetch(`${this.env.KSEF_URL}/auth/token/refresh`, { method: "POST", headers: {
                 Authorization: `Bearer ${this.refreshToken}`
             }});
-            if (![400, 401, 403].includes(response.status))
+            if (!response.ok && ![400, 401, 403].includes(response.status))
                 throw new Error(`KSeF token refresh failed ${response.status}: ${await response.text()}`);
             if (response.ok) {
                 const { accessToken } = await response.json() as { accessToken: KsefAccessToken };
