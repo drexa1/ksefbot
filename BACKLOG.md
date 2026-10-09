@@ -83,6 +83,7 @@
 - [x] Manual testing of CLI backfill option  
 - [ ] Move invoiceToXml completely to worker  
 - [ ] Rest tests for backend invoice generation  
+- [ ] Bruno tests for invoice generation  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: first time flow  
 - [ ] CLI: login with phone

@@ -1,0 +1,52 @@
+@baseUrl = http://localhost:3001
+@apiKey = test
+@customerId = replace-with-customer-id
+
+### Generate from hours
+POST {{baseUrl}}/app/invoices/generate
+Content-Type: application/json
+Accept: application/xml
+X-API-Key: {{apiKey}}
+
+{
+    "customerId": "{{customerId}}",
+    "hours": 160
+}
+
+### Generate from explicit fields
+POST {{baseUrl}}/app/invoices/generate
+Content-Type: application/json
+Accept: application/xml
+X-API-Key: {{apiKey}}
+
+{
+    "customerId": "{{customerId}}",
+    "customer": {
+        "id": "{{customerId}}",
+        "name": "Example customer",
+        "nip": "2222222222",
+        "countryCode": "PL",
+        "addressL1": "Warszawa, 00-001, Main 2"
+    },
+    "customerEmail": "buyer@example.com",
+    "invoiceNumber": "eFA/2026/10/1",
+    "issueDate": "2026-10-09",
+    "issuePlace": "Kraków",
+    "deliveryDate": "2026-10-31",
+    "markingMpp": true,
+    "priceType": "net",
+    "items": [
+        {
+            "name": "Consulting services",
+            "quantity": 160,
+            "unit": "szt",
+            "unitPrice": 200,
+            "vatRate": "23",
+            "gtu": "GTU_12",
+            "additionalInformation": "October services"
+        }
+    ],
+    "paymentType": "6",
+    "paymentDeadline": "2026-11-07",
+    "footers": ["Thank you for your business."]
+}
