@@ -43,7 +43,7 @@ pub async fn list_purchase_invoices(app_user: &AppUser, from: String, to: String
 
 pub async fn sales_invoice_months(app_user: &AppUser, year: i32) -> anyhow::Result<[bool; 12]> {
     Ok(crate::api::client::http_client()
-        .get(format!("{}/invoices/monthly", cf_worker_url!()))
+        .get(format!("{}/app/invoices/monthly", cf_worker_url!()))
         .query(&[("year", year)])
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

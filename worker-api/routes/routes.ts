@@ -69,7 +69,7 @@ export const routes: Record<string, Routes> =  {
     "/app/users":            withErrorHandling({ GET: usersGET, POST: usersPOST, PUT: usersPUT, DELETE: usersDELETE }),
     "/app/contractors":      withErrorHandling({ GET: contractorsGET, POST: contractorsPOST, PUT: contractorsPUT, DELETE: contractorsDELETE }),
     "/app/invoices":         withErrorHandling({ GET: invoicesGET, POST: invoicesPOST, PUT: invoicesPUT, DELETE: invoicesDELETE }),
-    "/invoices/monthly":     withErrorHandling({ GET: invoiceMonthsGET }),
+    "/app/invoices/monthly":     withErrorHandling({ GET: invoiceMonthsGET }),
     "/app/taxes/simulate":   withErrorHandling({ GET: simulateGET }),
     "/app/taxes":            withErrorHandling({ GET: taxesGET, POST: taxesPOST, PUT: taxesPUT, DELETE: taxesDELETE }),
 };

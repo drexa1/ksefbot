@@ -20,6 +20,6 @@ Content-Type: application/json
 X-API-Key: {{apiKey}}
 
 ### Months with sales invoices
-GET {{baseUrl}}/invoices/monthly?year={{year}}
+GET {{baseUrl}}/app/invoices/monthly?year={{year}}
 Content-Type: application/json
 X-API-Key: {{apiKey}}
