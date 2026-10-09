@@ -15,6 +15,7 @@ export type AppInvoice = {
     updatedAt?: string;
 };
 
+/// Model with details for invoice generation
 export type InvoiceInput = {
     customerId: string;
     invoiceNumber?: string;

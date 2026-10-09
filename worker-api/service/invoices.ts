@@ -7,12 +7,16 @@ import {AppContractor} from "../types/contractors";
 import {InvoiceInput} from "../types/invoices";
 import {AppUser} from "../types/users";
 import {Env} from "../worker";
+import DateTimeFormat = Intl.DateTimeFormat;
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
+
 const xmlParser = new XMLParser({ preserveOrder: true, ignoreAttributes: false, parseTagValue: false });
 const xmlBuilder = new XMLBuilder({ preserveOrder: true, ignoreAttributes: false, format: true, suppressEmptyNode: true });
+
 const round = (amount: number): number => Math.round(amount * 100) / 100;
+
 const date = (value: Date): string => value.toISOString().slice(0, 10);
 
 export async function generate(req: Request, env: Env): Promise<Response> {
@@ -23,7 +27,8 @@ export async function generate(req: Request, env: Env): Promise<Response> {
         ...(appUser.contractorId ? { id: appUser.contractorId } : { nip: appUser.id }), ownerId: appUser.id
     });
     const customer = await repo.get<AppContractor>("contractors", { id: input.customerId, ownerId: appUser.id });
-    if (!seller || !customer) throw new AuthError("Seller or customer not found", 404);
+    if (!seller || !customer)
+        throw new AuthError("Seller or customer not found", 404);
     const templateXml = await env.ASSETS.fetch(new URL("/schemas/invoice-template.xml", req.url)).then(res => res.text());
     return new Response(generateInvoiceXml(templateXml, input, appUser, seller, customer), {
         headers: { "Content-Type": "application/xml; charset=utf-8" }
@@ -34,8 +39,9 @@ export function generateInvoiceXml(templateXml: string, input: InvoiceInput, app
     if (!input.items && (!Number.isInteger(input.hours) || input.hours! <= 0))
         throw new AuthError("Hours must be a positive integer", 400);
     if (!input.items && (!Number.isFinite(appUser.defaultHourlyRate) || appUser.defaultHourlyRate! <= 0))
-        throw new AuthError("Default hourly rate must be greater than zero", 400);
-    const issueDate = input.issueDate ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Warsaw" }).format(new Date());
+        throw new AuthError("Default hourly rate is not configured", 400);
+
+    const issueDate = input.issueDate ?? new DateTimeFormat("en").format(new Date());
     const issuePlace = input.issuePlace ?? seller.addressL1.split(",")[0].trim();
     const [year, month] = issueDate.split("-").map(Number);
     const postingDate = input.postingDate ?? date(new Date(Date.UTC(year, month, 0)));
@@ -63,6 +69,7 @@ export function generateInvoiceXml(templateXml: string, input: InvoiceInput, app
             ...(index < 3 ? [[`P_14_${suffix}`, round(group.reduce((sum, line) => sum + line.vat, 0))]] : [])
         ];
     }));
+
     const document = xmlParser.parse(templateXml);
     const root = children(document, "Faktura");
     const sellerElement = children(root, "Podmiot1");
@@ -130,6 +137,7 @@ const children = (parent: any[], name: string): any[] => parent.find(node => nam
 const elements = (values: Record<string, string | number>): any[] => Object.entries(values).map(([name, value]) => ({ [name]: [{ "#text": value }] }));
 
 function setText(parent: any[], values: Record<string, string | number>): void {
-    for (const [name, value] of Object.entries(values))
+    for (const [name, value] of Object.entries(values)) {
         children(parent, name).splice(0, Infinity, { "#text": value });
+    }
 }
