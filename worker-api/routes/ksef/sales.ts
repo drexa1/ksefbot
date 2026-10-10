@@ -3,7 +3,7 @@ import {getInvoices} from "./common";
 import {getAuthUser} from "../../auth";
 import { XMLParser } from "fast-xml-parser";
 import {KsefClient} from "../../clients/ksef";
-import {invoiceFromXml} from "../app/invoices";
+import {invoiceFromXml} from "../../service/invoices";
 import {D1Driver, Repository} from "../../repository/d1";
 
 let repo: Repository;
