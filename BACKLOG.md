@@ -84,14 +84,15 @@
 - [x] Move invoiceToXml completely to worker
 - [x] Rest tests for backend invoice generation  
 - [x] Use backend invoice generation from frontend  
+- [ ] Publish invoice generation API spec  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: first time flow
-- [ ] CLI: login with phone  
-- [ ] Bruno tests for invoice generation
+- [ ] CLI: login with phone
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  
-- [ ] Whatsapp: add real phone  
+- [ ] Whatsapp: add real phone
 - [ ] Whatsapp bot bruno tests  
+- [ ] Bruno tests for invoice generation  
 - [ ] Login frontend (inspiration: https://nosible.world/login)  
 - [ ] First time frontend workflow  
 - [ ] Review security architecture and keys passthrough  
