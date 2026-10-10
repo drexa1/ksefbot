@@ -85,6 +85,7 @@
 - [x] Rest tests for backend invoice generation  
 - [x] Use backend invoice generation from frontend  
 - [ ] Publish invoice generation API spec  
+- [ ] Bruno tests for invoice generation  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: login with phone  
 - [ ] CLI: first time flow  
@@ -92,7 +93,6 @@
 - [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone
 - [ ] Whatsapp bot bruno tests  
-- [ ] Bruno tests for invoice generation  
 - [ ] Login frontend (inspiration: https://nosible.world/login)  
 - [ ] First time frontend workflow  
 - [ ] Review security architecture and keys passthrough  
