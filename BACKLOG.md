@@ -86,8 +86,8 @@
 - [x] Use backend invoice generation from frontend  
 - [ ] Publish invoice generation API spec  
 - [ ] CLI: simplified vs custom invoice create  
-- [ ] CLI: first time flow
-- [ ] CLI: login with phone
+- [ ] CLI: login with phone  
+- [ ] CLI: first time flow  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone
