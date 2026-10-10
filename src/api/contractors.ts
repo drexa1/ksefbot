@@ -3,6 +3,7 @@ import {AppContractor} from "../../worker-api/types/contractors";
 
 /// UI model
 export interface ContractorUI {
+    id: string
     name: string
     nip: string
     email: string
@@ -29,6 +30,7 @@ function contractorToUI(customer: AppContractor): ContractorUI {
     const [town = "", postalCode = "", streetAndBuilding = ""] = customer.addressL1.split(", ");
     const match = streetAndBuilding.match(/^(.+?)\s+(\S+)$/);
     return {
+        id: customer.id,
         name: customer.name,
         nip: customer.nip ?? "",
         town,
