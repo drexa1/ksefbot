@@ -1,11 +1,11 @@
 import {getCurrentLocation} from "../location";
 import {ContractorUI, loadContractors} from "../api/contractors";
-import {generateInvoiceXml} from "./generateXml";
 import {clearValidationErrors, updateFormError, validateInvoiceForm} from "./validate";
-import {preconnect, whoami, loadUserProfile} from "../api/users";
-import {submitInvoice, downloadReceipt} from "../api/ksef";
+import {loadUserProfile, preconnect, whoami} from "../api/users";
+import {downloadReceipt, submitInvoice} from "../api/ksef";
 import {AppUser} from "../../worker-api/types/users";
 import {formatted} from "../../worker-api/service/invoices";
+import {invoiceFromForm} from "../api/invoices";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Invoice data
@@ -87,6 +87,8 @@ setupAutocompleteKeyboardNavigation(
 );
 
 contractorNameInput.addEventListener("input", () => {
+    delete invoiceForm.dataset.customerId;
+    generateInvoiceButton.disabled = true;
     selectedContractorIndex = -1;
     if (contractorNameInput.value.trim().length < 3) {
         contractorNameSuggestions.style.display = "none";
@@ -107,6 +109,8 @@ setupAutocompleteKeyboardNavigation(
 );
 
 contractorNipInput.addEventListener("input", () => {
+    delete invoiceForm.dataset.customerId;
+    generateInvoiceButton.disabled = true;
     selectedContractorNipIndex = -1;
     if (contractorNipInput.value.trim().length < 3) {
         contractorNipSuggestions.style.display = "none";
@@ -190,6 +194,8 @@ function renderCustomerSuggestions(container: HTMLDivElement, contractors: Contr
 }
 
 function fillCustomer(contractor: ContractorUI): void {
+    invoiceForm.dataset.customerId = contractor.id;
+    generateInvoiceButton.disabled = false;
     contractorNameInput.value = contractor.name;
     contractorNipInput.value = contractor.nip ?? "";
     contractorTown.value = contractor.town ?? "";
@@ -252,6 +258,9 @@ function initPositions(userProfile: AppUser): void {
                 calculatePositionLine(row);
         }
     });
+    document.querySelectorAll<HTMLInputElement>('input[name="priceType"]').forEach(input => {
+        input.addEventListener("change", () => document.querySelectorAll(".item-row").forEach(calculatePositionLine));
+    });
     initAddPosition();
     document.querySelectorAll(".item-row").forEach((row) => calculatePositionLine(row));
 }
@@ -266,21 +275,17 @@ function calculatePositionLine(row: Element): void {
     const VATInput = row.querySelector<HTMLInputElement>('input[id^="itemVATamount"]')!;
     const grossInput = row.querySelector<HTMLInputElement>('input[id^="itemGross"]')!;
 
-    const netUnitPrice = parseFloat(itemPrice.value) || 0;
+    const unitPrice = parseFloat(itemPrice.value) || 0;
     const quantity = parseFloat(itemQuantity.value) || 0;
     const VATrate = itemVATrate.value || "23";
 
-    // Cena jednostkowa jest ceną NETTO
-    const net = netUnitPrice * quantity;
-
-    let VAT = 0;
-    let gross = net;
-
-    if (VATrate !== "ZW") {
-        const rate = parseFloat(VATrate) / 100;
-        VAT = net * rate;
-        gross = net + VAT;
-    }
+    const round = (amount: number): number => Math.round(amount * 100) / 100;
+    const isGross = document.querySelector<HTMLInputElement>("#priceGross")!.checked;
+    const rate = VATrate === "ZW" ? 0 : Number(VATrate) / 100;
+    const amount = unitPrice * quantity;
+    const net = round(isGross ? amount / (1 + rate) : amount);
+    const VAT = isGross ? round(round(amount) - net) : round(amount * rate);
+    const gross = round(net + VAT);
 
     netInput.value = net.toFixed(2);
     VATInput.value = VAT.toFixed(2);
@@ -478,16 +483,24 @@ async function initActions(userProfile: AppUser) {
     generateInvoiceButton?.addEventListener("click", async() => {
         clearValidationErrors(invoiceForm);
         if (!validateInvoiceForm(invoiceForm)) return;
+        generateInvoiceButton.disabled = true;
+        downloadXmlButton.disabled = true;
+        submitButton.disabled = true;
         try {
-            invoiceXML = await generateInvoiceXml(userContractor, invoiceForm);
+            invoiceXML = await invoiceFromForm(invoiceForm);
             if (downloadXmlButton) downloadXmlButton.disabled = false;
             if (submitButton) submitButton.disabled = false;
         } catch (error) {
             console.error("Unable to generate invoice XML:", error);
+            const errorElement = document.getElementById("invoiceFormError")!;
+            errorElement.textContent = error instanceof Error ? error.message : String(error);
+            errorElement.classList.remove("d-none");
+        } finally {
+            generateInvoiceButton.disabled = !invoiceForm.dataset.customerId;
         }
     });
     // After everything is initialized
-    generateInvoiceButton.disabled = false;
+    generateInvoiceButton.disabled = !invoiceForm.dataset.customerId;
 
     invoiceForm?.addEventListener("input", (event: Event) => {
         const field = event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;

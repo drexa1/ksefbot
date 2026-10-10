@@ -1,6 +1,6 @@
 import {InvoiceInput} from "../../worker-api/types/invoices";
 
-export async function invoiceFromForm(form: HTMLFormElement, customerId: string): Promise<string> {
+export async function invoiceFromForm(form: HTMLFormElement): Promise<string> {
     const value = (selector: string, root: Element = form): string => root.querySelector<HTMLInputElement>(selector)!.value.trim();
     const checked = (selector: string): boolean => form.querySelector<HTMLInputElement>(selector)!.checked;
 
@@ -17,7 +17,7 @@ export async function invoiceFromForm(form: HTMLFormElement, customerId: string)
         markingFp: checked("#markingFp"),
         markingTp: checked("#markingTp"),
         // Customer section
-        customerId: customerId,
+        customerId: form.dataset.customerId!,
         customerEmail: value("#contractorMail"),
         additionalEntity: value('input[name="additionalEntity"]:checked') as InvoiceInput["additionalEntity"],
         // Items section
