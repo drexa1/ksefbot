@@ -84,7 +84,7 @@
 - [x] Move invoiceToXml completely to worker
 - [x] Rest tests for backend invoice generation  
 - [x] Use backend invoice generation from frontend  
-- [ ] CLI: simplified vs custom invoice create
+- [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: first time flow
 - [ ] CLI: login with phone  
 - [ ] Bruno tests for invoice generation
