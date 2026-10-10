@@ -1,12 +1,8 @@
 import {Env} from "../../worker";
 import {D1Driver, Repository} from "../../repository/d1";
-import {XMLParser} from "fast-xml-parser";
-import {AppUser} from "../../types/users";
-import {AppContractor, KsefIdentifiable} from "../../types/contractors";
 import {AppInvoice} from "../../types/invoices";
 import {getAuthUser} from "../../auth";
-import {dtoFromAliases} from "../../dto/avro";
-import {nanoid} from "nanoid";
+import {invoiceFromXml} from "../../service/invoices";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
@@ -77,91 +73,4 @@ export async function del(req: Request, env: Env): Promise<Response> {
     return result.changes === 0
         ? Response.json({ success: false, error: "No invoice found", filters }, { status: 404 })
         : Response.json({ success: result.success, changes: result.changes, ...filters }, { status: 200 });
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Invoice record creation
-// ---------------------------------------------------------------------------------------------------------------------
-
-export const xmlParser = new XMLParser({
-    attributesGroupName: ":@",
-    textNodeName: "value",
-    attributeNamePrefix: "",
-    removeNSPrefix: true,
-    ignoreAttributes: false,
-    parseTagValue: false
-});
-
-export async function invoiceFromXml(
-    env: Env,
-    xmlContent: string,
-    appUser: AppUser,
-    type: "sales" | "purchase",
-    notes?: string
-): Promise<AppInvoice & { ownerId: string }> {
-    // Parse XML
-    const invoiceXml = xmlParser.parse(xmlContent).Faktura;
-    const ksefInvoiceAvroSchema = await env.ASSETS.fetch(new URL(env.KSEF_INVOICE_SCHEMA)).then((res) => res.json());
-    const ksefInvoice = dtoFromAliases(invoiceXml, ksefInvoiceAvroSchema);
-    return {
-        id: ksefInvoice.InvoiceBody.InvoiceNumber,
-        ownerId: appUser.id,
-        type: type,
-        issueDate: ksefInvoice.InvoiceBody.IssueDate,
-        // Only auto create customers for sales invoices
-        ...(type === "sales" && {
-            customerId: await getOrCreateContractor(env, {
-                ownerId: appUser.id,
-                name: ksefInvoice.Buyer.IdentificationData.Name,
-                nip: ksefInvoice.Buyer.IdentificationData.NIP,
-                countryCode: ksefInvoice.Buyer.Address?.CountryCode,
-                addressL1: ksefInvoice.Buyer.Address?.AddressLine1,
-            })
-        }),
-        rawXml: xmlContent,
-        jsonData: JSON.stringify(ksefInvoice),
-        ...(notes && { notes }),
-        updatedAt: new Date().toISOString()
-    };
-}
-
-async function getOrCreateContractor(env: Env, contractorParts: {
-    ownerId: string
-    name: string
-    nip?: string
-    pesel?: string
-    regon?: string
-    countryCode?: string
-    addressL1?: string
-}): Promise<string> {
-    const repo = getRepo(env);
-    const { idField, idValue } = getContractorIdentifier(contractorParts);
-    const lookup = { [idField]: idValue };
-    const existing = await repo.get<AppContractor>("contractors", lookup);
-    if (existing) return existing.id!;
-    const contractor: AppContractor = {
-        id: nanoid(),
-        ...({ ownerId: contractorParts.ownerId }),
-        name: contractorParts.name,
-        ...(contractorParts.nip && { nip: contractorParts.nip }),
-        ...(contractorParts.pesel && { pesel: contractorParts.pesel }),
-        ...(contractorParts.regon && { regon: contractorParts.regon }),
-        countryCode: contractorParts.countryCode ?? "PL",
-        addressL1: contractorParts.addressL1 ?? "",
-        createdAt: new Date().toISOString(),
-    };
-    const { changes } = await repo.save("contractors", contractor, true);
-    if (changes) return contractor.id!;
-    const saved = await repo.get<AppContractor>("contractors", lookup);
-    return saved.id;
-}
-
-function getContractorIdentifier(contractorId: KsefIdentifiable): { idField: "nip" | "pesel" | "regon", idValue: string } {
-    if (contractorId.nip)
-        return { idField: "nip", idValue: contractorId.nip };
-    if (contractorId.pesel)
-        return { idField: "pesel", idValue: contractorId.pesel };
-    if (contractorId.regon)
-        return { idField: "regon", idValue: contractorId.regon };
-    throw new Error("Contractor without supported identifier");
 }
