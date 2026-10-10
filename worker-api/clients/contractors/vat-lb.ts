@@ -1,6 +1,7 @@
 import {Env} from "../../worker";
 import {dtoFromAliases} from "../../dto/avro";
 import {KsefContractor} from "../../types/gov";
+import {formatted} from "../../service/invoices";
 
 // noinspection JSUnusedGlobalSymbols
 export async function contractors(req: Request, env: Env): Promise<Response> {
@@ -20,8 +21,7 @@ export async function contractors(req: Request, env: Env): Promise<Response> {
  * Search by Tax Identification Number in the VAT payers whitelist.
  */
 export async function lookupVATLB(nip: string, env: Env): Promise<KsefContractor> {
-    const date = new Date().toISOString().substring(0, 10);
-    const lbLookup = await fetch(`${env.VAT_LB_URL}/${nip}?date=${date}`, {
+    const lbLookup = await fetch(`${env.VAT_LB_URL}/${nip}?date=${formatted(new Date())}`, {
         headers: { Accept: "application/json" }
     });
     if (!lbLookup.ok)

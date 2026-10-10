@@ -5,6 +5,7 @@ import {clearValidationErrors, updateFormError, validateInvoiceForm} from "./val
 import {preconnect, whoami, loadUserProfile} from "../api/users";
 import {submitInvoice, downloadReceipt} from "../api/ksef";
 import {AppUser} from "../../worker-api/types/users";
+import {formatted} from "../../worker-api/service/invoices";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Invoice data
@@ -20,7 +21,7 @@ async function initInvoiceData() {
     invoiceNumber.value = `eFA/${year}/${month}/1`;
     // Date of issue
     const issueDate = invoiceDataSection.querySelector("#issueDate") as HTMLInputElement;
-    issueDate.value = now.toISOString().slice(0, 10);
+    issueDate.value = formatted(now);
     // Posting date
     const postingDate = invoiceDataSection.querySelector("#postingDate") as HTMLInputElement;
     postingDate.value = lastMonthDay;

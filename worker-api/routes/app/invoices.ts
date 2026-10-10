@@ -2,7 +2,7 @@ import {Env} from "../../worker";
 import {D1Driver, Repository} from "../../repository/d1";
 import {AppInvoice} from "../../types/invoices";
 import {getAuthUser} from "../../auth";
-import {invoiceFromXml} from "../../service/invoices";
+import {formatted, invoiceFromXml} from "../../service/invoices";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
@@ -30,7 +30,7 @@ export async function get(req: Request, env: Env): Promise<Response> {
     const toDate = url.searchParams.has("to") ? new Date(url.searchParams.get("to")!) : undefined;
     if ((fromDate && isNaN(fromDate.getTime())) || (toDate && isNaN(toDate.getTime())) || (fromDate && toDate && fromDate > toDate))
         return Response.json({ success: false, error: "Invalid date parameters" }, { status: 400 });
-    const range = { field: "issueDate", start: fromDate?.toISOString().slice(0, 10), end: toDate?.toISOString().slice(0, 10) };
+    const range = { field: "issueDate", start: fromDate && formatted(fromDate), end: toDate && formatted(toDate) };
     const result = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices", filters, range);
     return result.length === 0
         ? Response.json({ success: false, error: "No invoice found", filters }, { status: 404 })

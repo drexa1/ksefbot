@@ -5,8 +5,8 @@ import {AppInvoice} from "../../types/invoices";
 import {KsefClient} from "../../clients/ksef";
 import {KsefInvoiceMetadata} from "../../types/ksef";
 import {D1Driver, Repository} from "../../repository/d1";
-import {invoiceFromXml} from "../app/invoices";
 import {findUncoveredPeriods, saveSyncPeriod} from "./sync-periods";
+import {formatted, invoiceFromXml} from "../../service/invoices";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
@@ -31,7 +31,7 @@ export async function getInvoices(req: Request, env: Env, type: "sales" | "purch
         // Query by dates range
         if (!fromDate || !toDate)
             return Response.json({ success: false, error: "From and To are required together" }, { status: 400 });
-        if ((Date.parse(toDate.toISOString().slice(0, 10)) - Date.parse(fromDate.toISOString().slice(0, 10))) / 86_400_000 + 1 > 100)
+        if ((Date.parse(formatted(toDate)) - Date.parse(formatted(fromDate))) / 86_400_000 + 1 > 100)
             return Response.json({ success: false, error: "The maximum date range supported by KSeF is 100 days." }, { status: 400 });
         const {appInvoices, fromDb, fromKsef} = await getByDatesRange(env, client, type, appUser, fromDate, toDate);
         return Response.json({
@@ -63,8 +63,8 @@ async function getByInvoiceNumber(env: Env, client: KsefClient, type: "sales" | 
 export async function getByDatesRange(env: Env, client: KsefClient,  type: "sales" | "purchase", appUser: AppUser, from: Date, to: Date) {
     const range = {
         field: "issueDate",
-        start: from.toISOString().slice(0, 10),
-        end: to.toISOString().slice(0, 10),
+        start: formatted(from),
+        end: formatted(to),
         startInclusive: true,
         endInclusive: true
     };

@@ -1,6 +1,7 @@
 import {Env} from "../../worker";
 import {D1Driver, Repository} from "../../repository/d1";
 import {InvoicesSyncPeriod} from "../../types/invoices";
+import {formatted} from "../../service/invoices";
 
 const msPerDay = 86_400_000;
 const periodTTL = 24 * 60 * 60 * 1000;  // ⌛ 24h TTL - is what a period holds up before being flagged outdated
@@ -23,11 +24,11 @@ export async function findUncoveredPeriods(env: Env, ownerId: string, type: "sal
         if (syncedFrom > to.getTime()) break;
         if (syncedTo < nextDate) continue;
         if (syncedFrom > nextDate)
-            uncoveredPeriods.push({ from: new Date(nextDate).toISOString().slice(0, 10), to: new Date(Math.min(to.getTime(), syncedFrom - msPerDay)).toISOString().slice(0, 10) });
+            uncoveredPeriods.push({ from: formatted(new Date(nextDate)), to: formatted(new Date(Math.min(to.getTime(), syncedFrom - msPerDay))) });
         nextDate = Math.max(nextDate, syncedTo + msPerDay);
         if (nextDate > to.getTime()) break;
     }
-    if (nextDate <= to.getTime()) uncoveredPeriods.push({ from: new Date(nextDate).toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) });
+    if (nextDate <= to.getTime()) uncoveredPeriods.push({ from: formatted(new Date(nextDate)), to: formatted(to) });
     return uncoveredPeriods;
 }
 

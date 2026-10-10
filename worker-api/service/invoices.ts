@@ -1,18 +1,19 @@
 import {XMLParser} from "fast-xml-parser";
-import XMLBuilder from "fast-xml-builder";
-import {getAuthUser} from "../auth";
 import {D1Driver, Repository} from "../repository/d1";
 import {AuthError} from "../types/auth";
 import {AppContractor, KsefIdentifiable} from "../types/contractors";
 import {AppInvoice, InvoiceInput} from "../types/invoices";
 import {AppUser} from "../types/users";
 import {Env} from "../worker";
-import DateTimeFormat = Intl.DateTimeFormat;
+import XMLBuilder from "fast-xml-builder";
+import {getAuthUser} from "../auth";
 import {dtoFromAliases} from "../dto/avro";
 import {nanoid} from "nanoid";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
+
+export const formatted = (value: Date): string => value.toISOString().slice(0, 10);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Application invoice model from XML
@@ -28,7 +29,6 @@ const invoiceParser = new XMLParser({
 });
 
 const round = (amount: number): number => Math.round(amount * 100) / 100;
-const date = (value: Date): string => value.toISOString().slice(0, 10);
 
 export async function invoiceFromXml(
     env: Env,
@@ -172,10 +172,10 @@ export function generateInvoiceXml(templateXml: string, input: InvoiceInput, app
     if (!input.items && (!Number.isFinite(appUser.defaultHourlyRate) || appUser.defaultHourlyRate! <= 0))
         throw new AuthError("Default hourly rate is not configured", 400);
 
-    const issueDate = input.issueDate ?? new DateTimeFormat("en").format(new Date());
+    const issueDate = input.issueDate ?? formatted(new Date());
     const issuePlace = input.issuePlace ?? seller.addressL1.split(",")[0].trim();
     const [year, month] = issueDate.split("-").map(Number);
-    const postingDate = input.postingDate ?? date(new Date(Date.UTC(year, month, 0)));
+    const postingDate = input.postingDate ?? formatted(new Date(Date.UTC(year, month, 0)));
     const items: NonNullable<InvoiceInput["items"]> = input.items ?? [{
         name: appUser.defaultItemName?.trim() || "Consulting services",
         quantity: input.hours!, unit: "szt", unitPrice: appUser.defaultHourlyRate!, vatRate: "23"
@@ -260,7 +260,7 @@ export function generateInvoiceXml(templateXml: string, input: InvoiceInput, app
             Ilosc: input.paymentTerm.periodLength, Jednostka: input.paymentTerm.periodUnit, ZdarzeniePoczatkowe: input.paymentTerm.startingEvent
         }) });
     } else {
-        setText(paymentTerm, { Termin: input.paymentDeadline ?? date(deadline) });
+        setText(paymentTerm, { Termin: input.paymentDeadline ?? formatted(deadline) });
     }
     setText(payment, { FormaPlatnosci: input.paymentType ?? "6" });
     const bankAccount = input.bankAccount ?? appUser.bankAccountNumber;

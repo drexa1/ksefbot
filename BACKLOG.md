@@ -81,8 +81,8 @@
 - [x] CLI: create customer from online lookup  
 - [x] CLI: show periods coverage widget  
 - [x] Manual testing of CLI backfill option  
-- [ ] Move invoiceToXml completely to worker  
-- [ ] Rest tests for backend invoice generation  
+- [x] Move invoiceToXml completely to worker  
+- [x] Rest tests for backend invoice generation  
 - [ ] Bruno tests for invoice generation  
 - [ ] CLI: simplified vs custom invoice create  
 - [ ] CLI: first time flow  
