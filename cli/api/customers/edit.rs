@@ -28,7 +28,6 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
     let mut contractors = other_contractors(app_user).await?;
     if contractors.is_empty() {
         println!("  API Response: No customers found.");
-        println!();
         return Ok(true);
     }
     let mut contractor = if contractors.len() == 1 {
@@ -48,7 +47,6 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
     let (mut city, mut postal_code, mut street, mut building_number, mut apartment_number) = parse_address_l1(&contractor.address_l1);
     loop {
         contractor.address_l1 = assemble_address_line(&city, &postal_code, street.as_deref(), &building_number, apartment_number.as_deref());
-        println!();
         let keys = ["Name", "NIP", "PESEL", "REGON", "Internal identifier", "City", "Postal code", "Street", "Building number", "Apartment number", "Notes"];
         let values = [
             contractor.name.clone(),

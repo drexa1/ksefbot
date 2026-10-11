@@ -84,11 +84,12 @@
 - [x] Move invoiceToXml completely to worker
 - [x] Rest tests for backend invoice generation  
 - [x] Use backend invoice generation from frontend  
-- [ ] Publish invoice generation API spec  
-- [ ] Bruno tests for invoice generation  
-- [ ] CLI: simplified vs custom invoice create  
+- [x] Publish invoice generation API spec  
+- [x] CLI: simplified vs custom invoice create  
+- [ ] Bruno tests for invoice generation   
 - [ ] CLI: login with phone  
 - [ ] CLI: first time flow  
+- [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone
