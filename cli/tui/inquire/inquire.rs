@@ -237,7 +237,7 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
             println!("  📂 Submission receipt saved to {}", save_path.display().to_string().dark_yellow());
         }
     } else {
-        println!("  Invoice created but not submitted.");
+        println!("  Invoice generated but not submitted.");
     }
     Ok(true)
 }
