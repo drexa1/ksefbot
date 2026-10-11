@@ -1,7 +1,7 @@
 use crate::api::customers::AppContractor;
 use crate::api::users::AppUser;
 use anyhow::Result;
-use chrono::{Datelike, Duration, Utc};
+use chrono::{Datelike, Duration, Local};
 use inquire::{Confirm, CustomType, DateSelect, MultiSelect, Select, Text, validator::Validation};
 use serde::{Deserialize, Serialize};
 
@@ -95,14 +95,15 @@ pub fn simplified(customer: &AppContractor) -> Result<InvoiceInput> {
 }
 
 pub fn custom(app_user: &AppUser, seller: &AppContractor, customer: &AppContractor) -> Result<InvoiceInput> {
-    let today = Utc::now().date_naive();
+    let today = Local::now().date_naive();
+    let month_end = super::month_range(today, 0).1;
     let invoice_number = text("Invoice number:", &format!("eFA/{}/{:02}/1", today.year(), today.month()))?;
-    let issue_date = DateSelect::new("Issue date:").with_starting_date(today).prompt()?;
+    let issue_date = DateSelect::new("Issue date:").with_starting_date(month_end).prompt()?;
     let issue_place = text("Issue place (optional):", seller.address_l1.split(',').next().unwrap().trim())?;
-    let posting_date = DateSelect::new("Posting date:").with_starting_date(super::month_range(today, 0).1).prompt()?;
-    let delivery_date = DateSelect::new("Delivery / service date:").with_starting_date(posting_date).prompt()?;
+    let posting_date = today;
+    let delivery_date = DateSelect::new("Delivery/Service date:").with_starting_date(month_end).prompt()?;
     let markings = MultiSelect::new("Optional markings:", vec!["MPP", "MK", "FP", "TP"]).prompt()?;
-    println!("  Customer: {} ({})", customer.name, customer.id);
+    println!("  Customer: {} - {}", customer.nip.as_deref().unwrap_or("-"), customer.name);
     let customer_email = text("Customer email (optional):", "")?;
     let additional_entity = choice("Additional entity:", &[
         ("None", "none"), ("Local government unit (JST)", "jst"), ("VAT group (GV)", "gv"), ("Other", "other")
@@ -114,9 +115,9 @@ pub fn custom(app_user: &AppUser, seller: &AppContractor, customer: &AppContract
         println!("  Item {}", items.len() + 1);
         items.push(InvoiceItem {
             name: text("Item name:", app_user.default_item_name.as_deref().unwrap_or(""))?,
-            unit_price: number("Unit price:", app_user.default_hourly_rate.unwrap_or(0.0), 0.0)?,
+            unit_price: number("Unit price (PLN):", app_user.default_hourly_rate.unwrap_or(0.0), 0.0)?,
             quantity: number("Quantity:", 1.0, 1.0)?,
-            unit: text("Unit:", "szt")?,
+            unit: "szt".to_string(),
             vat_rate: choice("VAT rate:", &[("23%", "23"), ("8%", "8"), ("5%", "5"), ("0%", "0"), ("Exempt (ZW)", "ZW")], 0)?,
             gtu: if columns.contains(&"GTU") { Some(text("GTU:", "")?) } else { None },
             procedure: if columns.contains(&"Procedure") { Some(text("Procedure symbol:", "")?) } else { None },
@@ -129,7 +130,7 @@ pub fn custom(app_user: &AppUser, seller: &AppContractor, customer: &AppContract
         ("Loan", "5"), ("Transfer", "6"), ("Mobile payment", "7"), ("Other payment", "*")
     ], 5)?;
     let bank_account = text("Bank account (optional):", app_user.bank_account_number.as_deref().unwrap_or(""))?;
-    let invoice_paid = Confirm::new("Invoice paid?").with_default(false).prompt()?;
+    let invoice_paid = Confirm::new("Invoice already paid?").with_default(false).prompt()?;
     let mut input = InvoiceInput {
         customer_id: customer.id.clone(),
         invoice_number: Some(invoice_number),
@@ -151,7 +152,7 @@ pub fn custom(app_user: &AppUser, seller: &AppContractor, customer: &AppContract
         ..Default::default()
     };
     if Select::new("Payment term:", vec!["Deadline", "Description"]).prompt()? == "Deadline" {
-        let days = CustomType::<u32>::new("Days to pay:").with_default(7).prompt()?;
+        let days = CustomType::<u32>::new("Days to pay:").with_starting_input("7").prompt()?;
         let deadline = DateSelect::new("Payment deadline:")
             .with_starting_date(posting_date + Duration::days(i64::from(days))).prompt()?;
         input.payment_days = Some(days);
@@ -180,7 +181,7 @@ fn text(message: &str, initial: &str) -> Result<String> {
 }
 
 fn number(message: &str, initial: f64, minimum: f64) -> Result<f64> {
-    Ok(CustomType::<f64>::new(message).with_default(initial).with_validator(move |value: &f64| {
+    Ok(CustomType::<f64>::new(message).with_starting_input(&initial.to_string()).with_validator(move |value: &f64| {
         Ok(if value.is_finite() && *value >= minimum {
             Validation::Valid
         } else {
