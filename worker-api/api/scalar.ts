@@ -15,6 +15,10 @@ export const scalarHtml = `
                     url: "/openapi.json",
                     theme: "laserwave",
                     orderSchemaPropertiesBy: "preserve",
+                    operationsSorter: (a, b) => {
+                        const methods = ["get", "post", "put", "delete"];
+                        return methods.indexOf(a.method) - methods.indexOf(b.method) || a.path.localeCompare(b.path);
+                    },
                     defaultOpenAllTags: false,
                     hideSearch: true
                 });

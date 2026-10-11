@@ -1164,6 +1164,10 @@ export const swaggerHtml = `
                 SwaggerUIBundle({
                     url: "/openapi.json",
                     dom_id: "#swagger-ui",
+                    operationsSorter: (a, b) => {
+                        const methods = ["get", "post", "put", "delete"];
+                        return methods.indexOf(a.get("method")) - methods.indexOf(b.get("method")) || a.get("path").localeCompare(b.get("path"));
+                    },
                     docExpansion: "none"
                 });
             </script>
