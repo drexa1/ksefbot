@@ -14,6 +14,63 @@ export const getOpenApiSpec = () => ({
             }
         },
         schemas: {
+            InvoiceInput: {
+                type: "object",
+                required: ["customerId"],
+                anyOf: [{ required: ["hours"] }, { required: ["items"] }],
+                properties: {
+                    customerId: { type: "string", description: "ID of a saved customer owned by the authenticated user." },
+                    invoiceNumber: { type: "string" },
+                    hours: { type: "integer", minimum: 1, description: "Simplified mode: uses the user's default hourly rate and item description." },
+                    customer: { $ref: "#/components/schemas/Contractor" },
+                    customerEmail: { type: "string" },
+                    additionalEntity: { type: "string", enum: ["none", "jst", "gv", "other"] },
+                    issueDate: { type: "string", format: "date" },
+                    issuePlace: { type: "string" },
+                    postingDate: { type: "string", format: "date" },
+                    deliveryDate: { type: "string", format: "date" },
+                    markingMpp: { type: "boolean" },
+                    markingMk: { type: "boolean" },
+                    markingFp: { type: "boolean" },
+                    markingTp: { type: "boolean" },
+                    priceType: { type: "string", enum: ["net", "gross"] },
+                    items: {
+                        type: "array",
+                        description: "Custom invoice items. When provided, these replace the hours-based item.",
+                        items: {
+                            type: "object",
+                            required: ["name", "quantity", "unit", "unitPrice", "vatRate"],
+                            properties: {
+                                name: { type: "string" },
+                                quantity: { type: "number" },
+                                unit: { type: "string" },
+                                unitPrice: { type: "number" },
+                                vatRate: { type: "string", enum: ["23", "8", "5", "0", "ZW"] },
+                                gtu: { type: "string" },
+                                procedure: { type: "string" },
+                                additionalInformation: { type: "string" }
+                            }
+                        }
+                    },
+                    paymentType: { type: "string", enum: ["1", "2", "3", "4", "5", "6", "7", "*"] },
+                    bankAccount: { type: "string", description: "Defaults to the user's bank account when omitted. An empty string omits the account." },
+                    invoicePaid: { type: "boolean" },
+                    paymentDays: { type: "number" },
+                    paymentDeadline: { type: "string", format: "date" },
+                    paymentTerm: {
+                        type: "object",
+                        required: ["periodLength", "periodUnit", "startingEvent"],
+                        properties: {
+                            periodLength: { type: "number" },
+                            periodUnit: { type: "string" },
+                            startingEvent: { type: "string" }
+                        }
+                    },
+                    paymentLink: { type: "string" },
+                    ksefPaymentId: { type: "string" },
+                    footers: { type: "array", items: { type: "string" } }
+                }
+            },
             KSeFInvoice: {
                 type: "object",
                 properties: {
@@ -799,12 +856,70 @@ export const getOpenApiSpec = () => ({
                     "404": { description: "Invoice not found" }
                 }
             },
+            put: {
+                summary: "Update an invoice - Unsupported operation.",
+                tags: ["App invoices"],
+                security: [{ ApiKeyAuth: [] }],
+                responses: {
+                    "405": { description: "Method Not Allowed - Invoice updates are not supported" }
+                }
+            },
+            delete: {
+                summary: "Delete an invoice - Restricted to resources owned by the authenticated user.",
+                tags: ["App invoices"],
+                security: [{ ApiKeyAuth: [] }],
+                parameters: [{ name: "id", in: "query", required: true, schema: { type: "string" } }],
+                responses: {
+                    "200": { description: "Invoice deleted" },
+                    "401": { description: "Unauthorized" },
+                    "404": { description: "Invoice not found" }
+                }
+            }
+        },
+        "/app/invoices/generate": {
+            post: {
+                summary: "Generate an invoice XML - Restricted to resources owned by the authenticated user.",
+                description: "Generates XML using the authenticated user's seller details and a saved customer. Supply hours for simplified generation or items for a custom invoice. Does not store the invoice or submit it to KSeF.",
+                tags: ["App invoices"],
+                security: [{ ApiKeyAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/InvoiceInput" },
+                            examples: {
+                                simplified: { value: { customerId: "customer-id", hours: 160 } },
+                                custom: { value: {
+                                    customerId: "customer-id",
+                                    invoiceNumber: "eFA/2026/10/1",
+                                    issueDate: "2026-10-10",
+                                    priceType: "net",
+                                    items: [{ name: "Consulting services", quantity: 10, unit: "h", unitPrice: 100, vatRate: "23" }],
+                                    paymentType: "6",
+                                    paymentDeadline: "2026-11-07"
+                                } }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    "200": {
+                        description: "Generated invoice XML",
+                        content: { "application/xml": { schema: { type: "string" } } }
+                    },
+                    "400": { description: "Invalid hours or default hourly rate" },
+                    "401": { description: "Unauthorized" },
+                    "404": { description: "Seller or customer not found" }
+                }
+            }
+        },
+        "/app/invoices/ingest": {
             post: {
                 summary: "Upload an invoice XML - Restricted to resources owned by the authenticated user.",
                 tags: ["App invoices"],
                 security: [{ ApiKeyAuth: [] }],
                 requestBody: {
-                    required: ["file"],
+                    required: true,
                     content: {
                         "multipart/form-data": {
                             schema: {
@@ -832,27 +947,10 @@ export const getOpenApiSpec = () => ({
                     }
                 },
                 responses: {
-                    "200": { description: "Invoice created" },
+                    "201": { description: "Invoice created" },
+                    "400": { description: "Missing XML file" },
+                    "409": { description: "Invoice already exists" },
                     "401": { description: "Unauthorized" }
-                }
-            },
-            put: {
-                summary: "Update an invoice - Unsupported operation.",
-                tags: ["App invoices"],
-                security: [{ ApiKeyAuth: [] }],
-                responses: {
-                    "405": { description: "Method Not Allowed - Invoice updates are not supported" }
-                }
-            },
-            delete: {
-                summary: "Delete an invoice - Restricted to resources owned by the authenticated user.",
-                tags: ["App invoices"],
-                security: [{ ApiKeyAuth: [] }],
-                parameters: [{ name: "id", in: "query", required: true, schema: { type: "string" } }],
-                responses: {
-                    "200": { description: "Invoice deleted" },
-                    "401": { description: "Unauthorized" },
-                    "404": { description: "Invoice not found" }
                 }
             }
         },

@@ -3,7 +3,7 @@
 @apiKey = test
 
 ### Create invoice for the first time
-POST {{baseUrl}}/app/invoices
+POST {{baseUrl}}/app/invoices/ingest
 Content-Type: multipart/form-data; boundary=ksefInvoice
 X-API-Key: {{apiKey}}
 
@@ -23,7 +23,7 @@ Test notes
 --ksefInvoice--
 
 ### Second create attempt whould trigger PK violation error
-POST {{baseUrl}}/app/invoices
+POST {{baseUrl}}/app/invoices/ingest
 Content-Type: multipart/form-data; boundary=ksefInvoice
 X-API-Key: {{apiKey}}
 

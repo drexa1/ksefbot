@@ -1,9 +1,10 @@
 import {SubmissionStatus} from "../../worker-api/types/ksef";
 
 export async function submitInvoice(xmlContent: string, notes: string): Promise<{ sessionReferenceNumber: string, invoiceReferenceNumber: string }> {
-    const url = `${import.meta.env.VITE_WORKER_URL}/app/invoices`;
+    const url = `${import.meta.env.VITE_WORKER_URL}/app/invoices/ingest`;
     const formData = new FormData();
     formData.append("file", new File([xmlContent], "invoice.xml", { type: "application/xml" }));
+    formData.append("type", "sales");
     formData.append("notes", JSON.stringify(notes));
     const response = await fetch(url, {
         method: "POST",

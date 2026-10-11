@@ -2,6 +2,7 @@ import {Env} from "../../worker";
 import {D1Driver, Repository} from "../../repository/d1";
 import {getAuthUser} from "../../auth";
 import {getByDatesRange} from "../ksef/common";
+import {KsefClient} from "../../clients/ksef";
 import {AppTaxRecord, AppTaxRecordDb, TaxRecordObligations} from "../../types/taxes";
 import {AppUser} from "../../types/users";
 
@@ -136,7 +137,7 @@ async function computeObligations(env: Env, appUser: AppUser, taxRecord: AppTaxR
     const healthInsuranceRate = taxRecord.healthInsuranceRate ?? env.DEFAULT_HEALTH_INSURANCE_RATE;
     const healthContribution = Number((healthInsuranceBase * healthInsuranceRate / 100).toFixed(2));
     // Purchases deductions
-    const purchasesInvoices = env.TEST_MODE ? [] : (await getByDatesRange(env, appUser, "purchase", from, to))
+    const purchasesInvoices = env.TEST_MODE ? [] : (await getByDatesRange(env, new KsefClient(env), "purchase", appUser, from, to))
         .appInvoices
         .map(invoice => JSON.parse(invoice.jsonData));
     const purchasesSummary = purchasesInvoices.map((invoice) => ({
