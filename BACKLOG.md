@@ -86,7 +86,7 @@
 - [x] Use backend invoice generation from frontend  
 - [x] Publish invoice generation API spec  
 - [x] CLI: simplified vs custom invoice create  
-- [ ] Bruno tests for invoice generation   
+- [ ] Bruno tests for invoice generation  
 - [ ] CLI: login with phone  
 - [ ] CLI: first time flow  
 - [ ] Rethink monthly widget with stats line (ext. library)  
