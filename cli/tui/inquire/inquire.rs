@@ -17,6 +17,9 @@ use std::io::{self};
 use std::path::{Path, PathBuf};
 use strum::IntoEnumIterator;
 
+#[path = "invoices.rs"]
+pub(crate) mod invoices_tui;
+
 pub async fn login_loop() -> Result<AuthUser> {
     let last_used = crate::login::last_used_method();
     loop {
@@ -139,13 +142,14 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
         };
         (invoice, Some(path))
     } else {
+        let mode = Select::new("Create sales invoice:", vec!["Simplified (hours worked this month)", "Custom"]).prompt()?;
         // Fetch invoice counterparties
         let invoice_parties = load_invoice_parties(app_user).await?;
         let customer = if invoice_parties.customers.len() == 1 {
             &invoice_parties.customers[0]
         } else {
             let customer_choices: Vec<String> = invoice_parties.customers.iter().enumerate().map(|(index, customer)| {
-                format!("{}. {} (NIP: {})", index + 1, customer.name, customer.nip.as_deref().unwrap())
+                format!("{}. {} (NIP: {})", index + 1, customer.name, customer.nip.as_deref().unwrap_or("-"))
             }).collect();
             let selected: String = Select::new("Select customer", customer_choices).with_page_size(15).prompt()?;
             let customer_index = selected.split_once(". ")
@@ -153,25 +157,19 @@ pub async fn prompt_create_invoice(app_user: &AppUser) -> Result<bool> {
                 .unwrap();
             &invoice_parties.customers[customer_index]
         };
-        // Prompt hours worked
-        let hours_worked = loop {
-            let value = Text::new("Hours worked: ").with_placeholder("160").prompt()?;
-            match value.trim().parse::<u32>() {
-                Ok(hours) if hours > 0 => break hours,
-                _ => println!("The number of hours must be greater than zero."),
-            }
+        let input = if mode == "Custom" {
+            invoices_tui::custom(app_user, &invoice_parties.user_contractor, customer)?
+        } else {
+            invoices_tui::simplified(customer)?
         };
-        // Preview on screen
-        let preview = preview_sales_invoice(app_user, hours_worked)?;
-        println!("  🔎 Invoice for [{} hours at {:.2} PLN/h]: {} PLN net + {:.2} PLN VAT = {:.2} PLN gross",
-            hours_worked,
-            preview.hourly_rate,
+        let new_invoice = create_invoice(app_user, &input).await?;
+        let preview = preview_sales_invoice(&new_invoice)?;
+        println!("  Invoice {}: {} PLN net + {:.2} PLN VAT = {:.2} PLN gross",
+            new_invoice.invoice_number,
             format!("{:.2}", preview.total_net).green(),
             preview.total_vat,
             format!("{:.2}", preview.total_gross).blue()
         );
-        // Generate .xml
-        let new_invoice = create_invoice(app_user, &invoice_parties.user_contractor, customer, hours_worked).await?;
         // Upload to cloud backend
         if Confirm::new("Save this invoice in your online vault?").with_default(true).prompt()? {
             let notes = "Invoice generated from CLI client";
@@ -295,6 +293,7 @@ fn move_to_submitted(source: &Path) -> Result<PathBuf> {
 }
 
 pub fn pause() -> Result<()> {
+    println!();
     Text::new("Press [Enter] to go back to the main menu...").prompt()?;
     execute!(io::stdout(), Clear(ClearType::All), MoveTo(0, 0))?;
     Ok(())

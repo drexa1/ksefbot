@@ -8,8 +8,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
     let mut user = app_user.clone();
     let original = user.clone();
     loop {
-        println!();
-        let keys = ["Email", "Phone", "Language", "Default hourly rate", "Default item name", "Settlement type", "Bank name", "Bank account number"];
+        let keys = ["Email", "Phone", "Language", "Default hourly rate", "Default invoice item description", "Settlement type", "Bank name", "Bank account number"];
         let values = [
             user.email.clone(),
             user.phone.clone().unwrap_or_default(),
@@ -33,10 +32,10 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
             "Email" => user.email = edit_required("Email:", &user.email)?,
             "Phone" => user.phone = Some(edit_required("Phone:", user.phone.as_deref().unwrap_or(""))?),
             "Language" => user.language = Some(edit_language(user.language.as_ref())?),
-            "Default item name" => user.default_item_name = edit_optional("Default item name:", user.default_item_name.as_deref())?,
+            "Default invoice item description" => user.default_item_name = edit_optional("Default invoice item description:", user.default_item_name.as_deref())?,
             "Default hourly rate" => user.default_hourly_rate = edit_optional_rate(user.default_hourly_rate)?,
             "Settlement type" => user.settlement_type = Some(edit_settlement_type(user.settlement_type.as_ref())?),
-            "Bank name" => user.bank_name = edit_optional("Bank name:", user.bank_name.as_deref())?,
+            "Bank name" => user.bank_name = Some(edit_bank_name(user.bank_name.as_deref())?),
             "Bank account number" => user.bank_account_number = edit_optional_digits("Bank account number:", user.bank_account_number.as_deref(), 26)?,
             _ if field.starts_with("✅") => break,
             _ => return Ok(false),
@@ -100,6 +99,12 @@ fn edit_settlement_type(current: Option<&SettlementType>) -> Result<SettlementTy
     };
     let choice = Select::new("Settlement type:", choices).with_starting_cursor(starting_cursor).prompt()?;
     Ok(if choice == "Quarterly" { SettlementType::Quarterly } else { SettlementType::Monthly })
+}
+
+fn edit_bank_name(current: Option<&str>) -> Result<String> {
+    let choices = vec!["Alior Bank", "Bank Millennium", "BNP Paribas", "ING Bank Śląski", "mBank", "PKO Bank Polski", "Santander Bank Polska"];
+    let starting_cursor = choices.iter().position(|bank| Some(*bank) == current).unwrap_or(0);
+    Ok(Select::new("Bank name:", choices).with_starting_cursor(starting_cursor).with_page_size(7).prompt()?.to_string())
 }
 
 fn edit_required(message: &str, current: &str) -> Result<String> {

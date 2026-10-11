@@ -1,27 +1,10 @@
 use crate::api::customers::{AppContractor, load_contractors};
 use crate::api::users::AppUser;
+use crate::tui::inquire::invoices_tui::InvoiceInput;
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
-use chrono::{Datelike, Duration, Local, NaiveDate, SecondsFormat, Utc};
+use chrono::{Datelike, NaiveDate};
 use std::path::PathBuf;
-use xmltree::{Element, EmitterConfig, XMLNode};
-
-const INVOICE_TEMPLATE: &str = include_str!("../../../public/schemas/invoice-template.xml");
-
-const DEFAULT_VAT_RATE: u32 = 23;
-const DEFAULT_PAYMENT_TERM_DAYS: i64 = 7;
-
-#[derive(Clone, Copy, Default, strum::Display)]
-#[allow(dead_code)]
-enum PaymentType {
-    #[strum(to_string = "1")] Cash,
-    #[strum(to_string = "2")] Card,
-    #[strum(to_string = "3")] Voucher,
-    #[strum(to_string = "4")] Check,
-    #[strum(to_string = "5")] Credit,
-    #[default]
-    #[strum(to_string = "6")] Transfer,
-    #[strum(to_string = "7")] Mobile
-}
+use xmltree::{Element, XMLNode};
 
 pub struct InvoiceParties {
     pub user_contractor: AppContractor,
@@ -37,23 +20,9 @@ pub struct SalesInvoice {
 }
 
 pub struct SalesInvoicePreview {
-    pub hourly_rate: f64,
     pub total_net: f64,
     pub total_vat: f64,
     pub total_gross: f64
-}
-
-struct InvoiceData {
-    number: String,
-    issue_date: NaiveDate,
-    delivery_date: NaiveDate,
-    payment_deadline: NaiveDate,
-    item_name: String,
-    hours_worked: u32,
-    hourly_rate: f64,
-    total_net: f64,
-    total_vat: f64,
-    total_gross: f64
 }
 
 pub enum UploadInvoiceResult {
@@ -96,7 +65,7 @@ pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<InvoiceP
             anyhow::anyhow!("Seller details not found in the contractor database")
         })?;
     let customers: Vec<AppContractor> = contractors.into_iter().filter(|contractor| {
-        contractor.id != user_contractor.id && contractor.nip.as_deref().is_some_and(|nip| !nip.is_empty())
+        contractor.id != user_contractor.id
     }).collect();
     if customers.is_empty() {
         anyhow::bail!("No customers found. Add a customer before creating an invoice.");
@@ -104,200 +73,42 @@ pub async fn load_invoice_parties(app_user: &AppUser) -> anyhow::Result<InvoiceP
     Ok(InvoiceParties { user_contractor, customers })
 }
 
-pub fn preview_sales_invoice(app_user: &AppUser, hours_worked: u32) -> anyhow::Result<SalesInvoicePreview> {
-    let invoice = InvoiceData::with_defaults(app_user, hours_worked)?;
+pub fn preview_sales_invoice(invoice: &SalesInvoice) -> anyhow::Result<SalesInvoicePreview> {
+    let root = Element::parse(invoice.xml.as_bytes())?;
+    let fa = root.get_child("Fa").unwrap();
+    let sum = |prefix: &str| -> anyhow::Result<f64> {
+        fa.children.iter().filter_map(XMLNode::as_element)
+            .filter(|element| element.name.starts_with(prefix))
+            .map(|element| Ok(element.get_text().unwrap().parse::<f64>()?))
+            .sum()
+    };
     Ok(SalesInvoicePreview {
-        hourly_rate: invoice.hourly_rate,
-        total_net: invoice.total_net,
-        total_vat: invoice.total_vat,
-        total_gross: invoice.total_gross
+        total_net: sum("P_13_")?,
+        total_vat: sum("P_14_")?,
+        total_gross: fa.get_child("P_15").unwrap().get_text().unwrap().parse()?
     })
 }
 
-pub async fn create_invoice(app_user: &AppUser, seller: &AppContractor, customer: &AppContractor, hours_worked: u32) -> anyhow::Result<SalesInvoice> {
-    if hours_worked <= 0 {
-        anyhow::bail!("Hours worked must be greater than zero");
-    }
-    let invoice = InvoiceData::with_defaults(app_user, hours_worked)?;
-    let xml = invoice.to_xml(seller, customer, app_user.bank_account_number.as_deref())?;
-    Ok(SalesInvoice {
-        invoice_number: invoice.number,
-        month_name: invoice.issue_date.format("%B").to_string().to_lowercase(),
-        year: invoice.issue_date.year(),
-        xml,
-        submission: None
-    })
-}
-
-impl InvoiceData {
-    fn with_defaults(app_user: &AppUser, hours_worked: u32) -> anyhow::Result<Self> {
-        if hours_worked <= 0 {
-            anyhow::bail!("Hours worked must be greater than zero");
-        }
-        let today = Local::now().date_naive();
-        let hourly_rate = app_user.default_hourly_rate.ok_or_else(|| anyhow::anyhow!("Default hourly rate is not configured"))?;
-        if !hourly_rate.is_finite() || hourly_rate <= 0.0 {
-            anyhow::bail!("Default hourly rate must be greater than zero");
-        }
-        let net_unrounded = hourly_rate * f64::from(hours_worked);
-        let vat_unrounded = net_unrounded * f64::from(DEFAULT_VAT_RATE) / 100.0;
-        let total_net = round_money(net_unrounded);
-        let total_vat = round_money(vat_unrounded);
-        let total_gross = round_money(total_net + total_vat);
-        let year = today.year();
-        let month = today.month();
-        let posting_date = NaiveDate::from_ymd_opt(year, month, 1)
-            .and_then(|date| date.checked_add_months(chrono::Months::new(1)))
-            .and_then(|date| date.pred_opt())
-            .unwrap();
-        let payment_deadline = posting_date.checked_add_signed(Duration::days(DEFAULT_PAYMENT_TERM_DAYS)).unwrap();
-        Ok(Self {
-            number: format!("eFA/{year}/{month:02}/1"),
-            issue_date: today,
-            delivery_date: posting_date,
-            payment_deadline,
-            item_name: app_user.default_item_name.clone().filter(|name| !name.trim().is_empty()).unwrap_or_else(|| "Consulting services".to_string()),
-            hours_worked,
-            hourly_rate,
-            total_net,
-            total_vat,
-            total_gross
-        })
-    }
-
-    fn to_xml(&self, seller: &AppContractor, customer: &AppContractor, bank_account: Option<&str>) -> anyhow::Result<String> {
-        let mut root = Element::parse(INVOICE_TEMPLATE.as_bytes())?;
-        let header = root.get_mut_child("Naglowek").unwrap();
-        set_text(header, "KodFormularza", "FA");
-        set_text(header, "DataWytworzeniaFa", &Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true));
-        set_text(header, "SystemInfo", "KSeF Bot");
-
-        let seller_element = root.get_mut_child("Podmiot1").unwrap();
-        let seller_identification = seller_element.get_mut_child("DaneIdentyfikacyjne").unwrap();
-        set_text(seller_identification, "NIP", seller.nip.as_deref().unwrap_or_default());
-        set_text(seller_identification, "Nazwa", &seller.name);
-        let seller_address = seller_element.get_mut_child("Adres").unwrap();
-        set_text(seller_address, "KodKraju", &seller.country_code);
-        set_text(seller_address, "AdresL1", &seller_invoice_address(&seller.address_l1));
-
-        let buyer = root.get_mut_child("Podmiot2").unwrap();
-        let buyer_identification = buyer.get_mut_child("DaneIdentyfikacyjne").unwrap();
-        set_text(buyer_identification, "NIP", customer.nip.as_deref().unwrap_or_default());
-        set_text(buyer_identification, "Nazwa", &customer.name);
-        let buyer_address = buyer.get_mut_child("Adres").unwrap();
-        set_text(buyer_address, "KodKraju", &customer.country_code);
-        set_text(buyer_address, "AdresL1", &customer.address_l1);
-        set_text(buyer, "JST", "2");
-        set_text(buyer, "GV", "2");
-
-        let fa = root.get_mut_child("Fa").unwrap();
-        set_text(fa, "P_1", &self.issue_date.to_string());
-        set_text(fa, "P_1M", seller.address_l1.split(',').next().unwrap_or_default().trim());
-        set_text(fa, "P_2", &self.number);
-        set_text(fa, "P_6", &self.delivery_date.to_string());
-        set_text(fa, "P_13_1", &format_amount(self.total_net));
-        set_text(fa, "P_14_1", &format_amount(self.total_vat));
-        set_text(fa, "P_15", &format_amount(self.total_gross));
-        set_text(fa, "RodzajFaktury", "VAT");
-
-        let annotations = fa.get_mut_child("Adnotacje").unwrap();
-        set_text(annotations, "P_16", "2");
-        set_text(annotations, "P_17", "2");
-        set_text(annotations, "P_18", "2");
-        set_text(annotations, "P_18A", "2");
-        set_text(annotations.get_mut_child("Zwolnienie").unwrap(), "P_19N", "1");
-        set_text(annotations.get_mut_child("NoweSrodkiTransportu").unwrap(), "P_22N", "1");
-        set_text(annotations, "P_23", "2");
-        set_text(annotations.get_mut_child("PMarzy").unwrap(), "P_PMarzyN", "1");
-
-        let invoice_line = invoice_line(self);
-        insert_at_placeholder(fa, "{{INVOICE_LINES}}", invoice_line);
-
-        let payment = fa.get_mut_child("Platnosc").unwrap();
-        set_text(payment.get_mut_child("TerminPlatnosci").unwrap(), "Termin", &self.payment_deadline.to_string());
-        set_text(payment, "FormaPlatnosci", &PaymentType::default().to_string());
-        if let Some(account) = bank_account.filter(|account| !account.trim().is_empty()) {
-            let mut bank = Element::new("RachunekBankowy");
-            bank.children.push(XMLNode::Element(text_element("NrRB", account)));
-            insert_at_placeholder(payment, "{{BANK_ACCOUNT}}", bank);
-        } else {
-            remove_placeholder(payment, "{{BANK_ACCOUNT}}");
-        }
-
-        let mut xml = Vec::new();
-        root.write_with_config(
-            &mut xml,
-            EmitterConfig::new().perform_indent(true).write_document_declaration(true)
-        )?;
-        Ok(String::from_utf8(xml)?)
-    }
-}
-
-fn set_text(parent: &mut Element, name: &str, value: &str) {
-    let element = parent.get_mut_child(name).unwrap();
-    element.children.clear();
-    element.children.push(XMLNode::Text(value.to_string()));
-}
-
-fn text_element(name: &str, value: &str) -> Element {
-    let mut element = Element::new(name);
-    element.children.push(XMLNode::Text(value.to_string()));
-    element
-}
-
-fn invoice_line(invoice: &InvoiceData) -> Element {
-    let mut line = Element::new("FaWiersz");
-    for (name, value) in [
-        ("NrWierszaFa", "1".to_string()),
-        ("P_7", invoice.item_name.clone()),
-        ("P_8A", "szt".to_string()),
-        ("P_8B", invoice.hours_worked.to_string()),
-        ("P_9A", format_amount(invoice.hourly_rate)),
-        ("P_11", format_amount(invoice.total_net)),
-        ("P_11Vat", format_amount(invoice.total_vat)),
-        ("P_12", DEFAULT_VAT_RATE.to_string()),
-    ] {
-        line.children.push(XMLNode::Element(text_element(name, &value)));
-    }
-    line
-}
-
-fn insert_at_placeholder(parent: &mut Element, placeholder: &str, element: Element) {
-    let index = parent.children.iter().position(|node| {
-        matches!(node, XMLNode::Text(text) if text.contains(placeholder))
-    }).unwrap();
-    parent.children.remove(index);
-    parent.children.insert(index, XMLNode::Element(element));
-}
-
-fn remove_placeholder(parent: &mut Element, placeholder: &str) {
-    let index = parent.children.iter().position(|node| {
-        matches!(node, XMLNode::Text(text) if text.contains(placeholder))
-    }).unwrap();
-    parent.children.remove(index);
-}
-
-fn round_money(amount: f64) -> f64 {
-    (amount * 100.0).round() / 100.0
-}
-
-fn format_amount(amount: f64) -> String {
-    format!("{amount:.2}").trim_end_matches('0').trim_end_matches('.').to_string()
-}
-
-fn seller_invoice_address(address: &str) -> String {
-    let mut parts = address.split(", ");
-    let town = parts.next().unwrap_or_default();
-    let postal_code = parts.next().unwrap_or_default();
-    let building = parts.next().and_then(|street_and_building| street_and_building.rsplit_once(' ').map(|(_, building)| building)).unwrap_or_default();
-    format!("{town}, {postal_code}, {building}/")
+pub async fn create_invoice(app_user: &AppUser, input: &InvoiceInput) -> anyhow::Result<SalesInvoice> {
+    let response = crate::api::client::http_client()
+        .post(format!("{}/app/invoices/generate", cf_worker_url!()))
+        .header("CF-Access-Client-Id", cf_client_id!())
+        .header("CF-Access-Client-Secret", cf_client_secret!())
+        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
+        .header("X-User-Id", &app_user.id)
+        .header("Accept", "application/xml")
+        .json(input)
+        .send()
+        .await?;
+    let response = ensure_success(response, "Invoice generation").await?;
+    SalesInvoice::from_xml(response.text().await?)
 }
 
 pub async fn upload_invoice(app_user: &AppUser, invoice: &SalesInvoice, notes: &str) -> anyhow::Result<UploadInvoiceResult> {
     let file = reqwest::multipart::Part::bytes(invoice.xml.as_bytes().to_vec()).file_name("invoice.xml").mime_str("application/xml")?;
     let form = reqwest::multipart::Form::new().part("file", file).text("type", "sales").text("notes", notes.to_string());
     let response = crate::api::client::http_client()
-        .post(format!("{}/app/invoices", cf_worker_url!()))
+        .post(format!("{}/app/invoices/ingest", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
         .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)

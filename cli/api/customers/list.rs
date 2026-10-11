@@ -8,7 +8,7 @@ pub mod create;
 #[path = "edit.rs"]
 pub mod edit;
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppContractor {
     pub id: String,
