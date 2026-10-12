@@ -7,7 +7,6 @@ headers {
 }
 tests {
     test("List the recently created sales invoice", function() {
-        console.info(res.body);
         const invoice = JSON.parse(res.body[0].jsonData);
         expect(invoice.InvoiceBody.InvoiceNumber).to.equal(bru.getCollectionVar("salesInvoiceId"));
     })
