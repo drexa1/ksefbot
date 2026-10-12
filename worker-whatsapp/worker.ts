@@ -3,6 +3,7 @@ import {auth, withCors, corsHeaders} from "./auth";
 import {Method, routes} from "./routes/routes";
 
 export interface Env {
+    // App bindings
     KV: KVNamespace
     R2: R2Bucket
     KSEFBOT: Fetcher

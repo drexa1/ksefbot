@@ -4,6 +4,7 @@ compatibility_date = "2026-01-01"
 
 [vars]
 ENVIRONMENT = "cloudflare"
+WHATSAPP_API_URL = "https://ksefbot-whatsapp.druizbarbero.workers.dev"
 # SSO
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_AUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"

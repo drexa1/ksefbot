@@ -6,6 +6,7 @@ export interface Env {
     ENVIRONMENT: "dev" | "cloudflare";
     TEST_MODE: boolean;
     API_KEY: string;
+    WHATSAPP_API_URL: string
     // SSO
     GOOGLE_AUTH_URL: string;
     GOOGLE_AUTH_TOKEN_URL: string;
