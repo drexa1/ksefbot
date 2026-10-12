@@ -6,7 +6,7 @@ Phone login requires an existing user. Codes expire after **5 minutes**, allow *
 sequenceDiagram
     autonumber
     actor User
-    participant CLI as Rust CLI
+    participant CLI as CLI
     participant API as worker-api
     participant DB as D1
     participant WA as worker-whatsapp
