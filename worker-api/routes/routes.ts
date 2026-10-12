@@ -22,6 +22,7 @@ import {get as invoicesGET, months as invoiceMonthsGET, post as invoicesPOST, pu
 import {get as taxesGET, simulate as simulateGET, post as taxesPOST, put as taxesPUT, del as taxesDELETE, } from "./app/taxes";
 import {generate} from "../service/invoices";
 import {AuthError} from "../types/auth";
+import {get as phoneGET, post as phonePOST} from "./login/phone";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
@@ -57,6 +58,7 @@ export const routes: Record<string, Routes> =  {
     "/health":              { GET: healthGET },
     //🔒 Requiring authentication
     "/whoami":                withErrorHandling({ GET: whoamiGET }),
+    "/login/phone":           withErrorHandling({ GET: phoneGET, POST: phonePOST }),
     "/ksef/backfill":         withErrorHandling({ GET: status, POST: start }),
     "/ksef/sales":            withErrorHandling({ GET: salesGET, POST: salesPOST }),
     "/ksef/sales/status":     withErrorHandling({ GET: invoiceStatusGET }),

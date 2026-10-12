@@ -6,5 +6,6 @@ DROP TABLE IF EXISTS invoices_backfill;
 DROP TABLE IF EXISTS taxes;
 DROP TABLE IF EXISTS contractors;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS login_phone_challenges;
 
 PRAGMA foreign_keys = ON;

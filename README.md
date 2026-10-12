@@ -1,6 +1,8 @@
 # KSeF Bot
 Invoicing automation for KSeF.
 
+## Project structure
+
 ## Prerequisites
 
 ### KSeF

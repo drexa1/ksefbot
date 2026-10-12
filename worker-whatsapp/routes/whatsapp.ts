@@ -7,6 +7,23 @@ import {attendExistingUser} from "../flows/onboarding";
 
 const kv = new CloudflareKV();
 
+export async function sendPhoneLoginCode(request: Request, env: Env): Promise<Response> {
+    const { phone, code, language } = await request.json() as { phone: string, code: string, language: "en" | "pl" };
+    if (!/^\d{6}$/.test(code) || !["en", "pl"].includes(language))
+        return Response.json({ error: "Invalid code or language" }, { status: 400 });
+    try {
+        const components = [{
+            type: "body", parameters: [{ type: "text", text: code }]
+        }, {
+            type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: code }]
+        }];
+        await sendTemplate(env, phone.slice(1), `login_phone_code_${language}`, language, components);
+        return Response.json({ success: true });
+    } catch {
+        return Response.json({ error: "Could not send verification code" }, { status: 502 });
+    }
+}
+
 export async function verificationHandler(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const mode = url.searchParams.get("hub.mode");

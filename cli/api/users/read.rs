@@ -11,7 +11,7 @@ pub mod update;
 pub struct AppUser {
     // Identification data
     pub id: String,
-    pub email: String,
+    pub email: Option<String>,
     pub tier: i32,
     pub language: Option<Language>,
     pub phone: Option<String>,
@@ -48,9 +48,14 @@ pub enum SettlementType {
 }
 
 pub async fn get_app_user(logged_user: &AuthUser) -> anyhow::Result<Option<AppUser>> {
+    let identity = if let Some(phone) = logged_user.phone.as_deref() {
+        ("phone", phone)
+    } else {
+        ("email", logged_user.email.as_deref().unwrap())
+    };
     let response = crate::api::client::http_client()
         .get(format!("{}/app/users", cf_worker_url!()))
-        .query(&[("email", logged_user.email.as_deref().unwrap())])
+        .query(&[identity])
         .query(&[("onboarding", "true")])
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())

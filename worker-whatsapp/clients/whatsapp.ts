@@ -27,13 +27,14 @@ export async function sendText(env: Env, to: string, message: string) {
     return result;
 }
 
-export async function sendTemplate( env: Env, to: string, template: string, language: string = "en") {
+export async function sendTemplate(env: Env, to: string, template: string, language: string = "en", params: Record<string, unknown> = {}) {
     const response = await fetch(`https://graph.facebook.com/${env.META_API_VERSION}/${env.WHATSAPP_PHONE_ID}/messages`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({ messaging_product: "whatsapp", to: to, type: "template", template: {
             name: template,
-            language: { code: language }
+            language: { code: language },
+            ...params
         }})}
     );
     const result = await response.json();

@@ -5,6 +5,7 @@ import {auth, withCors, corsHeaders} from "./auth";
 export interface Env {
     ENVIRONMENT: "dev" | "cloudflare";
     TEST_MODE: boolean;
+    API_KEY: string;
     // SSO
     GOOGLE_AUTH_URL: string;
     GOOGLE_AUTH_TOKEN_URL: string;
@@ -12,6 +13,7 @@ export interface Env {
     GOOGLE_CLIENT_ID: string;
     GOOGLE_CLIENT_SECRET: string;
     GOOGLE_CALLBACK_URI: string;
+    PHONE_TOKEN_SIGNER: string;
     // KSeF (National e-Invoicing System)
     KSEF_URL: string;
     KSEF_INVOICE_SCHEMA: string;
@@ -35,8 +37,8 @@ export interface Env {
     DEFAULT_HEALTH_INSURANCE_BASE: number;
     DEFAULT_HEALTH_INSURANCE_RATE: number;
     // App bindings
-    API_KEY: string;
     ASSETS: Fetcher;
+    WHATSAPP: Fetcher;
     D1: D1Database;
     BACKFILL_JOB: Workflow<{ userId: string }>;
 }

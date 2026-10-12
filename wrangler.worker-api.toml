@@ -52,3 +52,7 @@ remote = true
 name = "invoices-backfill"
 binding = "BACKFILL_JOB"
 class_name = "InvoicesBackfillJob"
+
+[[services]]
+binding = "WHATSAPP"
+service = "ksefbot-whatsapp"
