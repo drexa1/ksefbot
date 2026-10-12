@@ -11,5 +11,5 @@ export type PhoneLoginChallenge = {
     expiresAt: number;
     attempts: number;
     resendAfter: number;
-    consumedAt: number | null;
+    updatedAt?: string;
 }

@@ -127,5 +127,5 @@ CREATE TABLE login_phone_challenges (
     expiresAt INTEGER NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 0,
     resendAfter INTEGER NOT NULL,
-    consumedAt INTEGER
+    consumedAt TEXT
 );
