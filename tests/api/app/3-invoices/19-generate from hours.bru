@@ -1,0 +1,33 @@
+post {
+    url: {{baseUrl}}/app/invoices/generate
+    body: json
+    auth: inherit
+}
+headers {
+    Content-Type: application/json
+    Accept: application/xml
+    X-API-Key: {{apiKey}}
+}
+script:pre-request {
+    const baseUrl = bru.getEnvVar("baseUrl");
+    const headers = { "X-API-Key": bru.getEnvVar("apiKey") };
+    const users = await bru.sendRequest({ url: `${baseUrl}/app/users`, method: "GET", headers });
+    const user = users.data.find(user => user.tier === 0);
+    bru.setVar("generationItem", { name: user.defaultItemName.trim(), quantity: 160, unit: "szt", unitPrice: user.defaultHourlyRate, vatRate: "23" });
+    const customer = await bru.sendRequest({
+        url: `${baseUrl}/app/contractors`, method: "POST", headers,
+        data: { name: "Generation & XML <customer>", nip: "6252447933", countryCode: "PL", addressL1: "Krakow, 30-001, Test 2" }
+    });
+    expect(customer.status).to.equal(201);
+    bru.setVar("generationCustomerId", customer.data.id);
+    req.setBody({ customerId: customer.data.id, hours: 160 });
+}
+script:post-response {
+    bru.setVar("simplifiedGenerationXml", res.body);
+}
+tests {
+    test("Simple invoice generation generates valid invoice XML", function() {
+        expect(res.headers["content-type"]).to.include("application/xml");
+        expect(require("fast-xml-parser").XMLValidator.validate(res.body)).to.equal(true);
+    });
+}

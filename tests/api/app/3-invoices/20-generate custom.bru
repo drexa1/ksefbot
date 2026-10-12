@@ -1,0 +1,35 @@
+post {
+    url: {{baseUrl}}/app/invoices/generate
+    body: json
+    auth: inherit
+}
+headers {
+    Content-Type: application/json
+    Accept: application/xml
+    X-API-Key: {{apiKey}}
+}
+script:pre-request {
+    const {XMLParser} = require("fast-xml-parser");
+    const invoice = new XMLParser().parse(bru.getVar("simplifiedGenerationXml")).Faktura;
+    req.setBody({
+        customerId: bru.getVar("generationCustomerId"),
+        issueDate: invoice.Fa.P_1,
+        items: [bru.getVar("generationItem")]
+    });
+}
+script:post-response {
+    const deleted = await bru.sendRequest({
+        url: `${bru.getEnvVar("baseUrl")}/app/contractors`, method: "DELETE",
+        headers: { "X-API-Key": bru.getEnvVar("apiKey") },
+        params: { id: bru.getVar("generationCustomerId") }
+    });
+    expect(deleted.status).to.equal(200);
+}
+tests {
+    test("Custom invoice generation generates valid model equivalent to the simplified one", function() {
+        expect(res.headers["content-type"]).to.include("application/xml");
+        expect(require("fast-xml-parser").XMLValidator.validate(res.body)).to.equal(true);
+        const timestamp = /<DataWytworzeniaFa>[^<]+<\/DataWytworzeniaFa>/;
+        expect(res.body.replace(timestamp, "")).to.equal(bru.getVar("generationHoursXml").replace(timestamp, ""));
+    });
+}
