@@ -4,7 +4,7 @@ use crate::login::AuthUser;
 pub async fn init_app_user(logged_user: &AuthUser) -> anyhow::Result<AppUser> {
     let app_user = AppUser {
         id: "dummy-nip".to_string(),
-        email: logged_user.email.clone().unwrap(),
+        email: logged_user.email.clone(),
         tier: 0,
         language: Some(Language::En),
         phone: Some("000000000".to_string()),
