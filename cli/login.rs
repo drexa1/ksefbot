@@ -1,7 +1,7 @@
 use crate::{google_client_id, google_client_secret, microsoft_client_id};
 use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use inquire::{Confirm, Password, Text};
+use inquire::{Password, Text};
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, RefreshToken, Scope,
     TokenResponse, TokenUrl, basic::BasicClient,
@@ -28,7 +28,7 @@ impl LoginMethod {
         match self {
             LoginMethod::Microsoft => Some("microsoft"),
             LoginMethod::Google => Some("google"),
-            LoginMethod::Phone => None
+            LoginMethod::Phone => Some("phone")
         }
     }
 }
@@ -303,8 +303,8 @@ pub fn last_used_method() -> Option<LoginMethod> {
 }
 
 /// Tries to silently resume the given method's previous session via its stored refresh token.
-/// Returns `None` if there is no stored session for this method (or resuming failed), so the
-/// caller can fall back to the regular interactive login flow.
+/// Returns `None` if no stored session for this method (or resuming failed),
+/// so the caller can fall back to the regular interactive login flow.
 pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
     let session = load_session()?;
     if Some(session.method.as_str()) != method.session_key() {
@@ -313,6 +313,7 @@ pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
     let result = match session.method.as_str() {
         "microsoft" => refresh_microsoft(&session.refresh_token).await,
         "google" => refresh_google(&session.refresh_token).await,
+        "phone" => resume_phone(&session.refresh_token).await,
         _ => return None
     };
     match result {
@@ -324,55 +325,53 @@ pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
     }
 }
 
-// -------------------------------------------------------------------------------------------------
-// Login with email
-// -------------------------------------------------------------------------------------------------
+fn phone_request(method: reqwest::Method) -> reqwest::RequestBuilder {
+    crate::api::client::http_client()
+        .request(method, format!("{}/login/phone", crate::cf_worker_url!()))
+        .header("CF-Access-Client-Id", crate::cf_client_id!())
+        .header("CF-Access-Client-Secret", crate::cf_client_secret!())
+        .header("X-API-Key", crate::api_key!())
+}
+
+async fn resume_phone(token: &str) -> Result<AuthUser> {
+    let payload = token.split('.').nth(1).context("Invalid phone token")?;
+    let claims: serde_json::Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload)?)?;
+    let expires_at = claims["exp"].as_i64().context("Phone token has no expiry")?;
+    if expires_at <= chrono::Utc::now().timestamp() {
+        anyhow::bail!("Phone login expired");
+    }
+    let user = phone_request(reqwest::Method::GET).bearer_auth(token)
+        .send().await?.error_for_status()?.json().await?;
+    Ok(user)
+}
 
 pub async fn login_with_phone_loop() -> Result<AuthUser> {
     let phone = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
-    if account_exists(&phone)? {
-        println!("Account found.");
-        let password = Password::new("Verification code:").prompt()?;
-        return login_with_phone(&phone, &password);
+    let response = phone_request(reqwest::Method::POST)
+        .json(&serde_json::json!({ "phone": phone })).send().await?;
+    let status = response.status();
+    let body: serde_json::Value = response.json().await?;
+    if !status.is_success() {
+        anyhow::bail!("{}", body["error"].as_str().unwrap_or("Could not send verification code"));
     }
-    println!("No account found for {phone}.");
-    let create = Confirm::new("Would you like to create an account?")
-        .with_default(true)
-        .with_help_message("Create an account with this phone")
-        .prompt()?;
-    if create {
-        create_account(&phone)?;
-        println!("Account created successfully");
-        println!("We've sent a verification code to: {phone} - Please verify your phone and continue to log in.");
-        anyhow::bail!("Phone verification required");
-    } else {
-        anyhow::bail!("Account creation cancelled");
+    println!("We've sent a WhatsApp verification code to {phone}.");
+    for _ in 0..3 {
+        let code = Password::new("Verification code:").without_confirmation().prompt()?;
+        let response = phone_request(reqwest::Method::POST)
+            .json(&serde_json::json!({ "phone": phone, "code": code })).send().await?;
+        let status = response.status();
+        let body: serde_json::Value = response.json().await?;
+        if status.is_success() {
+            let token = body["token"].as_str().context("Missing phone login token")?;
+            let user = resume_phone(token).await?;
+            save_session("phone", token)?;
+            return Ok(user);
+        }
+        let error = body["error"].as_str().unwrap_or("Phone login failed");
+        if status != reqwest::StatusCode::UNAUTHORIZED && status != reqwest::StatusCode::BAD_REQUEST {
+            anyhow::bail!("{error}");
+        }
+        println!("{error}");
     }
-}
-
-fn account_exists(phone: &str) -> Result<bool> {
-    println!("  [API] GET /users");
-    println!("  [API] phone = {phone}");
-    println!("  [API] Response: account not found");
-    // Change to true to test the password flow.
-    Ok(false)
-}
-
-fn create_account(phone: &str) -> Result<()> {
-    println!("Creating account...");
-    println!("  [API] POST /users");
-    println!("  [API] phone = {phone}");
-    println!("  [API] Creating account...");
-    Ok(())
-}
-
-fn login_with_phone(phone: &str, password: &str) -> Result<AuthUser> {
-    let _ = password;
-    println!("  [API] Response: authentication successful");
-    let user = AuthUser {
-        name: Some("Dummy User".to_owned()),
-        email: Some("dummy@example.com".to_owned()),
-        phone: Some(phone.to_owned())
-    };
-    Ok(user)
+    anyhow::bail!("Verification failed. Please request a new code.");
 }
