@@ -11,6 +11,12 @@ export const getOpenApiSpec = () => ({
                 in: "header",
                 name: "X-API-Key",
                 description: "Clients can authenticate using this header."
+            },
+            LoginPhoneToken: {
+                type: "http",
+                scheme: "bearer",
+                bearerFormat: "JWT",
+                description: "Phone login token, valid for 30 days."
             }
         },
         schemas: {
@@ -449,6 +455,97 @@ export const getOpenApiSpec = () => ({
                     },
                     "401": { description: "Unauthorized" },
                     "500": { description: "Failed to decode JWT" }
+                }
+            }
+        },
+        "/login/phone": {
+            get: {
+                summary: "Resume phone login",
+                description: "Validates a signed token and returns existing account's identity.",
+                tags: ["Auth"],
+                security: [{ ApiKeyAuth: [], LoginPhoneToken: [] }],
+                responses: {
+                    "200": {
+                        description: "Verified identity.",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        phone: { type: "string" },
+                                        email: { type: "string", nullable: true }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { description: "Invalid or expired token." },
+                    "404": { description: "Account no longer exists or its phone number has changed." }
+                }
+            },
+            post: {
+                summary: "Sign in with a verification code sent to the phone",
+                description: "If no code provided, sends a six-digit Whatsapp code. When phone and code are provided, retrieves a signed token valid for 30 days.",
+                tags: ["Auth"],
+                security: [{ ApiKeyAuth: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                required: ["phone"],
+                                properties: {
+                                    phone: {
+                                        type: "string",
+                                        example: "+48111222333",
+                                        description: "Registered phone number including country code."
+                                    },
+                                    code: {
+                                        type: "string",
+                                        pattern: "^[0-9]{6}$",
+                                        example: "123456"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    "200": {
+                        description: "Code consumed. Persist the token and .",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object", required: ["token", "expiresAt"],
+                                    properties: {
+                                        token: {type: "string" }, expiresAt: { type: "string", format: "date-time" }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "202": {
+                        description: "Verification code sent via WhatsApp.",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        expiresIn: {
+                                            type: "integer",
+                                            example: 300
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": { description: "Invalid phone number or code format." },
+                    "401": { description: "Unauthorized, incorrect, expired or consumed code, or attempt limit reached." },
+                    "404": { description: "No existing account for this phone number." },
+                    "429": { description: "Wait one minute before requesting another code." },
+                    "502": { description: "WhatsApp delivery failed; the challenge was removed so the request can be retried." }
                 }
             }
         },
