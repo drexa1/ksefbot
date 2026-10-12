@@ -10,8 +10,8 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
     loop {
         let keys = ["Email", "Phone", "Language", "Default hourly rate", "Default invoice item description", "Settlement type", "Bank name", "Bank account number"];
         let values = [
-            user.email.clone(),
-            user.phone.clone().unwrap_or_default(),
+            user.email.clone().unwrap(),
+            user.phone.clone().unwrap(),
             language_label(&user.language).to_string(),
             user.default_hourly_rate.map(|rate| rate.to_string()).unwrap_or_default(),
             user.default_item_name.clone().unwrap_or_default(),
@@ -29,7 +29,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
         let field = Select::new("Edit user settings", fields.clone()).with_page_size(fields.len()).prompt()?;
         let selected_index = fields.iter().position(|choice| choice == &field).unwrap();
         match keys.get(selected_index).copied().unwrap_or_default() {
-            "Email" => user.email = edit_required("Email:", &user.email)?,
+            "Email" => user.email = Some(edit_required("Email:", user.email.as_deref().unwrap_or(""))?),
             "Phone" => user.phone = Some(edit_required("Phone:", user.phone.as_deref().unwrap_or(""))?),
             "Language" => user.language = Some(edit_language(user.language.as_ref())?),
             "Default invoice item description" => user.default_item_name = edit_optional("Default invoice item description:", user.default_item_name.as_deref())?,
