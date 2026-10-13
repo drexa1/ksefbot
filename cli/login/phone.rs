@@ -6,19 +6,17 @@ use inquire::{Password, Text};
 use crate::api::client::http_client;
 
 pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
-    let mut attempts = 0;
-    let phone = loop {
+    let mut phone = None;
+    for _ in 0..3 {
         let value = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
-        let phone = value.trim();
-        if phone.starts_with("+48") && phone.len() == 12 && phone[3..].chars().all(|c| c.is_ascii_digit()) {
-            break phone.to_string();
-        }
-        attempts += 1;
-        if attempts >= 3 {
-            anyhow::bail!("Too many invalid phone number attempts.");
+        let value = value.trim();
+        if value.starts_with("+48") && value.len() == 12 && value[3..].chars().all(|c| c.is_ascii_digit()) {
+            phone = Some(value.to_string());
+            break;
         }
         println!("Enter a valid phone number, e.g: +48111222333");
-    };
+    }
+    let phone = phone.context("Too many invalid phone number attempts.")?;
     // Call to request a code
     let response = login_request(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone })).send().await?;
     let status = response.status();
