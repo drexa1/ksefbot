@@ -14,7 +14,7 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
             phone = Some(value.to_string());
             break;
         }
-        println!("Enter a valid phone number, e.g: +48111222333");
+        println!("Please enter a valid phone number, e.g: +48111222333");
     }
     let phone = phone.context("Too many invalid phone number attempts.")?;
     // Call to request a code
