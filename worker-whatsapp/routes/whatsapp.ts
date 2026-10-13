@@ -17,10 +17,10 @@ export async function sendPhoneLoginCode(request: Request, env: Env): Promise<Re
         }, {
             type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: code }]
         }];
-        await sendTemplate(env, phone.slice(1), `login_phone_code_${language}`, language, components);
+        await sendTemplate(env, phone.slice(1), `login_phone_code_${language}`, language, { components });
         return Response.json({ success: true });
     } catch {
-        return Response.json({ error: "Could not send verification code" }, { status: 502 });
+        return Response.json({ error: `Could not send verification code to ${phone}` }, { status: 502 });
     }
 }
 

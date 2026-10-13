@@ -36,7 +36,9 @@ async function generatePhoneCode(env: Env, user: AppUser, phone: string): Promis
         throw new AuthError("Wait one minute before requesting another code", 429);
     // Create login challenge
     const challenge: PhoneLoginChallenge = {
-        phone, codeHash: hash, attempts: 0,
+        phone,
+        codeHash: hash,
+        attempts: 0,
         expiresAt: new Date(now + 5 * 60 * 1000).toISOString(),
         resendAfter: new Date(now + 60 * 1000).toISOString(),
         updatedAt: new Date(now).toISOString()
@@ -45,6 +47,7 @@ async function generatePhoneCode(env: Env, user: AppUser, phone: string): Promis
     const result = previous
         ? await getRepo(env).update("login_challenges", challenge, { phone, codeHash: previous.codeHash, resendAfter: previous.resendAfter })
         : await getRepo(env).save("login_challenges", challenge, true);
+    console.info(`🎯 Challenge saved for ${phone}: ${result.changes}`);
     if (!result.changes)
         throw new AuthError("Wait one minute before requesting another code", 429);
     // Send verification code via Whatsapp
@@ -61,6 +64,7 @@ async function generatePhoneCode(env: Env, user: AppUser, phone: string): Promis
     // Remove challenge if sending fails
     if (!response?.ok) {
         await getRepo(env).delete("login_challenges", { phone, codeHash: hash });
+        console.error(`🗑️ Failed to send a WhatsApp verification code to ${phone}. Challenge [${challenge.codeHash}] deleted`);
         throw new AuthError(`Failed to send a WhatsApp verification code to ${phone}`, 502);
     }
     console.info(`📲 WhatsApp verification code successfully sent to: ${phone}`);
