@@ -26,17 +26,17 @@ export async function contractors(req: Request, env: Env): Promise<Response> {
         const govEndpoint: KsefContractor["source"][] = profile ? lookupOrder[profile] : Math.random() < 0.5
             // ...but in absence of any clue, pick randomly one, then the other, and the VAP payers whitelist as last resource
             ? ["CEIDG", "KRS", "VAT-LB"] : ["KRS", "CEIDG", "VAT-LB"];
-        let unavailable = false;
+        let unavailable;
         for (const source of govEndpoint) {
             try {
                 const result = await lookupContractorSource(source, nip, env);
                 return Response.json(result, { status: 200 });
             } catch (error: any) {
                 // Off to the next lookup method
-                unavailable ||= error.status === 503;
+                if (error.status === 503) unavailable = error.message;
             }
         }
-        return Response.json({ success: false, error: "Contractor not found", nip: nip }, { status: unavailable ? 503 : 404 });
+        return Response.json({ success: false, error: unavailable ?? "Contractor not found", nip: nip }, { status: unavailable ? 503 : 404 });
     } catch (error) {
         return Response.json({ success: false, error: String(error) }, { status: 404 });
     }
