@@ -18,25 +18,25 @@ const lookupOrder = {
 export async function contractors(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const nip = url.searchParams.get("nip");
-    const profile = url.searchParams.get("profile") as "user" | "customer" ;
+    const profile = url.searchParams.get("profile") as "user" | "customer";
     if (!nip || !/^\d{10}$/.test(nip))
         return Response.json({ success: false, error: "Invalid NIP" }, { status: 400 });
     try {
         // Profile argument is a hint to know whether to start looking at CEIDG or rather KRS,
         const govEndpoint: KsefContractor["source"][] = profile ? lookupOrder[profile] : Math.random() < 0.5
-            // ...but in absence of any clue, pick randomly one, then the other, and the VAP payers whitelist as last resource
+            // ...but in absence of any clue, pick randomly one, then the other, and the VAT payers whitelist as last resource
             ? ["CEIDG", "KRS", "VAT-LB"] : ["KRS", "CEIDG", "VAT-LB"];
-        let unavailable;
+        let unavailable = false;
         for (const source of govEndpoint) {
             try {
                 const result = await lookupContractorSource(source, nip, env);
                 return Response.json(result, { status: 200 });
             } catch (error: any) {
                 // Off to the next lookup method
-                if (error.status === 503) unavailable = error.message;
+                unavailable ||= error.status === 503;
             }
         }
-        return Response.json({ success: false, error: unavailable ?? "Contractor not found", nip: nip }, { status: unavailable ? 503 : 404 });
+        return Response.json({ success: false, error: "Contractor not found", nip: nip }, { status: unavailable ? 503 : 404 });
     } catch (error) {
         return Response.json({ success: false, error: String(error) }, { status: 404 });
     }

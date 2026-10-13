@@ -8,7 +8,7 @@ headers {
 tests {
     test("For non-existing NIP entrypoint lookup should fail (or report unavailable providers)", function() {
         if (res.status === 503)
-            return console.warn(`🔌CEIDG service seems unavailable(${res.body.details}). Skipping`);
+            return console.warn(`🔌CEIDG service seems unavailable. Skipping`);
         expect(res.status).to.be.oneOf([404, 503]);
         expect(res.body.error).to.equal("Contractor not found");
     })

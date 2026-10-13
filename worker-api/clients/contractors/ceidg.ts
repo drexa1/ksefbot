@@ -14,10 +14,7 @@ export async function contractors(req: Request, env: Env): Promise<Response> {
             return Response.json({ success: false, error: "Firm not found in CEIDG" }, { status: 404 });
         return Response.json(result, { status: 200 });
     } catch (error: any) {
-        return Response.json(
-            { success: false, error: error.message },
-            { status: error.status === 503 ? 503 : 404 }
-        );
+        return Response.json({ success: false, error: error.message }, { status: error.status === 503 ? 503 : 404 });
     }
 }
 
@@ -45,7 +42,6 @@ export async function lookupCEIDG(nip: string, env: Env): Promise<KsefContractor
     const ceidgDetails = await fetch(`${env.CEIDG_URL}/firma/${company.id}`, { headers: {
         Accept: "application/json", Authorization: `Bearer ${env.CEIDG_API_KEY}`
     }});
-
     if (!ceidgDetails.ok)
         throw new Error(`CEIDG details lookup failed: ${ceidgDetails.status}`);
     const detailsResult = await ceidgDetails.json();
