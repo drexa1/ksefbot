@@ -14,7 +14,7 @@ export interface Env {
     GOOGLE_CLIENT_ID: string;
     GOOGLE_CLIENT_SECRET: string;
     GOOGLE_CALLBACK_URI: string;
-    PHONE_TOKEN_SIGNER: string;
+    PHONE_LOGIN_SIGNER: string;
     // KSeF (National e-Invoicing System)
     KSEF_URL: string;
     KSEF_INVOICE_SCHEMA: string;
