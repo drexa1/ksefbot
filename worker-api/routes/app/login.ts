@@ -2,7 +2,7 @@ import {Env} from "../../worker";
 import {AppUser} from "../../types/users";
 import {AuthError, PhoneLoginChallenge} from "../../types/auth";
 import {D1Driver, Repository} from "../../repository/d1";
-import {hashCode, issueToken, verifyToken} from "../../service/phone";
+import {hashCode, issueToken, verifyToken} from "../../service/login";
 
 let repo: Repository;
 const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(env.D1));
