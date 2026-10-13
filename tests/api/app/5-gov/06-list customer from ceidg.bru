@@ -8,7 +8,7 @@ headers {
 tests {
     test("For existing company CEIDG should fail", function() {
         if (res.status === 503)
-            return console.warn("🔻CEIDG service seems unavailable. Skipping");
+            return console.warn("🔌CEIDG service seems unavailable. Skipping");
         expect(res.status).to.equal(404);
         expect(res.body.error).to.contain("No CEIDG entry found for NIP");
     })
