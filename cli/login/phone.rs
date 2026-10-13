@@ -6,7 +6,14 @@ use inquire::{Password, Text};
 use crate::api::client::http_client;
 
 pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
-    let phone = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
+    let phone = loop {
+        let value = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
+        let phone = value.trim();
+        if phone.starts_with('+') && phone.len() >= 10 && phone.len() <= 16 && phone[1..].chars().all(|c| c.is_ascii_digit()) {
+            break phone.to_string();
+        }
+        println!("Enter a valid phone number (e.g. +48111222333).");
+    };
     let response = login_request(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone })).send().await?;
     let status = response.status();
     let body: serde_json::Value = response.json().await?;
