@@ -8,8 +8,8 @@ export class AuthError extends Error {
 export type PhoneLoginChallenge = {
     phone: string;
     codeHash: string;
-    expiresAt: number;
+    expiresAt: string;
     attempts: number;
-    resendAfter: number;
+    resendAfter: string;
     updatedAt?: string;
 }

@@ -89,8 +89,8 @@
 - [x] Bruno tests for invoice generation  
 - [x] Sequence diagram for login with phone
 - [x] Sequence diagram for mail SS login  
-- [ ] CLI: login with phone
 - [ ] Bruno tests for login with phone  
+- [ ] CLI: login with phone
 - [ ] CLI: first time flow  
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  

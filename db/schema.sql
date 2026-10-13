@@ -26,6 +26,16 @@ CREATE TABLE users (
     updatedAt TEXT
 );
 
+DROP TABLE IF EXISTS login_challenges;
+CREATE TABLE login_challenges (
+    phone TEXT PRIMARY KEY,
+    codeHash TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    resendAfter TEXT NOT NULL,
+    updatedAt TEXT
+);
+
 DROP TABLE IF EXISTS contractors;
 CREATE TABLE contractors (
     id TEXT PRIMARY KEY,
@@ -118,14 +128,4 @@ CREATE TABLE taxes (
     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT,
     PRIMARY KEY ("from", "to")
-);
-
-DROP TABLE IF EXISTS login_phone_challenges;
-CREATE TABLE login_phone_challenges (
-    phone TEXT PRIMARY KEY,
-    codeHash TEXT NOT NULL,
-    expiresAt INTEGER NOT NULL,
-    attempts INTEGER NOT NULL DEFAULT 0,
-    resendAfter INTEGER NOT NULL,
-    consumedAt TEXT
 );

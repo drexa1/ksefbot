@@ -18,7 +18,7 @@ sequenceDiagram
     API->>DB: Find existing user by normalized phone
     DB-->>API: User ID and language (en / pl)
     API->>API: Generate random six-digit code and HMAC hash
-    API->>DB: Insert or replace login_phone_challenges
+    API->>DB: Insert or replace login_challenges
     Note over API,DB: Store hash, expiry, attempt count and resend cooldown<br/>Reject resend within 60 seconds
     API->>WA: POST /whatsapp/login/phone {phone, code, language}<br/>WHATSAPP service binding, X-API-Key
     WA->>Meta: Send login_phone_code_en or login_phone_code_pl<br/>Same code in message body and copy-code button
@@ -32,7 +32,7 @@ sequenceDiagram
     API->>DB: Find user by phone
     DB-->>API: User
     API->>API: Hash submitted code
-    API->>DB: Atomically increment attempts and consume on match<br/>Require unexpired, unused challenge with attempts below 3
+    API->>DB: Atomically increment attempts and set updatedAt<br/>On match, set expiresAt to now to consume the challenge<br/>Require unexpired challenge with attempts below 3
     alt Incorrect, expired, consumed or exhausted challenge
         DB-->>API: No successful consumption
         API-->>CLI: 401 Invalid or expired verification code
