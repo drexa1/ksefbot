@@ -89,6 +89,7 @@
 - [x] Bruno tests for invoice generation  
 - [x] Sequence diagram for login with phone
 - [x] Sequence diagram for mail SS login  
+- [x] Handle CEIDG downtime  
 - [ ] Bruno tests for login with phone  
 - [ ] CLI: login with phone
 - [ ] CLI: first time flow  
