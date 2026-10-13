@@ -22,7 +22,7 @@ import {get as invoicesGET, months as invoiceMonthsGET, post as invoicesPOST, pu
 import {get as taxesGET, simulate as simulateGET, post as taxesPOST, put as taxesPUT, del as taxesDELETE, } from "./app/taxes";
 import {generate} from "../service/invoices";
 import {AuthError} from "../types/auth";
-import {get as phoneGET, post as phonePOST} from "./login/phone";
+import {get as phoneGET, post as phonePOST} from "./app/login";
 
 export type Routes = Partial<Record<Method, Route>>;
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS";
