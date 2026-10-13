@@ -6,9 +6,16 @@ headers {
     X-API-Key: {{apiKey}}
 }
 tests {
-    test("For existing test sole propietorship entrypoint lookup should prioritize CEIDG", function() {
-        console.info(res.body);
-        expect(res.body.source).to.equal("CEIDG");
+    test("For existing test sole propietorship entrypoint lookup should prioritize CEIDG (unless unavailable)", async function() {
+        const ceidg = await bru.sendRequest({
+            url: `${bru.getEnvVar("baseUrl")}/gov/ceidg?nip=7272445205`,
+            method: "GET",
+            headers: { "X-API-Key": bru.getEnvVar("apiKey") }, validateStatus: () => true
+        });
+        if (ceidg.status === 503)
+            console.warn("🔌 CEIDG seems unavailable. Expecting lookup fallback");
+        expect(res.status).to.equal(200);
+        expect(res.body.source).to.equal(ceidg.status === 503 ? "VAT-LB" : "CEIDG");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;
     })
 }
