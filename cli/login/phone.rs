@@ -2,7 +2,7 @@ use crate::login::{AuthUser, save_session};
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use inquire::{Password, Text};
+use inquire::Text;
 use crate::api::client::http_client;
 
 pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
@@ -26,7 +26,7 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
     }
     println!("  📲 We've sent a Whatsapp verification code to {phone}.");
     for _ in 0..3 {
-        let code = Password::new("Please enter the verification code:").without_confirmation().prompt()?;
+        let code = Text::new("Please enter the verification code:").prompt()?;
         // Call to validate the received code
         let response = login_request(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone, "code": code })).send().await?;
         let status = response.status();
