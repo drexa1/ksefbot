@@ -91,6 +91,7 @@
 - [x] Sequence diagram for mail SS login  
 - [x] Handle CEIDG downtime  
 - [x] CLI: refactor login methods as separate modules  
+- [ ] CLI: after three attempts of phone failed it should go back to the main loop  
 - [ ] Bruno tests for login with phone  
 - [ ] CLI: login with phone
 - [ ] CLI: first time flow  
