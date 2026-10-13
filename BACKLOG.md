@@ -91,7 +91,8 @@
 - [x] Sequence diagram for mail SS login  
 - [x] Handle CEIDG downtime  
 - [x] CLI: refactor login methods as separate modules  
-- [ ] CLI: after three attempts of phone failed it should go back to the main loop  
+- [x] CLI: after three attempts of phone failed it should go back to the login loop  
+- [x] CLI: return to the login loop after Google or Microsoft authentication fails
 - [ ] Bruno tests for login with phone  
 - [ ] CLI: login with phone
 - [ ] CLI: first time flow  
