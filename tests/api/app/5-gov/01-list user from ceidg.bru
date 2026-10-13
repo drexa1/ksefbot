@@ -8,7 +8,7 @@ headers {
 tests {
     test("For existing test sole propietorship CEIDG should succeed", function() {
         if (res.status === 503)
-            return console.warn("🔌CEIDG service seems unavailable. Skipping");
+            return console.warn(`🔌CEIDG service seems unavailable(${res.body.details}). Skipping`);
         console.info(res.body);
         expect(res.body.source).to.equal("CEIDG");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;
