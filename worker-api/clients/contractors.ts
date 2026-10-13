@@ -36,7 +36,7 @@ export async function contractors(req: Request, env: Env): Promise<Response> {
                 unavailable ||= error.status === 503;
             }
         }
-        return Response.json({ success: false, error: unavailable ? "Contractor lookup temporarily unavailable" : "Contractor not found", nip: nip }, { status: unavailable ? 503 : 404 });
+        return Response.json({ success: false, error: "Contractor not found", nip: nip }, { status: unavailable ? 503 : 404 });
     } catch (error) {
         return Response.json({ success: false, error: String(error) }, { status: 404 });
     }
