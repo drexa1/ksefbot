@@ -23,3 +23,15 @@ INSERT INTO contractors (id, ownerId, name, nip, addressL1, notes) VALUES (
     'Kraków, 30-638, 15/32',
     'seller'
 );
+
+-- Example customer (or insert '5170312965' via CLI)
+INSERT INTO contractors (id, ownerId, name, nip, addressL1, localGovernmentUnit, vatGroup, notes) VALUES (
+    '5170312965',
+    '6751577878',
+    'Virtus Lab sp. z o.o.',
+    '5170312965',
+    'Kraków, 31-153, Szlak 49',
+    2,
+    2,
+    'buyer'
+ );

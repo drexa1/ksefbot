@@ -270,6 +270,58 @@ async fn fetch_google_user(access_token: &str) -> Result<AuthUser> {
     Ok(user)
 }
 
+// -------------------------------------------------------------------------------------------------
+// Login with phone
+// -------------------------------------------------------------------------------------------------
+
+pub async fn login_with_phone_loop() -> Result<AuthUser> {
+    let phone = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
+    let response = login_with_phone(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone })).send().await?;
+    let status = response.status();
+    let body: serde_json::Value = response.json().await?;
+    if !status.is_success() {
+        anyhow::bail!("{}", body["error"].as_str().unwrap_or("Could not send verification code"));
+    }
+    println!("We've sent a Whatsapp verification code to {phone}.");
+    for _ in 0..3 {
+        let code = Password::new("Verification code:").without_confirmation().prompt()?;
+        let response = login_with_phone(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone, "code": code })).send().await?;
+        let status = response.status();
+        let body: serde_json::Value = response.json().await?;
+        if status.is_success() {
+            let token = body["token"].as_str().context("Missing phone login token")?;
+            let user = resume_phone(token).await?;
+            save_session("phone", token)?;
+            return Ok(user);
+        }
+        let error = body["error"].as_str().unwrap_or("Phone login failed");
+        if status != reqwest::StatusCode::UNAUTHORIZED && status != reqwest::StatusCode::BAD_REQUEST {
+            anyhow::bail!("{error}");
+        }
+        println!("{error}");
+    }
+    anyhow::bail!("Verification failed. Please request a new code.");
+}
+
+async fn resume_phone(token: &str) -> Result<AuthUser> {
+    let payload = token.split('.').nth(1).context("Invalid phone token")?;
+    let claims: serde_json::Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload)?)?;
+    let expires_at = claims["exp"].as_i64().context("Phone token has no expiry")?;
+    if expires_at <= chrono::Utc::now().timestamp() {
+        anyhow::bail!("Phone login expired");
+    }
+    let user = login_with_phone(reqwest::Method::GET).bearer_auth(token)
+        .send().await?.error_for_status()?.json().await?;
+    Ok(user)
+}
+
+fn login_with_phone(method: reqwest::Method) -> reqwest::RequestBuilder {
+    crate::api::client::http_client()
+        .request(method, format!("{}/login/phone", crate::cf_worker_url!()))
+        .header("CF-Access-Client-Id", crate::cf_client_id!())
+        .header("CF-Access-Client-Secret", crate::cf_client_secret!())
+        .header("X-API-Key", crate::api_key!())
+}
 
 // -------------------------------------------------------------------------------------------------
 // SSO persistence
@@ -323,55 +375,4 @@ pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
             None
         }
     }
-}
-
-fn phone_request(method: reqwest::Method) -> reqwest::RequestBuilder {
-    crate::api::client::http_client()
-        .request(method, format!("{}/login/phone", crate::cf_worker_url!()))
-        .header("CF-Access-Client-Id", crate::cf_client_id!())
-        .header("CF-Access-Client-Secret", crate::cf_client_secret!())
-        .header("X-API-Key", crate::api_key!())
-}
-
-async fn resume_phone(token: &str) -> Result<AuthUser> {
-    let payload = token.split('.').nth(1).context("Invalid phone token")?;
-    let claims: serde_json::Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload)?)?;
-    let expires_at = claims["exp"].as_i64().context("Phone token has no expiry")?;
-    if expires_at <= chrono::Utc::now().timestamp() {
-        anyhow::bail!("Phone login expired");
-    }
-    let user = phone_request(reqwest::Method::GET).bearer_auth(token)
-        .send().await?.error_for_status()?.json().await?;
-    Ok(user)
-}
-
-pub async fn login_with_phone_loop() -> Result<AuthUser> {
-    let phone = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
-    let response = phone_request(reqwest::Method::POST)
-        .json(&serde_json::json!({ "phone": phone })).send().await?;
-    let status = response.status();
-    let body: serde_json::Value = response.json().await?;
-    if !status.is_success() {
-        anyhow::bail!("{}", body["error"].as_str().unwrap_or("Could not send verification code"));
-    }
-    println!("We've sent a WhatsApp verification code to {phone}.");
-    for _ in 0..3 {
-        let code = Password::new("Verification code:").without_confirmation().prompt()?;
-        let response = phone_request(reqwest::Method::POST)
-            .json(&serde_json::json!({ "phone": phone, "code": code })).send().await?;
-        let status = response.status();
-        let body: serde_json::Value = response.json().await?;
-        if status.is_success() {
-            let token = body["token"].as_str().context("Missing phone login token")?;
-            let user = resume_phone(token).await?;
-            save_session("phone", token)?;
-            return Ok(user);
-        }
-        let error = body["error"].as_str().unwrap_or("Phone login failed");
-        if status != reqwest::StatusCode::UNAUTHORIZED && status != reqwest::StatusCode::BAD_REQUEST {
-            anyhow::bail!("{error}");
-        }
-        println!("{error}");
-    }
-    anyhow::bail!("Verification failed. Please request a new code.");
 }
