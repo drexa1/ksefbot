@@ -2,14 +2,17 @@ use crate::MainMenuAction;
 use crate::api::invoices::create::{SalesInvoice, UploadInvoiceResult, create_invoice, download_receipt, load_invoice_parties, preview_sales_invoice, submit_invoice, upload_invoice};
 use crate::api::users::{self, AppUser};
 use crate::api::{customers, invoices};
-use crate::login::AuthUser;
+use crate::login::google::login_with_google;
+use crate::login::microsoft::login_with_microsoft;
+use crate::login::phone::login_with_phone;
+use crate::login::{AuthUser, LoginMethod};
 use anyhow::Result;
 use chrono::{Datelike, Local, NaiveDate};
 use crossterm::{
     cursor::MoveTo,
     execute,
     style::Stylize,
-    terminal::{Clear, ClearType},
+    terminal::{Clear, ClearType}
 };
 use inquire::{Confirm, DateSelect, Select, Text};
 use std::fs::{create_dir_all, read_dir, read_to_string, write};
@@ -23,20 +26,20 @@ pub(crate) mod invoices_tui;
 pub async fn login_loop() -> Result<AuthUser> {
     let last_used = crate::login::last_used_method();
     loop {
-        let choices: Vec<String> = crate::login::LoginMethod::iter().map(|method| {
+        let choices: Vec<String> = LoginMethod::iter().map(|method| {
             let label = method.to_string();
             if last_used.as_ref() == Some(&method) { format!("{} {label}", "(Last used)".green().bold()) } else { label }
         }).collect();
         let selected = Select::new("Welcome to KSeF Bot. How would you like to log in? ➜🚪", choices.clone()).prompt()?;
         let selected_index = choices.iter().position(|choice| choice == &selected).unwrap();
-        let method = crate::login::LoginMethod::iter().nth(selected_index).unwrap();
+        let method = LoginMethod::iter().nth(selected_index).unwrap();
         if let Some(logged_user) = crate::login::try_resume_method(&method).await {
             return Ok(logged_user);
         }
         let logged_user = match method {
-            crate::login::LoginMethod::Google => crate::login::login_with_google().await?,
-            crate::login::LoginMethod::Microsoft => crate::login::login_with_microsoft().await?,
-            crate::login::LoginMethod::Phone => crate::login::login_with_phone_loop().await?,
+            LoginMethod::Google => login_with_google().await?,
+            LoginMethod::Microsoft => login_with_microsoft().await?,
+            LoginMethod::Phone => login_with_phone().await?,
         };
         return Ok(logged_user);
     }

@@ -1,5 +1,5 @@
-use crate::api::customers::AppContractor;
 use crate::api::users::AppUser;
+use crate::api::customers::AppContractor;
 use anyhow::Result;
 use chrono::{Datelike, Duration, Local};
 use inquire::{Confirm, CustomType, DateSelect, MultiSelect, Select, Text, validator::Validation};

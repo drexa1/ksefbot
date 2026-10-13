@@ -3,19 +3,19 @@ use crate::tui::inquire;
 use anyhow::Result;
 use strum::{Display, EnumIter};
 
+mod login;
 mod tui {
     #[path = "inquire/inquire.rs"]
     pub mod inquire;
 }
-mod login;
 mod api {
+    pub mod client;
+    #[path = "users/list.rs"]
+    pub mod users;
     #[path = "customers/list.rs"]
     pub mod customers;
     #[path = "invoices/list.rs"]
     pub mod invoices;
-    #[path = "users/read.rs"]
-    pub mod users;
-    pub mod client;
 }
 mod obfstr;
 
