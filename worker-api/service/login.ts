@@ -2,11 +2,8 @@ import {Env} from "../worker";
 import {AuthError} from "../types/auth";
 
 const key = (env: Env) => crypto.subtle.importKey("raw", bytes(env.PHONE_TOKEN_SIGNER), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
-
 const encode = (value: Uint8Array) => btoa(String.fromCharCode(...value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-
 const decode = (value: string) => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), character => character.charCodeAt(0));
-
 const bytes = (value: string) => new TextEncoder().encode(value);
 
 export async function hashCode(env: Env, phone: string, code: string) {
