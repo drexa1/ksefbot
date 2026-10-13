@@ -61,7 +61,7 @@ async function generatePhoneCode(env: Env, user: AppUser, phone: string): Promis
     // Remove challenge if sending fails
     if (!response?.ok) {
         await getRepo(env).delete("login_challenges", { phone, codeHash: hash });
-        throw new AuthError("Could not send the WhatsApp verification code", 502);
+        throw new AuthError(`Failed to send a WhatsApp verification code to ${phone}`, 502);
     }
     console.info(`📲 WhatsApp verification code successfully sent to: ${phone}`);
     return Response.json({ expiresIn: 300 }, { status: 202 });
