@@ -14,16 +14,11 @@ export async function get(req: Request, env: Env): Promise<Response> {
 }
 
 export async function post(req: Request, env: Env): Promise<Response> {
-    const body = await req.json() as { phone?: string, code?: string };
-    const phone = body.phone;
-    if (typeof phone !== "string" || !phone.trim())
-        throw new AuthError("Enter a valid phone number", 400);
-    const user = await getRepo(env).get<AppUser>("users", { phone });
-    if (!user)
-        throw new AuthError("Invalid phone login", 401);
-    if (body.code !== undefined)
-        return verifyPhoneCode(env, user, phone, body.code);
-    return sendPhoneCode(env, user, phone);
+    const body = await req.json() as { phone: string, code?: string };
+    const user = await getRepo(env).get<AppUser>("users", { phone: body.phone });
+    if (body.code)
+        return verifyPhoneCode(env, user, body.phone, body.code);
+    return sendPhoneCode(env, user, body.phone);
 }
 
 async function verifyPhoneCode(env: Env, user: AppUser, phone: string, code: string): Promise<Response> {
