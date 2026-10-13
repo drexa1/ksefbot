@@ -15,14 +15,10 @@ use tokio::net::TcpListener;
 
 #[derive(Clone, Display, EnumIter, PartialEq)]
 pub enum LoginMethod {
-    #[strum(to_string = "Sign in with Microsoft account")]
-    Microsoft,
-    #[strum(to_string = "Sign in with Google account")]
-    Google,
-    #[strum(to_string = "Sign in with your phone")]
-    Phone
+    #[strum(to_string = "Sign in with Microsoft account")] Microsoft,
+    #[strum(to_string = "Sign in with Google account")] Google,
+    #[strum(to_string = "Sign in with your phone")] Phone
 }
-
 impl LoginMethod {
     fn session_key(&self) -> Option<&'static str> {
         match self {
@@ -33,6 +29,12 @@ impl LoginMethod {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct StoredSession {
+    method: String,
+    refresh_token: String
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 #[allow(dead_code)]
 pub struct AuthUser {
@@ -41,14 +43,8 @@ pub struct AuthUser {
     pub phone: Option<String>
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-struct StoredSession {
-    method: String,
-    refresh_token: String
-}
-
 // -------------------------------------------------------------------------------------------------
-// Login with SSO
+// Login with Microsoft
 // -------------------------------------------------------------------------------------------------
 
 #[derive(serde::Deserialize)]
@@ -172,6 +168,10 @@ fn decode_ms_id_token(id_token: &str) -> Result<AuthUser> {
     let claims: AuthUser = serde_json::from_slice(&payload).context("Failed to parse Microsoft ID token claims")?;
     Ok(claims)
 }
+
+// -------------------------------------------------------------------------------------------------
+// Login with Google
+// -------------------------------------------------------------------------------------------------
 
 pub async fn login_with_google() -> Result<AuthUser> {
     let listener = TcpListener::bind("127.0.0.1:0").await.context("Failed to bind OAuth callback listener")?;
@@ -303,6 +303,14 @@ pub async fn login_with_phone_loop() -> Result<AuthUser> {
     anyhow::bail!("Verification failed. Please request a new code.");
 }
 
+fn login_with_phone(method: reqwest::Method) -> reqwest::RequestBuilder {
+    crate::api::client::http_client()
+        .request(method, format!("{}/login/phone", crate::cf_worker_url!()))
+        .header("CF-Access-Client-Id", crate::cf_client_id!())
+        .header("CF-Access-Client-Secret", crate::cf_client_secret!())
+        .header("X-API-Key", crate::api_key!())
+}
+
 async fn resume_phone(token: &str) -> Result<AuthUser> {
     let payload = token.split('.').nth(1).context("Invalid phone token")?;
     let claims: serde_json::Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload)?)?;
@@ -310,17 +318,8 @@ async fn resume_phone(token: &str) -> Result<AuthUser> {
     if expires_at <= chrono::Utc::now().timestamp() {
         anyhow::bail!("Phone login expired");
     }
-    let user = login_with_phone(reqwest::Method::GET).bearer_auth(token)
-        .send().await?.error_for_status()?.json().await?;
+    let user = login_with_phone(reqwest::Method::GET).bearer_auth(token).send().await?.error_for_status()?.json().await?;
     Ok(user)
-}
-
-fn login_with_phone(method: reqwest::Method) -> reqwest::RequestBuilder {
-    crate::api::client::http_client()
-        .request(method, format!("{}/login/phone", crate::cf_worker_url!()))
-        .header("CF-Access-Client-Id", crate::cf_client_id!())
-        .header("CF-Access-Client-Secret", crate::cf_client_secret!())
-        .header("X-API-Key", crate::api_key!())
 }
 
 // -------------------------------------------------------------------------------------------------

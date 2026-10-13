@@ -125,7 +125,11 @@ fn month_range(today: NaiveDate, months_ago: i32) -> (NaiveDate, NaiveDate) {
     let total_months = today.year() * 12 + today.month0() as i32 - months_ago;
     let (year, month) = (total_months.div_euclid(12), total_months.rem_euclid(12) as u32 + 1);
     let start = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
-    let next_month_start = if month == 12 { NaiveDate::from_ymd_opt(year + 1, 1, 1) } else { NaiveDate::from_ymd_opt(year, month + 1, 1) }.unwrap();
+    let next_month_start = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    }.unwrap();
     (start, next_month_start.pred_opt().unwrap())
 }
 
