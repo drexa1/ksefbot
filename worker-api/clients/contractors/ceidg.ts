@@ -25,7 +25,9 @@ export async function lookupCEIDG(nip: string, env: Env): Promise<KsefContractor
     const ceidgLookup = await fetch(`${env.CEIDG_URL}/firmy?nip=${nip}`, { headers: {
         Accept: "application/json", Authorization: `Bearer ${env.CEIDG_API_KEY}`
     }});
-    assertAvailable(ceidgLookup);
+    // Assert CEIDG is available
+    if (ceidgLookup.status >= 500 || ceidgLookup.headers.get("Content-Type")?.includes("text/html"))
+        throw new ServiceUnavailableError("CEIDG temporarily unavailable");
     if (!ceidgLookup.ok)
         throw new Error(`CEIDG NIP lookup failed: ${ceidgLookup.status}`);
     if (ceidgLookup.status === 204)
@@ -37,17 +39,12 @@ export async function lookupCEIDG(nip: string, env: Env): Promise<KsefContractor
     const ceidgDetails = await fetch(`${env.CEIDG_URL}/firma/${company.id}`, { headers: {
         Accept: "application/json", Authorization: `Bearer ${env.CEIDG_API_KEY}`
     }});
-    assertAvailable(ceidgDetails);
+
     if (!ceidgDetails.ok)
         throw new Error(`CEIDG details lookup failed: ${ceidgDetails.status}`);
     const detailsResult = await ceidgDetails.json();
     const ceidgLookupAvroSchema = await env.ASSETS.fetch(new URL(env.CEIDG_LOOKUP_SCHEMA)).then(res => res.json());
     return mapCEIDG(detailsResult, ceidgLookupAvroSchema);
-}
-
-function assertAvailable(response: Response): void {
-    if (response.status >= 500 || response.headers.get("Content-Type")?.includes("text/html"))
-        throw new ServiceUnavailableError("CEIDG temporarily unavailable");
 }
 
 function mapCEIDG(result: any, schema: any): KsefContractor {
