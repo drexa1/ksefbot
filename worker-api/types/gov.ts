@@ -10,4 +10,7 @@ export type KsefContractor = {
 
 export class ServiceUnavailableError extends Error {
     readonly status = 503;
+    constructor(message: string, readonly details?: string) {
+        super(message);
+    }
 }
