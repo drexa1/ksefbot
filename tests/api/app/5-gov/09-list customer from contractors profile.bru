@@ -8,7 +8,6 @@ headers {
 }
 tests {
     test("For existing test company entrypoint lookup should prioritize KRS", function() {
-        console.info(res.body);
         expect(res.body.source).to.equal("KRS");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;
     })
