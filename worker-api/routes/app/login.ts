@@ -16,38 +16,11 @@ export async function get(req: Request, env: Env): Promise<Response> {
 export async function post(req: Request, env: Env): Promise<Response> {
     const body = await req.json() as { phone: string, code?: string };
     const user = await getRepo(env).get<AppUser>("users", { phone: body.phone });
-    return body.code
-        ? verifyPhoneCode(env, user, body.phone, body.code)
-        : sendPhoneCode(env, user, body.phone);
+    return !body.code ? generatePhoneCode(env, user, body.phone) : verifyPhoneCode(env, user, body.phone, body.code);
 }
 
-async function verifyPhoneCode(env: Env, user: AppUser, phone: string, code: string): Promise<Response> {
-    // Validate 6-digit code
-    if (!/^\d{6}$/.test(code))
-        throw new AuthError("Enter a six-digit code", 400);
-    // Retrieve stored login challenge
-    const hash = await hashCode(env, phone, code);
-    const challenge = await getRepo(env).get<PhoneLoginChallenge>("login_challenges", { phone });
-    const now = new Date().toISOString();
-    // Check expiration, attempts, and previous use
-    if (!challenge || challenge.expiresAt <= now || challenge.attempts >= 3)
-        throw new AuthError("Invalid or expired verification code", 401);
-    // Update attempts and mark valid code as consumed
-    const { updatedAt, ...filters } = challenge;
-    const result = await getRepo(env).update<Partial<PhoneLoginChallenge>>("login_challenges", {
-        attempts: challenge.attempts + 1,
-        expiresAt: challenge.codeHash === hash ? now : challenge.expiresAt,
-        updatedAt: now
-    }, filters);
-    // Verify code hash and update result
-    if (!result.changes || challenge.codeHash !== hash)
-        throw new AuthError("Invalid or expired verification code", 401);
-    // Issue authentication token
-    const token = await issueToken(env, user.id, phone);
-    return Response.json(token);
-}
-
-async function sendPhoneCode(env: Env, user: AppUser, phone: string): Promise<Response> {
+async function generatePhoneCode(env: Env, user: AppUser, phone: string): Promise<Response> {
+    console.info(`🤳 Phone login attempt from: ${phone}`);
     // Generate a new 6-digit code
     let random: number;
     do {
@@ -75,7 +48,7 @@ async function sendPhoneCode(env: Env, user: AppUser, phone: string): Promise<Re
     if (!result.changes)
         throw new AuthError("Wait one minute before requesting another code", 429);
     // Send verification code via Whatsapp
-    let response: Response | null;
+    let response!: Response;
     try {
         response = await env.WHATSAPP.fetch(`${env.WHATSAPP_API_URL}/whatsapp/login/phone`, {
             method: "POST",
@@ -83,12 +56,38 @@ async function sendPhoneCode(env: Env, user: AppUser, phone: string): Promise<Re
             body: JSON.stringify({ phone, code, language: user.language })
         });
     } catch {
-        response = null;
+        console.error(`Failed to send WhatsApp verification code to: ${phone}`);
     }
     // Remove challenge if sending fails
     if (!response?.ok) {
         await getRepo(env).delete("login_challenges", { phone, codeHash: hash });
         throw new AuthError("Could not send the WhatsApp verification code", 502);
     }
+    console.info(`📲 WhatsApp verification code successfully sent to: ${phone}`);
     return Response.json({ expiresIn: 300 }, { status: 202 });
+}
+
+async function verifyPhoneCode(env: Env, user: AppUser, phone: string, code: string): Promise<Response> {
+    console.info(`📟 Phone code verification from ${phone}: ${code}`);
+    // Retrieve stored login challenge
+    const hash = await hashCode(env, phone, code);
+    const challenge = await getRepo(env).get<PhoneLoginChallenge>("login_challenges", { phone });
+    const now = new Date().toISOString();
+    // Check expiration, attempts, and previous use
+    if (!challenge || challenge.expiresAt <= now || challenge.attempts >= 3)
+        throw new AuthError("Invalid or expired verification code", 401);
+    // Update attempts and mark valid code as consumed
+    const { updatedAt, ...filters } = challenge;
+    const result = await getRepo(env).update<Partial<PhoneLoginChallenge>>("login_challenges", {
+        attempts: challenge.attempts + 1,
+        expiresAt: challenge.codeHash === hash ? now : challenge.expiresAt,
+        updatedAt: now
+    }, filters);
+    // Verify code hash and update result
+    if (!result.changes || challenge.codeHash !== hash)
+        throw new AuthError("Invalid or expired verification code", 401);
+    // Issue authentication token
+    const token = await issueToken(env, user.id, phone);
+    console.info(`✅ Phone login successful for: ${phone}`);
+    return Response.json(token);
 }
