@@ -24,9 +24,9 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
     if !status.is_success() {
         anyhow::bail!("{}", body["error"].as_str().unwrap_or("Could not send verification code"));
     }
-    println!("We've sent a Whatsapp verification code to {phone}.");
+    println!("  📲 We've sent a Whatsapp verification code to {phone}.");
     for _ in 0..3 {
-        let code = Password::new("📲 Please enter the verification code:").without_confirmation().prompt()?;
+        let code = Password::new("Please enter the verification code:").without_confirmation().prompt()?;
         // Call to validate the received code
         let response = login_request(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone, "code": code })).send().await?;
         let status = response.status();
