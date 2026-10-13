@@ -7,7 +7,6 @@ headers {
 }
 tests {
     test("List all customers created are still existing", function() {
-        console.info(res.body);
         expect(res.status).to.equal(200);
         const customerId = bru.getCollectionVar("createdCustomerId");
         const contractorIds = res.body.map(contractor => contractor.id);
