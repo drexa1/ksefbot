@@ -9,10 +9,7 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
     let phone = loop {
         let value = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
         let phone = value.trim();
-        if phone.starts_with("+48")
-            && phone.len() == 12
-            && phone[3..].chars().all(|c| c.is_ascii_digit())
-        {
+        if phone.starts_with("+48") && phone.len() == 12 && phone[3..].chars().all(|c| c.is_ascii_digit()) {
             break phone.to_string();
         }
         println!("Enter a valid phone number (e.g. +48111222333)");
