@@ -7,3 +7,7 @@ export type KsefContractor = {
     addressLine: string;
     active: boolean;
 };
+
+export class ServiceUnavailableError extends Error {
+    readonly status = 503;
+}
