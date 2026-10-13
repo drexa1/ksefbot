@@ -14,6 +14,7 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
         }
         println!("Enter a valid phone number (e.g. +48111222333).");
     };
+    // Call to request a code
     let response = login_request(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone })).send().await?;
     let status = response.status();
     let body: serde_json::Value = response.json().await?;
@@ -22,7 +23,8 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
     }
     println!("We've sent a Whatsapp verification code to {phone}.");
     for _ in 0..3 {
-        let code = Password::new("Verification code:").without_confirmation().prompt()?;
+        let code = Password::new("📲 Please enter the verification code:").without_confirmation().prompt()?;
+        // Call to validate the received code
         let response = login_request(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone, "code": code })).send().await?;
         let status = response.status();
         let body: serde_json::Value = response.json().await?;
@@ -52,6 +54,8 @@ pub async fn resume_phone(token: &str) -> anyhow::Result<AuthUser> {
     Ok(user)
 }
 
+/// Calls the backend API to register a new phone login attempt.
+/// The backend will either create a new challenge or validate an already existing one.
 fn login_request(method: reqwest::Method) -> reqwest::RequestBuilder {
     http_client().request(method, format!("{}/login/phone", crate::cf_worker_url!()))
         .header("CF-Access-Client-Id", crate::cf_client_id!())

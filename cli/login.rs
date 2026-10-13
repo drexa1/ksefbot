@@ -80,7 +80,10 @@ fn load_session() -> Option<StoredSession> {
 fn save_session(method: &str, refresh_token: &str) -> Result<()> {
     let path = session_path();
     std::fs::create_dir_all(path.parent().unwrap())?;
-    std::fs::write(path, serde_json::to_string(&StoredSession { method: method.to_string(), refresh_token: refresh_token.to_string() })?)?;
+    std::fs::write(path, serde_json::to_string(&StoredSession {
+        method: method.to_string(),
+        refresh_token: refresh_token.to_string()
+    })?)?;
     Ok(())
 }
 

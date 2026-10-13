@@ -50,7 +50,7 @@ async function generatePhoneCode(env: Env, user: AppUser, phone: string): Promis
     // Send verification code via Whatsapp
     let response!: Response;
     try {
-        response = await env.WHATSAPP.fetch(`${env.WHATSAPP_API_URL}/whatsapp/login/phone`, {
+        response = await env.WHATSAPP.fetch(`${env.WHATSAPP_API_URL}/whatsapp/login/code`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-API-Key": env.API_KEY },
             body: JSON.stringify({ phone, code, language: user.language })

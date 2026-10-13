@@ -37,7 +37,7 @@ export const routes: Record<string, Routes> =  {
     "/whatsapp/webhooks":         withErrorHandling({ GET: verificationHandler, POST: messageHandler }),
     "/whatsapp/flows/onboarding": withErrorHandling({ POST: onboardingExchange }),
     //🔒 Requiring authentication
-    "/whatsapp/login/phone":      withErrorHandling({ POST: sendPhoneLoginCode }),
+    "/whatsapp/login/code":       withErrorHandling({ POST: sendPhoneLoginCode }),
     "/whatsapp/test/token":       withErrorHandling({ GET: testToken }),
     "/whatsapp/test/message":     withErrorHandling({ POST: testMessage }),
     "/whatsapp/test/template":    withErrorHandling({ POST: testTemplate }),
