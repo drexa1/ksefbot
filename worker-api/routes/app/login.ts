@@ -16,9 +16,9 @@ export async function get(req: Request, env: Env): Promise<Response> {
 export async function post(req: Request, env: Env): Promise<Response> {
     const body = await req.json() as { phone: string, code?: string };
     const user = await getRepo(env).get<AppUser>("users", { phone: body.phone });
-    if (body.code)
-        return verifyPhoneCode(env, user, body.phone, body.code);
-    return sendPhoneCode(env, user, body.phone);
+    return body.code
+        ? verifyPhoneCode(env, user, body.phone, body.code)
+        : sendPhoneCode(env, user, body.phone);
 }
 
 async function verifyPhoneCode(env: Env, user: AppUser, phone: string, code: string): Promise<Response> {
