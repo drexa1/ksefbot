@@ -20,7 +20,7 @@ export async function post(req: Request, env: Env): Promise<Response> {
 }
 
 async function generatePhoneCode(env: Env, user: AppUser, phone: string): Promise<Response> {
-    console.info(`🤳 Phone login attempt from: ${phone}`);
+    console.info(`🤳 Phone login attempt from ${phone}`);
     // Generate a new 6-digit code
     let random: number;
     do {
