@@ -15,7 +15,7 @@ export async function get(req: Request, env: Env): Promise<Response> {
     // Allow to fetch users only to superadmin
     if (!isOnboardingLookup && appUser!.tier !== 0)
         return new Response("Unauthorized", { status: 401, headers: corsHeaders });
-    const rows = await getRepo(env).getAll<AppUser>("users", { ...filters, tier: 1 });
+    const rows = await getRepo(env).getAll<AppUser>("users", filters);
     return rows.length === 0
         ? Response.json({ success: false, error: "No user found", filters: filters }, { status: 404 })
         : Response.json(rows, { status: 200 });
@@ -50,7 +50,7 @@ export async function put(req: Request, env: Env): Promise<Response> {
     const { id, tier, apiKey, createdAt, updatedAt, ...updatePayload } = payload;
     const result = await getRepo(env).update<AppUserUpdate>("users", {
         ...updatePayload, updatedAt: new Date().toISOString()
-    }, { id: id, tier: 1 });
+    }, { id: id });
     return result.changes === 0
         ? Response.json({ success: false, error: "No user found", id: id }, { status: 404 })
         : Response.json({ success: true, changes: result.changes, id: id }, { status: result.success ? 200 : 400 });
@@ -66,7 +66,7 @@ export async function del(req: Request, env: Env): Promise<Response> {
     for (const [key, value] of url.searchParams.entries()) {
         filters[key] = value;
     }
-    const result = await getRepo(env).delete("users", { ...filters, tier: 1 });
+    const result = await getRepo(env).delete("users", filters);
     return result.changes === 0
         ? Response.json({ success: false, error: "No user found", filters }, { status: 404 })
         : Response.json({ success: result.success, changes: result.changes, ...filters }, { status: 200 });

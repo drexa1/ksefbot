@@ -95,7 +95,8 @@
 - [x] CLI: return to the login loop after Google or Microsoft authentication fails  
 - [x] CLI: login with phone  
 - [x] CLI: manual test for phone of unregistered user  
-- [ ] CLI: first time flow  
+- [x] CLI: first time flow  
+- [ ] CLI: first time flow manual test  
 - [ ] Bruno tests for login with phone
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  

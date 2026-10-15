@@ -16,7 +16,7 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
 
     async run(event: Readonly<WorkflowEvent<{ userId: string }>>, step: WorkflowStep): Promise<void> {
         const { userId } = event.payload;
-        const appUser = await getRepo(this.env).get<AppUser>("users", { id: userId, tier: 1 });
+        const appUser = await getRepo(this.env).get<AppUser>("users", { id: userId });
         const client = new KsefClient(this.env);
         // Change job to running
         await this.updateJob(userId, { status: "running" });
