@@ -97,6 +97,7 @@
 - [x] CLI: manual test for phone of unregistered user  
 - [x] CLI: first time flow  
 - [ ] CLI: first time flow manual test  
+- [ ] CLI: successful onboarding should trigger historical backfilling?  
 - [ ] Bruno tests for login with phone
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  
