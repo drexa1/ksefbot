@@ -1,5 +1,6 @@
 use super::{AppUser, Language, SettlementType};
 use crate::{cf_client_id, cf_client_secret, cf_worker_url};
+use crate::onboarding::BANK_NAMES;
 use anyhow::Result;
 use crossterm::style::Stylize;
 use inquire::{Confirm, Select, Text};
@@ -49,7 +50,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
         .put(format!("{}/app/users", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
+        .header("X-API-Key", crate::api_key!())
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .json(&user)
@@ -91,7 +92,7 @@ fn edit_language(current: Option<&Language>) -> Result<Language> {
     Ok(if choice == "Polish" { Language::Pl } else { Language::En })
 }
 
-fn edit_settlement_type(current: Option<&SettlementType>) -> Result<SettlementType> {
+pub fn edit_settlement_type(current: Option<&SettlementType>) -> Result<SettlementType> {
     let choices = vec!["Monthly", "Quarterly"];
     let starting_cursor = match current {
         Some(SettlementType::Quarterly) => 1,
@@ -102,7 +103,7 @@ fn edit_settlement_type(current: Option<&SettlementType>) -> Result<SettlementTy
 }
 
 fn edit_bank_name(current: Option<&str>) -> Result<String> {
-    let choices = vec!["Alior Bank", "Bank Millennium", "BNP Paribas", "ING Bank Śląski", "mBank", "PKO Bank Polski", "Santander Bank Polska"];
+    let choices = BANK_NAMES.to_vec();
     let starting_cursor = choices.iter().position(|bank| Some(*bank) == current).unwrap_or(0);
     Ok(Select::new("Bank name:", choices).with_starting_cursor(starting_cursor).with_page_size(7).prompt()?.to_string())
 }
@@ -117,7 +118,7 @@ fn edit_required(message: &str, current: &str) -> Result<String> {
     }
 }
 
-fn edit_optional(message: &str, current: Option<&str>) -> Result<Option<String>> {
+pub fn edit_optional(message: &str, current: Option<&str>) -> Result<Option<String>> {
     let mut prompt = Text::new(message);
     if let Some(current) = current {
         prompt = prompt.with_initial_value(current);
@@ -126,7 +127,7 @@ fn edit_optional(message: &str, current: Option<&str>) -> Result<Option<String>>
     Ok(if value.trim().is_empty() { None } else { Some(value.trim().to_string()) })
 }
 
-fn edit_optional_rate(current: Option<f64>) -> Result<Option<f64>> {
+pub fn edit_optional_rate(current: Option<f64>) -> Result<Option<f64>> {
     loop {
         let mut prompt = Text::new("Default hourly rate:");
         let current_text = current.map(|rate| rate.to_string());
@@ -144,7 +145,7 @@ fn edit_optional_rate(current: Option<f64>) -> Result<Option<f64>> {
     }
 }
 
-fn edit_optional_digits(message: &str, current: Option<&str>, length: usize) -> Result<Option<String>> {
+pub fn edit_optional_digits(message: &str, current: Option<&str>, length: usize) -> Result<Option<String>> {
     loop {
         let mut prompt = Text::new(message);
         if let Some(current) = current {

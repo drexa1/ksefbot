@@ -15,7 +15,7 @@ export async function get(req: Request, env: Env): Promise<Response> {
     // Allow to fetch users only to superadmin
     if (!isOnboardingLookup && appUser!.tier !== 0)
         return new Response("Unauthorized", { status: 401, headers: corsHeaders });
-    const rows = await getRepo(env).getAll<AppUser>("users", filters);
+    const rows = await getRepo(env).getAll<AppUser>("users", { ...filters, tier: 1 });
     return rows.length === 0
         ? Response.json({ success: false, error: "No user found", filters: filters }, { status: 404 })
         : Response.json(rows, { status: 200 });
@@ -29,7 +29,7 @@ export async function post(req: Request, env: Env): Promise<Response> {
     // Never allow client to control tier, apiKey, or creation/update timestamps
     const payload = await req.json() as AppUser;
     const { tier, apiKey, createdAt, updatedAt, ...payloadData } = payload;
-    const record = { ...payloadData, tier: 1, updatedAt: new Date().toISOString() };
+    const record = { ...payloadData, apiKey: env.API_KEY, tier: 1, updatedAt: new Date().toISOString() };
     try {
         await getRepo(env).save<AppUser>("users", record);
         return Response.json({ success: true, id: record.id }, { status: 201 });
@@ -49,8 +49,8 @@ export async function put(req: Request, env: Env): Promise<Response> {
     // Never allow client to change id, tier, apiKey or creation/update timestamp
     const { id, tier, apiKey, createdAt, updatedAt, ...updatePayload } = payload;
     const result = await getRepo(env).update<AppUserUpdate>("users", {
-        ...updatePayload, tier: 1, updatedAt: new Date().toISOString()
-    }, { id: id });
+        ...updatePayload, updatedAt: new Date().toISOString()
+    }, { id: id, tier: 1 });
     return result.changes === 0
         ? Response.json({ success: false, error: "No user found", id: id }, { status: 404 })
         : Response.json({ success: true, changes: result.changes, id: id }, { status: result.success ? 200 : 400 });
@@ -66,7 +66,7 @@ export async function del(req: Request, env: Env): Promise<Response> {
     for (const [key, value] of url.searchParams.entries()) {
         filters[key] = value;
     }
-    const result = await getRepo(env).delete("users", filters);
+    const result = await getRepo(env).delete("users", { ...filters, tier: 1 });
     return result.changes === 0
         ? Response.json({ success: false, error: "No user found", filters }, { status: 404 })
         : Response.json({ success: result.success, changes: result.changes, ...filters }, { status: 200 });

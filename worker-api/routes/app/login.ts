@@ -9,13 +9,13 @@ const getRepo = (env: Env): Repository => repo ??= new Repository(new D1Driver(e
 
 export async function get(req: Request, env: Env): Promise<Response> {
     const { userId, phone } = await verifyToken(req, env);
-    const user = await getRepo(env).get<AppUser>("users", { id: userId, phone: phone });
+    const user = await getRepo(env).get<AppUser>("users", { id: userId, phone: phone, tier: 1 });
     return Response.json({ phone: user.phone, email: user.email });
 }
 
 export async function post(req: Request, env: Env): Promise<Response> {
     const body = await req.json() as { phone: string, code?: string };
-    const user = await getRepo(env).get<AppUser>("users", { phone: body.phone });
+    const user = await getRepo(env).get<AppUser>("users", { phone: body.phone, tier: 1 });
     if (!user) throw new AuthError("No user found", 404);
     return !body.code ? generatePhoneCode(env, user, body.phone) : verifyPhoneCode(env, user, body.phone, body.code);
 }

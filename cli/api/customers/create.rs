@@ -7,36 +7,36 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct NewContractor {
-    name: String,
-    nip: String,
+pub(crate) struct NewContractor {
+    pub(crate) name: String,
+    pub(crate) nip: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    regon: Option<String>,
-    country_code: String,
+    pub(crate) regon: Option<String>,
+    pub(crate) country_code: String,
     #[serde(alias = "addressLine")]
-    address_l1: String,
+    pub(crate) address_l1: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    notes: Option<String>
+    pub(crate) notes: Option<String>
 }
 
 #[derive(Deserialize)]
-struct ContractorLookup {
-    active: bool,
+pub(crate) struct ContractorLookup {
+    pub(crate) active: bool,
     #[serde(flatten)]
-    contractor: NewContractor
+    pub(crate) contractor: NewContractor
 }
 
 pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     println!();
     let nip = prompt_digits("Customer NIP:", "1234567890", 10)?;
-    if let Some(customer) = lookup_customer::<Vec<AppContractor>>(app_user, "app/contractors", &[("nip", &nip), ("ownerId", &app_user.id)]).await?
+    if let Some(customer) = lookup_customer::<Vec<AppContractor>>(&app_user.id, "app/contractors", &[("nip", &nip), ("ownerId", &app_user.id)]).await?
         .and_then(|customers| customers.into_iter().next()) {
         println!("  ✅ Customer already saved in your online vault.");
         preview_customer(&customer.name, &nip, customer.regon.as_deref(), &customer.address_l1, &customer.country_code);
         println!("  Customer ID: {}", customer.id);
         return Ok(());
     }
-    let contractor = match lookup_customer::<ContractorLookup>(app_user, "gov/contractors", &[("nip", &nip), ("profile", "customer")]).await? {
+    let contractor = match lookup_customer::<ContractorLookup>(&app_user.id, "gov/contractors", &[("nip", &nip), ("profile", "customer")]).await? {
         Some(mut found) if found.active => {
             println!("  ✅ Customer found.");
             preview_customer(&found.contractor.name, &found.contractor.nip, found.contractor.regon.as_deref(), &found.contractor.address_l1, &found.contractor.country_code);
@@ -62,12 +62,18 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     if !Confirm::new("Save this customer in your online vault?").with_default(true).prompt()? {
         return Ok(());
     }
+    save_customer(&app_user.id, &contractor).await?;
+    println!("  💼 Contractor created successfully.");
+    Ok(())
+}
+
+pub(crate) async fn save_customer(user_id: &str, contractor: &NewContractor) -> anyhow::Result<()> {
     let response = crate::api::client::http_client()
         .post(format!("{}/app/contractors", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
-        .header("X-User-Id", &app_user.id)
+        .header("X-API-Key", crate::api_key!())
+        .header("X-User-Id", user_id)
         .header("Accept", "application/json")
         .json(&contractor)
         .send()
@@ -77,18 +83,17 @@ pub async fn create_customer(app_user: &AppUser) -> anyhow::Result<()> {
     if !status.is_success() || body["success"].as_bool() != Some(true) {
         anyhow::bail!("Contractor creation failed: {}", body["error"].as_str().unwrap());
     }
-    println!("  💼 Contractor created successfully.");
     Ok(())
 }
 
-async fn lookup_customer<T: DeserializeOwned>(app_user: &AppUser, endpoint: &str, query: &[(&str, &str)]) -> anyhow::Result<Option<T>> {
+pub(crate) async fn lookup_customer<T: DeserializeOwned>(user_id: &str, endpoint: &str, query: &[(&str, &str)]) -> anyhow::Result<Option<T>> {
     let response = crate::api::client::http_client()
         .get(format!("{}/{endpoint}", cf_worker_url!()))
         .query(query)
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
-        .header("X-User-Id", &app_user.id)
+        .header("X-API-Key", crate::api_key!())
+        .header("X-User-Id", user_id)
         .header("Accept", "application/json")
         .send()
         .await?;
@@ -98,7 +103,7 @@ async fn lookup_customer<T: DeserializeOwned>(app_user: &AppUser, endpoint: &str
     Ok(Some(response.error_for_status()?.json().await?))
 }
 
-fn preview_customer(name: &str, nip: &str, regon: Option<&str>, address: &str, country: &str) {
+pub(crate) fn preview_customer(name: &str, nip: &str, regon: Option<&str>, address: &str, country: &str) {
     println!();
     println!("  {}", name.bold());
     println!("  NIP: {nip}");
@@ -141,7 +146,7 @@ fn prompt_optional(message: &str, placeholder: &str) -> anyhow::Result<Option<St
     Ok(if value.trim().is_empty() { None } else { Some(value.trim().to_string()) })
 }
 
-fn prompt_digits(message: &str, placeholder: &str, length: usize) -> anyhow::Result<String> {
+pub(crate) fn prompt_digits(message: &str, placeholder: &str, length: usize) -> anyhow::Result<String> {
     loop {
         let value = Text::new(message).with_placeholder(placeholder).prompt()?;
         if value.len() == length && value.chars().all(|character| character.is_ascii_digit()) {

@@ -10,7 +10,7 @@ CREATE TABLE users (
     contractorId TEXT REFERENCES contractors(id),
     -- Application
     tier INTEGER NOT NULL,
-    apiKey TEXT UNIQUE,
+    apiKey TEXT,
     -- KSeF integration
     ksefApiToken TEXT UNIQUE,
     -- Invoicing defaults,

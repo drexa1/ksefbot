@@ -110,7 +110,7 @@ pub async fn edit_customer(app_user: &AppUser) -> anyhow::Result<bool> {
         .put(format!("{}/app/contractors", cf_worker_url!()))
         .header("CF-Access-Client-Id", cf_client_id!())
         .header("CF-Access-Client-Secret", cf_client_secret!())
-        .header("X-API-Key", app_user.api_key.as_deref().ok_or_else(|| anyhow::anyhow!("User has no API key configured"))?)
+        .header("X-API-Key", crate::api_key!())
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
         .json(&update)

@@ -12,6 +12,7 @@ pub struct AppUser {
     // Identification data
     pub id: String,
     pub email: Option<String>,
+    #[serde(skip_serializing)]
     pub tier: i32,
     pub language: Option<Language>,
     pub phone: Option<String>,
