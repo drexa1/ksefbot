@@ -16,6 +16,7 @@ export async function get(req: Request, env: Env): Promise<Response> {
 export async function post(req: Request, env: Env): Promise<Response> {
     const body = await req.json() as { phone: string, code?: string };
     const user = await getRepo(env).get<AppUser>("users", { phone: body.phone });
+    if (!user) throw new AuthError("No user found", 404);
     return !body.code ? generatePhoneCode(env, user, body.phone) : verifyPhoneCode(env, user, body.phone, body.code);
 }
 

@@ -37,12 +37,13 @@ pub async fn login_loop() -> Result<AuthUser> {
             return Ok(logged_user);
         }
         let logged_user = match method {
-            LoginMethod::Google => login_with_google().await,
-            LoginMethod::Microsoft => login_with_microsoft().await,
+            LoginMethod::Google => login_with_google().await.map(Some),
+            LoginMethod::Microsoft => login_with_microsoft().await.map(Some),
             LoginMethod::Phone => login_with_phone().await,
         };
         match logged_user {
-            Ok(user) => return Ok(user),
+            Ok(Some(user)) => return Ok(user),
+            Ok(None) => continue,
             Err(error) => println!("{error}"),
         }
     }

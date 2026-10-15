@@ -5,7 +5,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use inquire::Text;
 use crate::api::client::http_client;
 
-pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
+pub async fn login_with_phone() -> anyhow::Result<Option<AuthUser>> {
     let mut phone = None;
     for _ in 0..3 {
         let value = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
@@ -21,6 +21,10 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
     let response = login_request(reqwest::Method::POST).json(&serde_json::json!({ "phone": phone })).send().await?;
     let status = response.status();
     let body: serde_json::Value = response.json().await?;
+    if status == reqwest::StatusCode::NOT_FOUND {
+        crate::onboarding::onboard(&AuthUser { email: None, name: None, phone: Some(phone) }).await?;
+        return Ok(None);
+    }
     if !status.is_success() {
         anyhow::bail!("{}", body["error"].as_str().unwrap_or("Could not send verification code"));
     }
@@ -35,7 +39,7 @@ pub async fn login_with_phone() -> anyhow::Result<AuthUser> {
             let token = body["token"].as_str().context("Missing phone login token")?;
             let user = resume_phone(token).await?;
             save_session("phone", token)?;
-            return Ok(user);
+            return Ok(Some(user));
         }
         let error = body["error"].as_str().unwrap_or("Phone login failed");
         if status != reqwest::StatusCode::UNAUTHORIZED && status != reqwest::StatusCode::BAD_REQUEST {

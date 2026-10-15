@@ -94,9 +94,9 @@
 - [x] CLI: after three attempts of phone failed it should go back to the login loop  
 - [x] CLI: return to the login loop after Google or Microsoft authentication fails  
 - [x] CLI: login with phone  
-- [ ] CLI: manual test for phone of unregistered user  
-- [ ] Bruno tests for login with phone  
+- [x] CLI: manual test for phone of unregistered user  
 - [ ] CLI: first time flow  
+- [ ] Bruno tests for login with phone
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  

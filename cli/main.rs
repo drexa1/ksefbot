@@ -1,4 +1,4 @@
-use crate::api::users::{create::init_app_user, get_app_user};
+use crate::api::users::get_app_user;
 use crate::tui::inquire;
 use anyhow::Result;
 use strum::{Display, EnumIter};
@@ -18,6 +18,7 @@ mod api {
     pub mod invoices;
 }
 mod obfstr;
+mod onboarding;
 
 #[derive(Clone, Display, EnumIter)]
 pub enum MainMenuAction {
@@ -34,10 +35,12 @@ pub enum MainMenuAction {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     dotenvy::from_filename("cli/.env").ok();
-    let logged_user = inquire::login_loop().await?;
-    let app_user = match get_app_user(&logged_user).await? {
-        Some(app_user) => app_user,
-        None => init_app_user(&logged_user).await?,
+    let app_user = loop {
+        let logged_user = inquire::login_loop().await?;
+        match get_app_user(&logged_user).await? {
+            Some(app_user) => break app_user,
+            None => onboarding::onboard(&logged_user).await?,
+        }
     };
     inquire::main_loop(&app_user).await?;
     Ok(())
