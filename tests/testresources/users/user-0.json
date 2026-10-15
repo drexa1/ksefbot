@@ -1,6 +1,8 @@
 {
-    "id": "6751577878",
+    "id": "0000000000",
     "language": "en",
-    "email": "admin@mail.com",
-    "tier": 0
+    "email": "admin@ksefbot.pl",
+    "tier": 0,
+    "defaultItemName": "Test services",
+    "defaultHourlyRate": 160
 }

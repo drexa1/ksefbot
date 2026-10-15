@@ -11,8 +11,8 @@ headers {
 script:pre-request {
     const baseUrl = bru.getEnvVar("baseUrl");
     const headers = { "X-API-Key": bru.getEnvVar("apiKey") };
-    const users = await bru.sendRequest({ url: `${baseUrl}/app/users`, method: "GET", headers });
-    const user = users.data.find(user => user.tier === 0);
+    const fs = require("fs");
+    const user = JSON.parse(fs.readFileSync("../testresources/users/user-0.json", "utf8"));
     bru.setVar("generationItem", { name: user.defaultItemName.trim(), quantity: 160, unit: "szt", unitPrice: user.defaultHourlyRate, vatRate: "23" });
     const customer = await bru.sendRequest({
         url: `${baseUrl}/app/contractors`, method: "POST", headers,

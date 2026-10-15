@@ -6,7 +6,8 @@ headers {
     X-API-Key: {{apiKey}}
 }
 tests {
-    test("List all users at the end should at least find admin users", function() {
-        expect(res.body.every(u => u.tier === 0)).to.be.true;
+    test("List users after cleanup does not expose the super admin", function() {
+        expect(res.status).to.equal(404);
+        expect(res.body).to.deep.equal({ success: false, error: "No user found", filters: {} });
     })
 }
