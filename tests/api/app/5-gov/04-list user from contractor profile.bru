@@ -5,17 +5,21 @@ headers {
     Accept: application/json
     X-API-Key: {{apiKey}}
 }
+script:pre-request {
+    const ceidg = await bru.sendRequest({
+        url: `${bru.getEnvVar("baseUrl")}/gov/ceidg?nip=7272445205`,
+        method: "GET",
+        headers: { "X-API-Key": bru.getEnvVar("apiKey") }, validateStatus: () => true
+    });
+    bru.setVar("ceidgLookupStatus", ceidg.status);
+    bru.setVar("ceidgLookupDetails", ceidg.data.details);
+}
 tests {
-    test("For existing test sole propietorship entrypoint lookup should prioritize CEIDG (unless unavailable)", async function() {
-        const ceidg = await bru.sendRequest({
-            url: `${bru.getEnvVar("baseUrl")}/gov/ceidg?nip=7272445205`,
-            method: "GET",
-            headers: { "X-API-Key": bru.getEnvVar("apiKey") }, validateStatus: () => true
-        });
-        if (ceidg.status === 503)
-            console.warn(`🔌CEIDG seems unavailable. Expecting lookup fallback`);
+    test("For existing test sole propietorship entrypoint lookup should prioritize CEIDG (unless unavailable)", function() {
+        if (bru.getVar("ceidgLookupStatus") === 503)
+            console.warn(`🔌 CEIDG temporarily unavailable: ${bru.getVar("ceidgLookupDetails")}. Expecting lookup fallback`);
         expect(res.status).to.equal(200);
-        expect(res.body.source).to.equal(ceidg.status === 503 ? "VAT-LB" : "CEIDG");
+        expect(res.body.source).to.equal(bru.getVar("ceidgLookupStatus") === 503 ? "VAT-LB" : "CEIDG");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;
     })
 }

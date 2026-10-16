@@ -1,15 +1,25 @@
 
 get {
-    url: {{baseUrl}}/gov/contractors?nip=6252447933&profile=customer
+    url: {{baseUrl}}/gov/contractors?nip=6252447933
 }
 headers {
     Accept: application/json
     X-API-Key: {{apiKey}}
 }
+script:pre-request {
+    const krs = await bru.sendRequest({
+        url: `${bru.getEnvVar("baseUrl")}/gov/krs?nip=6252447933`,
+        method: "GET",
+        headers: { "X-API-Key": bru.getEnvVar("apiKey") }, validateStatus: () => true
+    });
+    bru.setVar("krsLookupStatus", krs.status);
+    bru.setVar("krsLookupDetails", krs.data.details);
+}
 tests {
-    test("For existing test company entrypoint lookup should prioritize KRS", function() {
-        console.info(res.body);
-        expect(res.body.source).to.equal("KRS");
+    test("For existing test company and no hint lookup should use KRS unless unavailable", function() {
+        if (bru.getVar("krsLookupStatus") === 503)
+            console.warn(`🔌 KRS temporarily unavailable: ${bru.getVar("krsLookupDetails")}. Expecting lookup fallback`);
+        expect(res.body.source).to.equal(bru.getVar("krsLookupStatus") === 503 ? "VAT-LB" : "KRS");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;
     })
 }
