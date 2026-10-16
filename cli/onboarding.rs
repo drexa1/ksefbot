@@ -6,7 +6,6 @@ use anyhow::Context;
 use crossterm::{cursor::MoveToColumn, execute, style::Stylize, terminal::{Clear, ClearType}};
 use inquire::{Confirm, Select, Text};
 use std::{io::{Write, stdout}, time::Duration};
-use crossterm::style::Color::White;
 
 pub const BANK_NAMES: [&str; 7] = [
     "Alior Bank",
@@ -46,8 +45,8 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let ksef_api_token = prompt_required("KSeF token (required):", "", "Paste the full token for your company's NIP", |value| valid_token(value, &nip))?;
     println!();
     println!("{}", "Banking".bold());
-    let mut banks = vec!["Skip"];
-    banks.extend(BANK_NAMES);
+    let mut banks = BANK_NAMES.to_vec();
+    banks.push("⏭️ Skip");
     let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
     let bank_name = if bank == "Skip" { None } else { Some(bank) };
     let bank_account_number = edit_optional_digits("[Optional] Bank account number (26 digits):", None, 26)?;
@@ -71,7 +70,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
 
 async fn prompt_company() -> anyhow::Result<NewContractor> {
     for _ in 1..=3 {
-        let nip = Text::new("NIP:").with_placeholder("1234567890").prompt()?.trim().to_string();
+        let nip = Text::new("Company tax ID (NIP):").with_placeholder("1234567890").prompt()?.trim().to_string();
         if nip.len() != 10 || !nip.bytes().all(|byte| byte.is_ascii_digit()) {
             println!("NIP should have exactly 10 digits.");
             continue;
@@ -128,14 +127,15 @@ fn valid_token(value: &str, nip: &str) -> bool {
 }
 
 fn token_instructions() {
+    let url = "https://ap.ksef.mf.gov.pl";
+    let link = format!("\x1b]8;;{url}\x1b\\{url}\x1b]8;;\x1b\\");
     let lines = [
-        format!("1. Open {}", "https://ap.ksef.mf.gov.pl".blue().bold()),
+        format!("1. Open {}", link.blue().bold()),
         "   and sign in with your company's NIP and preferred identity verification method.".to_string(),
-        format!("2. Go to {} > {}: name it 'KSeF Bot' and allow:", "Tokeny".blue().bold(), "Generuj token".blue().bold()),
+        format!("2. Go to {} > {}; name it 'KSeF Bot' and allow:", "Tokeny".blue().bold(), "Generuj token".blue().bold()),
         format!("   ✅ {}", "wystawianie faktur / issuing invoices"),
         format!("   ✅ {}", "przeglądanie faktur / viewing invoices"),
-        format!("   ✅ {}", "przeglądanie historii sesji (generowanie UPO) /"),
-        format!("      {}", "viewing session history (generating UPO)"),
+        format!("   ✅ {}", "przeglądanie historii sesji (generowanie UPO) / viewing session history (generating UPO)"),
         format!("3. Click {}, then {} ↻.", "Generuj token".blue().bold(), "Odśwież/Refresh".blue().bold()),
         "  📋 Copy the token shown once and paste it below.".to_string()
     ];
@@ -149,7 +149,7 @@ fn token_safety_notice() {
     println!("🔐 {}", "Is this safe?".bold());
     let lines = [
         "A KSeF token lets applications interact with KSeF on your behalf.",
-        "You choose its permissions and can revoke it at any time to prevent new connections.",
+        "You choose its permissions and you can revoke it at any time to prevent its usage.",
     ];
     let width = lines.iter().map(|line| line.len()).max().unwrap_or(0);
     println!("┌{}┐", "─".repeat(width + 2));

@@ -104,7 +104,9 @@
 - [x] KRS api tests are failing  
 - [x] CLI: NIP prompt should validate company existence  
 - [x] CLI: improve onboarding captions consistency  
-- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar  
+- [x] CLI: successful onboarding should trigger historical backfilling with progress bar  
+- [ ] The progress bar bounces sideways, we want deterministic progress  
+- [ ]
 - [ ] CLI: when phone is the alternate during login should be validated at the moment  
 - [ ] CLI: when email is the alternate during login should be validated at the moment   
 - [ ] CLI: is session revoked ever?  
