@@ -96,8 +96,14 @@
 - [x] CLI: login with phone  
 - [x] CLI: manual test for phone of unregistered user  
 - [x] CLI: first time flow  
-- [ ] CLI: first time flow manual test  
-- [ ] CLI: successful onboarding should trigger historical backfilling?  
+- [x] CLI: first time flow manual test  
+- [ ] Remove phone auth from public API spec  
+- [ ] CLI: improve onboarding captions consistency  
+- [ ] CLI: list invoices has stopped working  
+- [ ] CLI: editing user settings does not save changes  
+- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar  
+- [ ] CLI: NIP prompt should validate company existance  
+- [ ] Error in simulate taxes. Why is this not caught by an API test?  
 - [ ] Bruno tests for login with phone
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  
