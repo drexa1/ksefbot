@@ -39,7 +39,9 @@ async fn main() -> Result<()> {
         let logged_user = inquire::login_loop().await?;
         match get_app_user(&logged_user).await? {
             Some(app_user) => break app_user,
-            None => onboarding::onboard(&logged_user).await?,
+            None => if let Err(error) = onboarding::onboard(&logged_user).await {
+                println!("{error:#}");
+            }
         }
     };
     inquire::main_loop(&mut app_user).await?;
