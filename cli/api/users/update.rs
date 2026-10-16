@@ -130,7 +130,7 @@ pub fn edit_optional(message: &str, current: Option<&str>) -> Result<Option<Stri
 
 pub fn edit_optional_hourly_rate(current: Option<f64>) -> Result<Option<f64>> {
     loop {
-        let mut prompt = Text::new("[Optional] Default hourly rate:");
+        let mut prompt = Text::new("[Optional] Default hourly rate (PLN/h):");
         let current_text = current.map(|rate| rate.to_string());
         if let Some(current_text) = current_text.as_deref() {
             prompt = prompt.with_initial_value(current_text);

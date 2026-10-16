@@ -102,9 +102,11 @@
 - [x] CLI: list invoices has stopped working  
 - [x] CLI: editing user settings does not save changes  
 - [x] KRS api tests are failing  
-- [ ] CLI: NIP prompt should validate company existence  
-- [ ] CLI: improve onboarding captions consistency  
-- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar
+- [x] CLI: NIP prompt should validate company existence  
+- [x] CLI: improve onboarding captions consistency  
+- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar  
+- [ ] CLI: when phone is the alternate during login should be validated at the moment  
+- [ ] CLI: when email is the alternate during login should be validated at the moment   
 - [ ] CLI: is session revoked ever?  
 - [ ] Bruno tests for login with phone  
 - [ ] Rethink monthly widget with stats line (ext. library)  

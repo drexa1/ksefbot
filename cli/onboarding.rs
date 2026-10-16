@@ -35,16 +35,14 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     })?;
     let language = Select::new("Preferred language:", vec!["English", "Polish"]).prompt()?;
     let language = if language == "Polish" { Language::Pl } else { Language::En };
-    println!();
-    let default_item_name = edit_optional("[Optional] Description of your company main service/product (will save time when creating a new invoice):", None)?;
+    let default_item_name = edit_optional("[Optional] Description of your company main service/product:", None)?;
     let default_hourly_rate = edit_optional_hourly_rate(None)?;
     let settlement_type = edit_settlement_type(None)?;
     println!();
     println!("{}", "Connection to KSeF".bold());
     token_instructions();
     println!("{}", "Is this safe?".bold());
-    println!("A KSeF token lets applications interact with KSeF on your behalf.");
-    println!("You choose its permissions and can revoke it at any time to prevent new connections.");
+    token_safety_notice();
     let ksef_api_token = prompt_required("KSeF token (required):", "", "Paste the full token for your company's NIP", |value| valid_token(value, &nip))?;
     println!();
     println!("{}", "Banking".bold());
@@ -132,26 +130,31 @@ fn valid_token(value: &str, nip: &str) -> bool {
 fn token_instructions() {
     let lines = [
         format!("1. Open {}", "https://ap.ksef.mf.gov.pl".blue().bold()),
-        "   Sign in for your company's NIP using your preferred identity method.".to_string(),
-        format!("2. {} > {}: name it 'KSeF Bot' and allow:", "Tokeny".blue().bold(), "Generuj token".blue().bold()),
-        format!("   ✅ {}", "wystawianie faktur / issuing invoices".green().bold()),
-        format!("   ✅ {}", "przeglądanie faktur / viewing invoices".green().bold()),
-        format!("   ✅ {}", "przeglądanie historii sesji (generowanie UPO) /".green().bold()),
-        format!("      {}", "viewing session history (generating UPO)".green().bold()),
-        format!("3. Click {}, then {}.", "Generuj token".blue().bold(), "↻ Odśwież/Refresh".blue().bold()),
-        "   Copy the token shown once and paste it below.".to_string()
+        "   and sign in with your company's NIP and preferred identity verification method.".to_string(),
+        format!("2. Go to {} > {}: name it 'KSeF Bot' and allow:", "Tokeny".blue().bold(), "Generuj token".blue().bold()),
+        format!("   ✅ {}", "wystawianie faktur / issuing invoices"),
+        format!("   ✅ {}", "przeglądanie faktur / viewing invoices"),
+        format!("   ✅ {}", "przeglądanie historii sesji (generowanie UPO) /"),
+        format!("      {}", "viewing session history (generating UPO)"),
+        format!("3. Click {}, then {} ↻.", "Generuj token".blue().bold(), "Odśwież/Refresh".blue().bold()),
+        "   📋 Copy the token shown once and paste it below.".to_string()
     ];
-    println!("┌{}┐", "─".repeat(76));
     for line in lines {
-        let mut escape = false;
-        let width: usize = line.chars().filter(|&character| {
-            if character == '\x1b' { escape = true; return false; }
-            if escape { if character == 'm' { escape = false; } return false; }
-            true
-        }).map(|character| if character == '✅' { 2 } else { 1 }).sum();
-        println!("│ {line}{} │", " ".repeat(74 - width));
+        println!("{line}");
     }
-    println!("└{}┘", "─".repeat(76));
+}
+
+fn token_safety_notice() {
+    let lines = [
+        "A KSeF token lets applications interact with KSeF on your behalf.",
+        "You choose its permissions and can revoke it at any time to prevent new connections.",
+    ];
+    let width = lines.iter().map(|line| line.len()).max().unwrap_or(0);
+    println!("┌{}┐", "─".repeat(width + 2));
+    for line in lines {
+        println!("│ {:<width$} │", line);
+    }
+    println!("└{}┘", "─".repeat(width + 2));
 }
 
 fn backfill_request(user_id: &str, method: reqwest::Method) -> reqwest::RequestBuilder {
