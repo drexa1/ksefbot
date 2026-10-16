@@ -101,10 +101,10 @@
 - [x] Error in simulate taxes. Why is this not caught by an API test?  
 - [x] CLI: list invoices has stopped working  
 - [x] CLI: editing user settings does not save changes  
+- [x] KRS api tests are failing  
 - [ ] CLI: NIP prompt should validate company existence  
 - [ ] CLI: improve onboarding captions consistency  
-- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar  
-- [ ] KRS api tests are failing  
+- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar
 - [ ] CLI: is session revoked ever?  
 - [ ] Bruno tests for login with phone  
 - [ ] Rethink monthly widget with stats line (ext. library)  
