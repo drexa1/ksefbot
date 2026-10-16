@@ -18,6 +18,7 @@ pub const BANK_NAMES: [&str; 7] = [
 ];
 
 pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
+    println!();
     println!("It looks like we haven't worked together just yet. We just need a few details to get you started,");
     println!("■ Email/phone, for logging in");
     println!("■ Your company tax ID");
