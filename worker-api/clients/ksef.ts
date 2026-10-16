@@ -1,6 +1,7 @@
 import {Env} from "../worker";
 import pRetry, {AbortError} from "p-retry";
 import {AppUser} from "../types/users";
+import {AuthError} from "../types/auth";
 import {
     InvoiceEncryptionData,
     KsefAuthenticationStatus,
@@ -138,10 +139,14 @@ class KsefClientBase {
                 const ksefAuthenticationStatus = await response.json() as KsefAuthenticationStatus;
                 switch (ksefAuthenticationStatus.status.code) {
                     // Authentication in progress
-                    case 100: throw new Error(`KSeF authentication pending: ${ksefAuthenticationStatus.status}`);
+                    case 100:
+                        throw new Error(`KSeF authentication pending: ${JSON.stringify(ksefAuthenticationStatus.status)}`);
                     // Success
-                    case 200: return;
-                    default:  throw new AbortError(`${ksefAuthenticationStatus.status}}`);
+                    case 200:
+                        return;
+                    default:
+                        const authError = new AuthError(`KSeF authentication failed: ${JSON.stringify(ksefAuthenticationStatus.status)}`, 502);
+                        throw new AbortError(authError);
                 }
             }, { retries: 10, minTimeout: env.KSEF_MIN_TIMEOUT, maxTimeout: env.KSEF_MAX_TIMEOUT, factor: 1 }
         );

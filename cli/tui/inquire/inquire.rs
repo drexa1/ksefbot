@@ -47,7 +47,7 @@ pub async fn login_loop() -> Result<AuthUser> {
     }
 }
 
-pub async fn main_loop(logged_user: &AppUser) -> Result<()> {
+pub async fn main_loop(logged_user: &mut AppUser) -> Result<()> {
     println!();
     let menu_actions: Vec<MainMenuAction> = MainMenuAction::iter().collect();
     let page_size = menu_actions.len();

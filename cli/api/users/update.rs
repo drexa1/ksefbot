@@ -5,39 +5,39 @@ use anyhow::Result;
 use crossterm::style::Stylize;
 use inquire::{Confirm, Select, Text};
 
-pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
-    let mut user = app_user.clone();
-    let original = user.clone();
+pub async fn edit_profile(app_user: &mut AppUser) -> Result<bool> {
+    let mut edit_user = app_user.clone();
+    let original = edit_user.clone();
     loop {
         let keys = ["Email", "Phone", "Language", "Default hourly rate", "Default invoice item description", "Settlement type", "Bank name", "Bank account number"];
         let values = [
-            user.email.clone().unwrap(),
-            user.phone.clone().unwrap(),
-            language_label(&user.language).to_string(),
-            user.default_hourly_rate.map(|rate| rate.to_string()).unwrap_or_default(),
-            user.default_item_name.clone().unwrap_or_default(),
-            settlement_type_label(&user.settlement_type).to_string(),
-            user.bank_name.clone().unwrap_or_default(),
-            user.bank_account_number.clone().unwrap_or_default(),
+            edit_user.email.clone().unwrap(),
+            edit_user.phone.clone().unwrap(),
+            language_label(&edit_user.language).to_string(),
+            edit_user.default_hourly_rate.map(|rate| rate.to_string()).unwrap_or_default(),
+            edit_user.default_item_name.clone().unwrap_or_default(),
+            settlement_type_label(&edit_user.settlement_type).to_string(),
+            edit_user.bank_name.clone().unwrap_or_default(),
+            edit_user.bank_account_number.clone().unwrap_or_default(),
         ];
         let mut fields: Vec<String> = keys.iter().zip(values.iter())
             .map(|(key, value)| format!("{}: {value}", key.bold()))
             .collect();
-        if user != original {
+        if edit_user != original {
             fields.push("✅ Save changes".to_string());
         }
         fields.push("❌ Cancel".to_string());
         let field = Select::new("Edit user settings", fields.clone()).with_page_size(fields.len()).prompt()?;
         let selected_index = fields.iter().position(|choice| choice == &field).unwrap();
         match keys.get(selected_index).copied().unwrap_or_default() {
-            "Email" => user.email = Some(edit_required("Email:", user.email.as_deref().unwrap_or(""))?),
-            "Phone" => user.phone = Some(edit_required("Phone:", user.phone.as_deref().unwrap_or(""))?),
-            "Language" => user.language = Some(edit_language(user.language.as_ref())?),
-            "Default invoice item description" => user.default_item_name = edit_optional("Default invoice item description:", user.default_item_name.as_deref())?,
-            "Default hourly rate" => user.default_hourly_rate = edit_optional_rate(user.default_hourly_rate)?,
-            "Settlement type" => user.settlement_type = Some(edit_settlement_type(user.settlement_type.as_ref())?),
-            "Bank name" => user.bank_name = Some(edit_bank_name(user.bank_name.as_deref())?),
-            "Bank account number" => user.bank_account_number = edit_optional_digits("Bank account number:", user.bank_account_number.as_deref(), 26)?,
+            "Email" => edit_user.email = Some(edit_required("Email:", edit_user.email.as_deref().unwrap_or(""))?),
+            "Phone" => edit_user.phone = Some(edit_required("Phone:", edit_user.phone.as_deref().unwrap_or(""))?),
+            "Language" => edit_user.language = Some(edit_language(edit_user.language.as_ref())?),
+            "Default invoice item description" => edit_user.default_item_name = edit_optional("Default invoice item description:", edit_user.default_item_name.as_deref())?,
+            "Default hourly rate" => edit_user.default_hourly_rate = edit_optional_hourly_rate(edit_user.default_hourly_rate)?,
+            "Settlement type" => edit_user.settlement_type = Some(edit_settlement_type(edit_user.settlement_type.as_ref())?),
+            "Bank name" => edit_user.bank_name = Some(edit_bank_name(edit_user.bank_name.as_deref())?),
+            "Bank account number" => edit_user.bank_account_number = edit_optional_digits("Bank account number:", edit_user.bank_account_number.as_deref(), 26)?,
             _ if field.starts_with("✅") => break,
             _ => return Ok(false),
         }
@@ -53,7 +53,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
         .header("X-API-Key", crate::api_key!())
         .header("X-User-Id", &app_user.id)
         .header("Accept", "application/json")
-        .json(&user)
+        .json(&edit_user)
         .send()
         .await?;
     let status = response.status();
@@ -61,6 +61,7 @@ pub async fn edit_profile(app_user: &AppUser) -> Result<bool> {
     if !status.is_success() || body["success"].as_bool() != Some(true) {
         anyhow::bail!("Profile update failed: {}", body["error"].as_str().unwrap_or("unknown error"));
     }
+    *app_user = edit_user;
     println!();
     println!("  ✅ Profile updated successfully.");
     Ok(true)
@@ -127,9 +128,9 @@ pub fn edit_optional(message: &str, current: Option<&str>) -> Result<Option<Stri
     Ok(if value.trim().is_empty() { None } else { Some(value.trim().to_string()) })
 }
 
-pub fn edit_optional_rate(current: Option<f64>) -> Result<Option<f64>> {
+pub fn edit_optional_hourly_rate(current: Option<f64>) -> Result<Option<f64>> {
     loop {
-        let mut prompt = Text::new("Default hourly rate:");
+        let mut prompt = Text::new("[Optional] Default hourly rate:");
         let current_text = current.map(|rate| rate.to_string());
         if let Some(current_text) = current_text.as_deref() {
             prompt = prompt.with_initial_value(current_text);

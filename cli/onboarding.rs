@@ -1,6 +1,6 @@
 use crate::api::users::{Language, create::create_app_user};
 use crate::api::customers::create::{ContractorLookup, lookup_customer, preview_customer, prompt_digits, save_customer};
-use crate::api::users::update::{edit_optional, edit_optional_digits, edit_optional_rate, edit_settlement_type};
+use crate::api::users::update::{edit_optional, edit_optional_digits, edit_optional_hourly_rate, edit_settlement_type};
 use crate::login::AuthUser;
 use anyhow::Context;
 use crossterm::style::Stylize;
@@ -46,14 +46,11 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
         nip = prompt_digits("Company NIP:", "1234567890", 10)?;
     };
     println!();
-    println!("Describe your company's services. This will be the default item description on new invoices.");
-    let default_item_name = edit_optional("Services description (optional):", None)?;
-    println!("The default hourly rate is optional; press Enter to leave it blank.");
-    let default_hourly_rate = edit_optional_rate(None)?;
+    let default_item_name = edit_optional("[Optional] Description of your company main service/product (will save time when creating a new invoice):", None)?;
+    let default_hourly_rate = edit_optional_hourly_rate(None)?;
     let settlement_type = edit_settlement_type(None)?;
-
     println!();
-    println!("{}", "Connect to KSeF".bold());
+    println!("{}", "Connection to KSeF".bold());
     let border = format!("+{}+", "-".repeat(88));
     println!("{border}");
     for line in [
@@ -78,14 +75,13 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
             Validation::Valid
         }))
         .prompt()?;
-
     println!();
-    println!("{}", "Banking (optional)".bold());
+    println!("{}", "Banking".bold());
     let mut banks = vec!["Skip"];
     banks.extend(BANK_NAMES);
-    let bank = Select::new("Bank name (optional):", banks).with_page_size(8).prompt()?;
+    let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
     let bank_name = if bank == "Skip" { None } else { Some(bank) };
-    let bank_account_number = edit_optional_digits("Bank account number (optional, 26 digits):", None, 26)?;
+    let bank_account_number = edit_optional_digits("[Optional] Bank account number (26 digits):", None, 26)?;
 
     create_app_user(&serde_json::json!({
         "id": nip,

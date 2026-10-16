@@ -35,13 +35,13 @@ pub enum MainMenuAction {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     dotenvy::from_filename("cli/.env").ok();
-    let app_user = loop {
+    let mut app_user = loop {
         let logged_user = inquire::login_loop().await?;
         match get_app_user(&logged_user).await? {
             Some(app_user) => break app_user,
             None => onboarding::onboard(&logged_user).await?,
         }
     };
-    inquire::main_loop(&app_user).await?;
+    inquire::main_loop(&mut app_user).await?;
     Ok(())
 }

@@ -1,0 +1,12 @@
+get {
+    url: {{baseUrl}}/app/taxes/simulate?hoursWorked=-1
+}
+headers {
+    X-API-Key: {{apiKey}}
+}
+tests {
+    test("Simulate taxes rejects negative hours", function() {
+        expect(res.status).to.equal(400);
+        expect(res.body.error).to.equal("Invalid number of hours worked");
+    });
+}
