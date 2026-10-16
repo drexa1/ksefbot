@@ -1,6 +1,7 @@
 import {Env} from "../../worker";
 import {dtoFromAliases} from "../../dto/avro";
-import {KsefContractor, ServiceUnavailableError} from "../../types/gov";
+import {KsefContractor} from "../../types/gov";
+import {assertAvailable} from "../contractors";
 
 // noinspection JSUnusedGlobalSymbols
 export async function contractors(req: Request, env: Env): Promise<Response> {
@@ -14,7 +15,10 @@ export async function contractors(req: Request, env: Env): Promise<Response> {
             return Response.json({ success: false, error: "Firm not found in CEIDG" }, { status: 404 });
         return Response.json(result, { status: 200 });
     } catch (error: any) {
-        return Response.json({ success: false, error: error.message }, { status: error.status === 503 ? 503 : 404 });
+        return Response.json(
+            { success: false, error: error.message, details: error.details },
+            { status: error.status === 503 ? 503 : 404 }
+        );
     }
 }
 
@@ -25,12 +29,7 @@ export async function lookupCEIDG(nip: string, env: Env): Promise<KsefContractor
     const ceidgLookup = await fetch(`${env.CEIDG_URL}/firmy?nip=${nip}`, { headers: {
         Accept: "application/json", Authorization: `Bearer ${env.CEIDG_API_KEY}`
     }});
-    // Assert CEIDG is available
-    if (ceidgLookup.status >= 500 || ceidgLookup.headers.get("Content-Type")?.includes("text/html")) {
-        const page = await ceidgLookup.text();
-        const details = page.match(/<p>(Od [^<]+)<\/p>/)?.[1] ?? "Unknown error";
-        throw new ServiceUnavailableError("CEIDG temporarily unavailable", details);
-    }
+    await assertAvailable(ceidgLookup, "CEIDG");
     if (!ceidgLookup.ok)
         throw new Error(`CEIDG NIP lookup failed: ${ceidgLookup.status}`);
     if (ceidgLookup.status === 204)
