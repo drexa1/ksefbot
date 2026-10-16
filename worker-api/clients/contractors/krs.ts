@@ -2,6 +2,7 @@ import {Env} from "../../worker";
 import {dtoFromAliases} from "../../dto/avro";
 import {encodeToken} from "./krs-apikey";
 import {KsefContractor} from "../../types/gov";
+import {assertAvailable} from "../contractors";
 
 // noinspection JSUnusedGlobalSymbols
 export async function contractors(req: Request, env: Env): Promise<Response> {
@@ -15,7 +16,10 @@ export async function contractors(req: Request, env: Env): Promise<Response> {
             return Response.json({ success: false, error: "Firm not found in KRS" }, { status: 404 });
         return Response.json(result, { status: 200 });
     } catch (error: any) {
-        return Response.json({ success: false, error: String(error) }, { status: 404 });
+        return Response.json(
+            { success: false, error: error.message, details: error.details },
+            { status: error.status === 503 ? 503 : 404 }
+        );
     }
 }
 
@@ -35,6 +39,7 @@ export async function lookupKRS(nip: string, env: Env): Promise<KsefContractor> 
         },
         body: JSON.stringify({ podmiot: { nip }, rejestr: ["P", "S"], paginacja: {} })
     });
+    await assertAvailable(krsLookup, "KRS");
     if (!krsLookup.ok)
         throw new Error(`KRS NIP lookup failed: ${krsLookup.status}`);
     if (krsLookup.status === 204)
