@@ -1,10 +1,11 @@
-use crate::api::users::{Language, create::create_app_user};
-use crate::api::customers::create::{ContractorLookup, lookup_customer, preview_customer, prompt_digits, save_customer};
+use crate::api::customers::create::{ContractorLookup, NewContractor, lookup_customer, preview_customer, save_customer};
 use crate::api::users::update::{edit_optional, edit_optional_digits, edit_optional_hourly_rate, edit_settlement_type};
+use crate::api::users::{Language, create::create_app_user};
 use crate::login::AuthUser;
 use anyhow::Context;
-use crossterm::style::Stylize;
-use inquire::{Confirm, Password, PasswordDisplayMode, Select, Text, validator::Validation};
+use crossterm::{cursor::MoveToColumn, execute, style::Stylize, terminal::{Clear, ClearType}};
+use inquire::{Confirm, Select, Text};
+use std::{io::{Write, stdout}, time::Duration};
 
 pub const BANK_NAMES: [&str; 7] = [
     "Alior Bank",
@@ -17,64 +18,34 @@ pub const BANK_NAMES: [&str; 7] = [
 ];
 
 pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
-    println!();
     println!("It looks like we haven't worked together just yet.");
-    println!("We just need a few details, we promise it will be just a couple of minutes now and it'll be done from now on.");
+    println!("We just need a few details,");
+    println!("■ Email/phone, for logging in");
+    println!("■ Your company tax ID");
+    println!("■ A token to interact with KSeF");
+    println!("■ (Optionally) banking details, for taxes automation");
+    println!("It'll take just a couple minutes, and you'll be set.");
     println!();
     println!("{}", "Let's start with your details:".bold());
-    let mut nip = prompt_digits("NIP:", "1234567890", 10)?;
-    let email = Text::new("Email:").with_initial_value(user.email.as_deref().unwrap_or("")).prompt()?;
-    let phone = Text::new("Phone:").with_initial_value(user.phone.as_deref().unwrap_or("")).with_placeholder("+48111222333").prompt()?;
+    let contractor = prompt_company().await?;
+    let nip = contractor.nip.clone();
+    let email = prompt_required("Email:", user.email.as_deref().unwrap_or(""), "name@example.com", valid_email)?;
+    let phone = prompt_required("Phone:", user.phone.as_deref().unwrap_or(""), "+48111222333", |value| {
+        value.starts_with("+48") && value.len() == 12 && value[3..].bytes().all(|byte| byte.is_ascii_digit())
+    })?;
     let language = Select::new("Preferred language:", vec!["English", "Polish"]).prompt()?;
     let language = if language == "Polish" { Language::Pl } else { Language::En };
-
-    println!();
-    println!("{}", "Your company".bold());
-    let contractor = loop {
-        println!("Looking up your company in the government registers...");
-        let found = lookup_customer::<ContractorLookup>(&nip, "gov/contractors", &[("nip", &nip), ("profile", "user")]).await?;
-        if let Some(found) = found.filter(|found| found.active) {
-            let mut contractor = found.contractor;
-            preview_customer(&contractor.name, &contractor.nip, contractor.regon.as_deref(), &contractor.address_l1, &contractor.country_code);
-            if Confirm::new("Is this your company?").with_default(true).prompt()? {
-                contractor.notes = Some("seller".to_string());
-                break contractor;
-            }
-        } else {
-            println!("No active company found for this NIP.");
-        }
-        nip = prompt_digits("Company NIP:", "1234567890", 10)?;
-    };
     println!();
     let default_item_name = edit_optional("[Optional] Description of your company main service/product (will save time when creating a new invoice):", None)?;
     let default_hourly_rate = edit_optional_hourly_rate(None)?;
     let settlement_type = edit_settlement_type(None)?;
     println!();
     println!("{}", "Connection to KSeF".bold());
-    let border = format!("+{}+", "-".repeat(88));
-    println!("{border}");
-    for line in [
-        "1. Open https://ap.ksef.mf.gov.pl and sign in for your company's NIP.",
-        "2. Tokeny > Generuj token: name it KSeF Bot; allow invoice issuing,",
-        "   invoice viewing and session history (UPO).",
-        "3. Click Generuj token, then Odśwież. Copy the token shown once and paste it here."
-    ] {
-        println!("| {line:<86} |");
-    }
-    println!("{border}");
+    token_instructions();
     println!("{}", "Is this safe?".bold());
-    println!("A token is KSeF's supported way to let KSeF Bot work with your invoices.");
-    println!("We store it to connect on your behalf, with only the permissions you select.");
-    println!("You stay in control: revoke it in Tokeny > Lista tokenów > Unieważnij to prevent new logins.");
-    let ksef_api_token = Password::new("KSeF token (required):")
-        .with_display_mode(PasswordDisplayMode::Masked)
-        .without_confirmation()
-        .with_validator(|value: &str| Ok(if value.trim().is_empty() {
-            Validation::Invalid("A KSeF token is required.".into())
-        } else {
-            Validation::Valid
-        }))
-        .prompt()?;
+    println!("A KSeF token lets applications interact with KSeF on your behalf.");
+    println!("You choose its permissions and can revoke it at any time to prevent new connections.");
+    let ksef_api_token = prompt_required("KSeF token (required):", "", "Paste the full token for your company's NIP", |value| valid_token(value, &nip))?;
     println!();
     println!("{}", "Banking".bold());
     let mut banks = vec!["Skip"];
@@ -82,7 +53,6 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
     let bank_name = if bank == "Skip" { None } else { Some(bank) };
     let bank_account_number = edit_optional_digits("[Optional] Bank account number (26 digits):", None, 26)?;
-
     create_app_user(&serde_json::json!({
         "id": nip,
         "email": email.trim(),
@@ -96,6 +66,151 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
         "bankAccountNumber": bank_account_number
     })).await.context("Error configuring first time user")?;
     save_customer(&nip, &contractor).await.context("Error configuring user contractor data")?;
+    retrieve_invoices(&nip).await.context("Your user and company are saved, but retrieving recent invoices failed")?;
     println!("Your user is configured, you should be good to login");
+    Ok(())
+}
+
+async fn prompt_company() -> anyhow::Result<NewContractor> {
+    for attempt in 1..=3 {
+        let nip = Text::new("NIP:").with_placeholder("1234567890").prompt()?.trim().to_string();
+        if nip.len() != 10 || !nip.bytes().all(|byte| byte.is_ascii_digit()) {
+            println!("Please enter exactly 10 digits. Attempt {attempt}/3.");
+            continue;
+        }
+        match lookup_customer::<ContractorLookup>(&nip, "gov/contractors", &[("nip", &nip), ("profile", "user")]).await {
+            Ok(Some(mut found)) if found.active => {
+                let contractor = &mut found.contractor;
+                preview_customer(&contractor.name, &contractor.nip, contractor.regon.as_deref(), &contractor.address_l1, &contractor.country_code);
+                if Confirm::new("Is this your company?").with_default(true).prompt()? {
+                    contractor.notes = Some("seller".to_string());
+                    return Ok(found.contractor);
+                }
+            }
+            Ok(_) => println!("We couldn't find a company for NIP {nip}"),
+            Err(error) => println!("Company lookup failed: {error}"),
+        }
+    }
+    anyhow::bail!("Company lookup failed.");
+}
+
+fn prompt_required(message: &str, initial: &str, placeholder: &str, valid: impl Fn(&str) -> bool) -> anyhow::Result<String> {
+    for attempt in 1..=3 {
+        let value = Text::new(message).with_initial_value(initial).with_placeholder(placeholder).prompt()?;
+        let value = value.trim();
+        if valid(value) {
+            return Ok(value.to_string());
+        }
+        println!("Please enter a valid value. {placeholder}.");
+    }
+    anyhow::bail!("Onboarding failed after 3 invalid attempts for {message}.");
+}
+
+fn valid_email(value: &str) -> bool {
+    !value.chars().any(char::is_whitespace) && value.split_once('@').is_some_and(|(name, domain)| {
+        !name.is_empty() &&
+        !domain.contains('@') &&
+        domain.split_once('.').is_some_and(|(host, suffix)| !host.is_empty() && !suffix.is_empty())
+    })
+}
+
+fn valid_token(value: &str, nip: &str) -> bool {
+    let parts: Vec<_> = value.split('|').collect();
+    if parts.len() != 3 || parts[1] != format!("nip-{nip}") || parts[2].len() != 64 || !parts[2].bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return false;
+    }
+    let reference: Vec<_> = parts[0].split('-').collect();
+    reference.len() == 5 && reference[0].len() == 8 && reference[0].bytes().all(|byte| byte.is_ascii_digit())
+        && chrono::NaiveDate::parse_from_str(reference[0], "%Y%m%d").is_ok() && reference[1] == "EC"
+        && reference[2..].iter().zip([10, 10, 2]).all(|(part, length)| part.len() == length && part.bytes().all(|byte| byte.is_ascii_hexdigit()))
+}
+
+fn token_instructions() {
+    let lines = [
+        format!("1. Open {}", "https://ap.ksef.mf.gov.pl".blue().bold()),
+        "   Sign in for your company's NIP using your preferred identity method.".to_string(),
+        format!("2. {} > {}: name it 'KSeF Bot' and allow:", "Tokeny".blue().bold(), "Generuj token".blue().bold()),
+        format!("   ✅ {}", "wystawianie faktur / issuing invoices".green().bold()),
+        format!("   ✅ {}", "przeglądanie faktur / viewing invoices".green().bold()),
+        format!("   ✅ {}", "przeglądanie historii sesji (generowanie UPO) /".green().bold()),
+        format!("      {}", "viewing session history (generating UPO)".green().bold()),
+        format!("3. Click {}, then {}.", "Generuj token".blue().bold(), "↻ Odśwież/Refresh".blue().bold()),
+        "   Copy the token shown once and paste it below.".to_string()
+    ];
+    println!("┌{}┐", "─".repeat(76));
+    for line in lines {
+        let mut escape = false;
+        let width: usize = line.chars().filter(|&character| {
+            if character == '\x1b' { escape = true; return false; }
+            if escape { if character == 'm' { escape = false; } return false; }
+            true
+        }).map(|character| if character == '✅' { 2 } else { 1 }).sum();
+        println!("│ {line}{} │", " ".repeat(74 - width));
+    }
+    println!("└{}┘", "─".repeat(76));
+}
+
+fn backfill_request(user_id: &str, method: reqwest::Method) -> reqwest::RequestBuilder {
+    crate::api::client::http_client().request(method, format!("{}/ksef/backfill", crate::cf_worker_url!()))
+        .header("CF-Access-Client-Id", crate::cf_client_id!())
+        .header("CF-Access-Client-Secret", crate::cf_client_secret!())
+        .header("X-API-Key", crate::api_key!())
+        .header("X-User-Id", user_id)
+        .timeout(Duration::from_secs(30))
+}
+
+async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
+    let response = backfill_request(user_id, reqwest::Method::POST).send().await?;
+    let status = response.status();
+    let body: serde_json::Value = response.json().await?;
+    if !status.is_success() && !(status == reqwest::StatusCode::CONFLICT && body["existing"] == true) {
+        anyhow::bail!("{}", body["error"].as_str().unwrap_or("Could not start invoice retrieval"));
+    }
+    let mut output = stdout();
+    let mut animation = tokio::time::interval(Duration::from_millis(80));
+    let mut frame = 0;
+    let mut downloaded = 0;
+    let result = async {
+        loop {
+            let poll = async {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                let response = backfill_request(user_id, reqwest::Method::GET).send().await?;
+                let status = response.status();
+                let body: serde_json::Value = response.json().await?;
+                if !status.is_success() {
+                    anyhow::bail!("{}", body["error"].as_str().unwrap_or("Could not check invoice retrieval"));
+                }
+                Ok::<_, anyhow::Error>(body)
+            };
+            tokio::pin!(poll);
+            let body = loop {
+                tokio::select! {
+                    result = &mut poll => break result?,
+                    _ = animation.tick() => {
+                        let position = 16 - (frame % 32_i32 - 16).abs();
+                        let bar = format!("{}{}{}", "─".repeat(position as usize), "━━━━".blue(), "─".repeat((16 - position) as usize));
+                        execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+                        write!(output, "Retrieving your recent invoices [{bar}] {downloaded}")?;
+                        output.flush()?;
+                        frame = (frame + 1) % 32;
+                    }
+                }
+            };
+            downloaded = body["invoicesDownloaded"].as_u64().context("Missing invoice retrieval count")?;
+            match body["status"].as_str() {
+                Some("completed") => return Ok(false),
+                Some("throttled") => return Ok(true),
+                Some("failed") => anyhow::bail!("{}", body["error"].as_str().unwrap_or("Invoice retrieval failed")),
+                Some("queued" | "running") => {},
+                _ => anyhow::bail!("Unknown invoice retrieval status"),
+            }
+        }
+    }.await;
+    execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+    if result? {
+        println!("{downloaded} invoices retrieved so far. KSeF rate limit reached; retrieval will resume in the background.");
+    } else {
+        println!("{downloaded} invoices retrieved.");
+    }
     Ok(())
 }
