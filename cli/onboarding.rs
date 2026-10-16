@@ -18,8 +18,7 @@ pub const BANK_NAMES: [&str; 7] = [
 ];
 
 pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
-    println!("It looks like we haven't worked together just yet.");
-    println!("We just need a few details,");
+    println!("It looks like we haven't worked together just yet. We just need a few details to get you started,");
     println!("■ Email/phone, for logging in");
     println!("■ Your company tax ID");
     println!("■ A token to interact with KSeF");
@@ -72,10 +71,10 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
 }
 
 async fn prompt_company() -> anyhow::Result<NewContractor> {
-    for attempt in 1..=3 {
+    for _ in 1..=3 {
         let nip = Text::new("NIP:").with_placeholder("1234567890").prompt()?.trim().to_string();
         if nip.len() != 10 || !nip.bytes().all(|byte| byte.is_ascii_digit()) {
-            println!("Please enter exactly 10 digits. Attempt {attempt}/3.");
+            println!("NIP should have exactly 10 digits.");
             continue;
         }
         match lookup_customer::<ContractorLookup>(&nip, "gov/contractors", &[("nip", &nip), ("profile", "user")]).await {
@@ -87,8 +86,11 @@ async fn prompt_company() -> anyhow::Result<NewContractor> {
                     return Ok(found.contractor);
                 }
             }
-            Ok(_) => println!("We couldn't find a company for NIP {nip}"),
-            Err(error) => println!("Company lookup failed: {error}"),
+            Ok(_) => println!("We couldn't find a company for NIP '{nip}'"),
+            Err(error) => {
+                println!("Company lookup failed: {error}");
+                println!();
+            }
         }
     }
     anyhow::bail!("Company lookup failed.");
