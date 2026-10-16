@@ -6,6 +6,7 @@ use anyhow::Context;
 use crossterm::{cursor::MoveToColumn, execute, style::Stylize, terminal::{Clear, ClearType}};
 use inquire::{Confirm, Select, Text};
 use std::{io::{Write, stdout}, time::Duration};
+use crossterm::style::Color::White;
 
 pub const BANK_NAMES: [&str; 7] = [
     "Alior Bank",
@@ -20,10 +21,10 @@ pub const BANK_NAMES: [&str; 7] = [
 pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     println!();
     println!("It looks like we haven't worked together just yet. We just need a few details to get you started,");
-    println!("■ Email/phone, for logging in");
-    println!("■ Your company tax ID");
-    println!("■ A token to interact with KSeF");
-    println!("■ (Optionally) banking details, for taxes automation");
+    println!(" ■ Email/phone, for logging in");
+    println!(" ■ Your company tax ID");
+    println!(" ■ A token to interact with KSeF");
+    println!(" ■ (Optionally) banking details, for taxes automation");
     println!("It'll take just a couple minutes, and you'll be set.");
     println!();
     println!("{}", "Let's start with your details:".bold());
@@ -39,9 +40,8 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let default_hourly_rate = edit_optional_hourly_rate(None)?;
     let settlement_type = edit_settlement_type(None)?;
     println!();
-    println!("{}", "Connection to KSeF".bold());
+    println!("{}", "How to get a KSeF token if you don't have one already".bold().underlined());
     token_instructions();
-    println!("{}", "Is this safe?".bold());
     token_safety_notice();
     let ksef_api_token = prompt_required("KSeF token (required):", "", "Paste the full token for your company's NIP", |value| valid_token(value, &nip))?;
     println!();
@@ -137,7 +137,7 @@ fn token_instructions() {
         format!("   ✅ {}", "przeglądanie historii sesji (generowanie UPO) /"),
         format!("      {}", "viewing session history (generating UPO)"),
         format!("3. Click {}, then {} ↻.", "Generuj token".blue().bold(), "Odśwież/Refresh".blue().bold()),
-        "   📋 Copy the token shown once and paste it below.".to_string()
+        "  📋 Copy the token shown once and paste it below.".to_string()
     ];
     for line in lines {
         println!("{line}");
@@ -145,6 +145,8 @@ fn token_instructions() {
 }
 
 fn token_safety_notice() {
+    println!();
+    println!("🔐 {}", "Is this safe?".bold());
     let lines = [
         "A KSeF token lets applications interact with KSeF on your behalf.",
         "You choose its permissions and can revoke it at any time to prevent new connections.",
