@@ -112,6 +112,7 @@
 - [ ] Whatsapp: unravel double WABA setup  
 - [ ] Whatsapp: add real phone
 - [ ] Whatsapp bot bruno tests  
+- [ ] Programmatic JPK  
 - [ ] Login frontend (inspiration: https://nosible.world/login)  
 - [ ] First time frontend workflow  
 - [ ] Review security architecture and keys passthrough  
