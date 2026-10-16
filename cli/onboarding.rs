@@ -95,7 +95,7 @@ async fn prompt_company() -> anyhow::Result<NewContractor> {
 }
 
 fn prompt_required(message: &str, initial: &str, placeholder: &str, valid: impl Fn(&str) -> bool) -> anyhow::Result<String> {
-    for attempt in 1..=3 {
+    for _ in 1..=3 {
         let value = Text::new(message).with_initial_value(initial).with_placeholder(placeholder).prompt()?;
         let value = value.trim();
         if valid(value) {
