@@ -105,10 +105,7 @@
 - [x] CLI: NIP prompt should validate company existence  
 - [x] CLI: improve onboarding captions consistency  
 - [x] CLI: successful onboarding should trigger historical backfilling with progress bar  
-- [ ] The progress bar bounces sideways, we want deterministic progress  
-- [ ]
-- [ ] CLI: when phone is the alternate during login should be validated at the moment  
-- [ ] CLI: when email is the alternate during login should be validated at the moment   
+- [ ] The progress bar bounces sideways, we want deterministic progress
 - [ ] CLI: is session revoked ever?  
 - [ ] Bruno tests for login with phone  
 - [ ] Rethink monthly widget with stats line (ext. library)  
