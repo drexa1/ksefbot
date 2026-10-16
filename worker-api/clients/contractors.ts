@@ -55,10 +55,12 @@ async function lookupContractorSource(source: KsefContractor["source"], nip: str
 
 export async function assertAvailable(response: Response, registry: string): Promise<void> {
     if (response.status >= 500 || response.headers.get("Content-Type")?.toLowerCase().includes("text/html")) {
-        const details = await new HTMLRewriter().on("title", { text(text) {
-            let title;
-            title += text.text
-        }}).transform(response).text().trim() || "Unknown error";
-        throw new ServiceUnavailableError(`${registry} temporarily unavailable`, details);
+        let details = "";
+        await new HTMLRewriter().on("title", {
+            text(chunk) {
+                details += chunk.text;
+            }
+        }).transform(response).text().trim();
+        throw new ServiceUnavailableError(`${registry} temporarily unavailable`, details || "Unknown error");
     }
 }
