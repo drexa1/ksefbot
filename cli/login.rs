@@ -99,6 +99,8 @@ fn clear_session() {
 }
 
 fn session_path() -> PathBuf {
-    let home = std::env::var_os("USERPROFILE").unwrap();
-    PathBuf::from(home).join(".ksefbot").join("session.json")
+    dirs::home_dir()
+        .expect("Could not determine home directory")
+        .join(".ksefbot")
+        .join("session.json")
 }
