@@ -104,6 +104,8 @@
 - [ ] CLI: NIP prompt should validate company existence  
 - [ ] CLI: improve onboarding captions consistency  
 - [ ] CLI: successful onboarding should trigger historical backfilling with progress bar  
+- [ ] KRS api tests are failing  
+- [ ] CLI: is session revoked ever?  
 - [ ] Bruno tests for login with phone  
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  
