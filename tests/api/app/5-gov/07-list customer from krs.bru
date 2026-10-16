@@ -8,7 +8,7 @@ headers {
 tests {
     test("For existing company KRS should succeed", function() {
         if (res.status === 503)
-            return console.warn(`🔌 KRS temporarily unavailable: ${res.body.details}. Skipping lookup assertions`);
+            return console.warn(`🔌 KRS temporarily unavailable (${res.body.details}). Skipping lookup assertions`);
         console.info(res.body);
         expect(res.body.source).to.equal("KRS");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;

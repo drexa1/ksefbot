@@ -60,7 +60,7 @@ export async function assertAvailable(response: Response, registry: string): Pro
             text(chunk) {
                 details += chunk.text;
             }
-        }).transform(response).text().trim();
-        throw new ServiceUnavailableError(`${registry} temporarily unavailable`, details || "Unknown error");
+        }).transform(response).text();
+        throw new ServiceUnavailableError(`${registry} temporarily unavailable`, details.trim() || "Unknown error");
     }
 }

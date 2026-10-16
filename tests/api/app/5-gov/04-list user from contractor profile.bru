@@ -17,7 +17,7 @@ script:pre-request {
 tests {
     test("For existing test sole propietorship entrypoint lookup should prioritize CEIDG (unless unavailable)", function() {
         if (bru.getVar("ceidgLookupStatus") === 503)
-            console.warn(`🔌 CEIDG temporarily unavailable: ${bru.getVar("ceidgLookupDetails")}. Expecting lookup fallback`);
+            console.warn(`🔌 CEIDG temporarily unavailable (${bru.getVar("ceidgLookupDetails")}). Expecting lookup fallback`);
         expect(res.status).to.equal(200);
         expect(res.body.source).to.equal(bru.getVar("ceidgLookupStatus") === 503 ? "VAT-LB" : "CEIDG");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;
