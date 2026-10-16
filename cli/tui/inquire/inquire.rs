@@ -42,7 +42,7 @@ pub async fn login_loop() -> Result<AuthUser> {
         match logged_user {
             Ok(Some(user)) => return Ok(user),
             Ok(None) => continue,
-            Err(error) => println!("{error}"),
+            Err(error) => println!("{error:#}"),
         }
     }
 }
