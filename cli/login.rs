@@ -28,7 +28,8 @@ impl LoginMethod {
 #[derive(serde::Serialize, serde::Deserialize)]
 struct StoredSession {
     method: String,
-    refresh_token: String
+    refresh_token: String,
+    last_phone: Option<String>
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -64,7 +65,12 @@ pub async fn try_resume_method(method: &LoginMethod) -> Option<AuthUser> {
         _ => return None
     };
     match result {
-        Ok(user) => Some(user),
+        Ok(user) => {
+            if session.method == "phone" {
+                let _ = save_session("phone", &session.refresh_token, user.phone.as_deref());
+            }
+            Some(user)
+        },
         Err(_) => {
             clear_session();
             None
@@ -77,18 +83,19 @@ fn load_session() -> Option<StoredSession> {
     serde_json::from_str(&content).ok()
 }
 
-fn save_session(method: &str, refresh_token: &str) -> Result<()> {
+fn save_session(method: &str, refresh_token: &str, phone: Option<&str>) -> Result<()> {
     let path = session_path();
     std::fs::create_dir_all(path.parent().unwrap())?;
     std::fs::write(path, serde_json::to_string(&StoredSession {
         method: method.to_string(),
-        refresh_token: refresh_token.to_string()
+        refresh_token: refresh_token.to_string(),
+        last_phone: phone.map(str::to_string).or_else(|| load_session().and_then(|session| session.last_phone))
     })?)?;
     Ok(())
 }
 
 fn clear_session() {
-    let _ = std::fs::remove_file(session_path());
+    let _ = save_session("", "", None);
 }
 
 fn session_path() -> PathBuf {

@@ -65,7 +65,7 @@ pub async fn login_with_google() -> anyhow::Result<AuthUser> {
         .await
         .context("Failed to exchange authorization code for Google token")?;
     if let Some(refresh_token) = token.refresh_token() {
-        save_session("google", refresh_token.secret())?;
+        save_session("google", refresh_token.secret(), None)?;
     }
     fetch_google_user(token.access_token().secret()).await
 }
@@ -84,7 +84,7 @@ pub async fn refresh_google(refresh_token: &str) -> anyhow::Result<AuthUser> {
         .await
         .context("Failed to refresh Google token")?;
     if let Some(refresh_token) = token.refresh_token() {
-        save_session("google", refresh_token.secret())?;
+        save_session("google", refresh_token.secret(), None)?;
     }
     fetch_google_user(token.access_token().secret()).await
 }

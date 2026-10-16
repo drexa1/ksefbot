@@ -90,7 +90,7 @@ pub async fn login_with_microsoft() -> anyhow::Result<AuthUser> {
         .await
         .context("Failed to parse Microsoft token response")?;
     if let Some(refresh_token) = &token.refresh_token {
-        save_session("microsoft", refresh_token)?;
+        save_session("microsoft", refresh_token, None)?;
     }
     decode_ms_id_token(&token.id_token)
 }
@@ -111,7 +111,7 @@ pub async fn refresh_microsoft(refresh_token: &str) -> anyhow::Result<AuthUser> 
         .await
         .context("Failed to parse Microsoft token response")?;
     if let Some(refresh_token) = &token.refresh_token {
-        save_session("microsoft", refresh_token)?;
+        save_session("microsoft", refresh_token, None)?;
     }
     decode_ms_id_token(&token.id_token)
 }

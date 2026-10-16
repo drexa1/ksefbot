@@ -1,4 +1,4 @@
-use crate::login::{AuthUser, save_session};
+use crate::login::{AuthUser, load_session, save_session};
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -6,9 +6,10 @@ use inquire::Text;
 use crate::api::client::http_client;
 
 pub async fn login_with_phone() -> anyhow::Result<Option<AuthUser>> {
+    let last_phone = load_session().and_then(|session| session.last_phone).unwrap_or_default();
     let mut phone = None;
     for _ in 0..3 {
-        let value = Text::new("Phone number:").with_placeholder("+48111222333").prompt()?;
+        let value = Text::new("Phone number:").with_initial_value(&last_phone).with_placeholder("+48111222333").prompt()?;
         let value = value.trim();
         if value.starts_with("+48") && value.len() == 12 && value[3..].chars().all(|c| c.is_ascii_digit()) {
             phone = Some(value.to_string());
@@ -38,7 +39,7 @@ pub async fn login_with_phone() -> anyhow::Result<Option<AuthUser>> {
         if status.is_success() {
             let token = body["token"].as_str().context("Missing phone login token")?;
             let user = resume_phone(token).await?;
-            save_session("phone", token)?;
+            save_session("phone", token, Some(&phone))?;
             return Ok(Some(user));
         }
         let error = body["error"].as_str().unwrap_or("Phone login failed");
