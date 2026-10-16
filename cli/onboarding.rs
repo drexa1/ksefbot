@@ -82,6 +82,7 @@ async fn prompt_company() -> anyhow::Result<NewContractor> {
             Ok(Some(mut found)) if found.active => {
                 let contractor = &mut found.contractor;
                 preview_customer(&contractor.name, &contractor.nip, contractor.regon.as_deref(), &contractor.address_l1, &contractor.country_code);
+                println!();
                 if Confirm::new("Is this your company?").with_default(true).prompt()? {
                     contractor.notes = Some("seller".to_string());
                     return Ok(found.contractor);
