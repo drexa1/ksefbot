@@ -98,13 +98,13 @@
 - [x] CLI: first time flow  
 - [x] CLI: first time flow manual test  
 - [x] Remove phone auth from public API spec  
-- [ ] Error in simulate taxes. Why is this not caught by an API test?  
-- [ ] CLI: list invoices has stopped working
+- [x] Error in simulate taxes. Why is this not caught by an API test?  
+- [ ] CLI: list invoices has stopped working  
 - [ ] CLI: editing user settings does not save changes  
 - [ ] CLI: NIP prompt should validate company existence  
-- [ ] CLI: improve onboarding captions consistency
-- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar
-- [ ] Bruno tests for login with phone
+- [ ] CLI: improve onboarding captions consistency  
+- [ ] CLI: successful onboarding should trigger historical backfilling with progress bar  
+- [ ] Bruno tests for login with phone  
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] Whatsapp: get PROD number display name working  
 - [ ] Whatsapp: unravel double WABA setup  
