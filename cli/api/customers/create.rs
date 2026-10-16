@@ -100,6 +100,11 @@ pub(crate) async fn lookup_customer<T: DeserializeOwned>(user_id: &str, endpoint
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Ok(None);
     }
+    if response.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE {
+        let body: serde_json::Value = response.json().await?;
+        let details = body["details"].as_str().unwrap_or("Please try again later");
+        anyhow::bail!("🔌 {}: {}", body["error"].as_str().unwrap_or("Government registry unavailable"), details);
+    }
     Ok(Some(response.error_for_status()?.json().await?))
 }
 
