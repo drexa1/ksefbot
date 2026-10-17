@@ -112,7 +112,7 @@
 - [x] Review taxes calculation (ZUS on total YTD accumulated)  
 - [x] Amend social security tax calculation API tests  
 - [ ] Bug: sales invoices don't seem to inform customerId  
-- [ ] CLI: is session revoked ever?
+- [ ] CLI: is session revoked ever?  
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] CLI: obligations menu  
 - [ ] Bruno tests for login with phone  
