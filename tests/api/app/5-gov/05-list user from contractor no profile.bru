@@ -17,7 +17,7 @@ script:pre-request {
 tests {
     test("For existing test sole proprietorship and no hint lookup should use CEIDG unless unavailable", function() {
         if (bru.getVar("ceidgLookupStatus") === 503)
-            console.warn(`🔌 CEIDG temporarily unavailable (${bru.getVar("ceidgLookupDetails")}). Expecting lookup fallback`);
+            console.warn(`🚧 CEIDG temporarily unavailable (${bru.getVar("ceidgLookupDetails")}). Expecting lookup fallback`);
         console.info(res.body);
         expect(res.status).to.equal(200);
         expect(res.body.source).to.equal(bru.getVar("ceidgLookupStatus") === 503 ? "VAT-LB" : "CEIDG");

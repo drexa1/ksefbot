@@ -18,7 +18,7 @@ script:pre-request {
 tests {
     test("For existing test company entrypoint lookup should prioritize KRS (unless unavailable)", function() {
         if (bru.getVar("krsLookupStatus") === 503)
-            console.warn(`🔌 KRS temporarily unavailable (${bru.getVar("krsLookupDetails")}). Expecting lookup fallback`);
+            console.warn(`🚧 KRS temporarily unavailable (${bru.getVar("krsLookupDetails")}). Expecting lookup fallback`);
         expect(res.body.source).to.equal(bru.getVar("krsLookupStatus") === 503 ? "VAT-LB" : "KRS");
         expect(res.body.addressLine).to.be.a("string").and.not.empty;
     })
