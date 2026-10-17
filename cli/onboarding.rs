@@ -30,12 +30,12 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let contractor = prompt_company().await?;
     let nip = contractor.nip.clone();
     let email = prompt_required("Email:", user.email.as_deref().unwrap_or(""), "name@example.com", valid_email)?;
-    let phone = prompt_required("Phone:", user.phone.as_deref().unwrap_or(""), "+48111222333", |value| {
+    let phone = prompt_required("Phone number (+country code, no spaces:", user.phone.as_deref().unwrap_or(""), "+48111222333", |value| {
         value.starts_with("+48") && value.len() == 12 && value[3..].bytes().all(|byte| byte.is_ascii_digit())
     })?;
     let language = Select::new("Preferred language:", vec!["English", "Polish"]).prompt()?;
     let language = if language == "Polish" { Language::Pl } else { Language::En };
-    println!("Your company's main product or service description will be used as the default when creating new invoices, saving you time.");
+    println!("  Your company's main product/service description will be used when creating new invoices, saving you time.");
     let default_item_name = prompt_required(
         "Description of the company main service/product:",
         "",
