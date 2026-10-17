@@ -111,13 +111,13 @@
 - [x] Encrypt KSeF/Baking keys → Cloudflare handled  
 - [x] Review taxes calculation (ZUS on total YTD accumulated)  
 - [x] Amend social security tax calculation API tests  
+- [x] Review backfill idempotency/restart  
 - [ ] Bug: sales invoices don't seem to inform customerId  
 - [ ] CLI: is session revoked ever?  
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] CLI: obligations menu  
 - [ ] Bruno tests for login with phone  
-- [ ] Whatsapp bot bruno tests  
-- [ ] Review backfill idempotency/restart  
+- [ ] Whatsapp bot bruno tests
 - [ ] Programmatic JPK  
 - [ ] Programmatic ZUS DRA  
 - [ ] Whatsapp: add real phone  
