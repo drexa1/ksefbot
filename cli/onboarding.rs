@@ -42,7 +42,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     println!("{}", "How to get a KSeF token if you don't have one already".bold().underlined());
     token_instructions();
     token_safety_notice();
-    let ksef_api_token = prompt_required("KSeF token (required):", "", "Paste the full token for your company's NIP", |value| valid_token(value, &nip))?;
+    let ksef_api_token = prompt_required("[Required] KSeF token:", "", "Paste the full token for your company's NIP", |value| valid_token(value, &nip))?;
     println!();
     println!("{}", "Banking".bold());
     let mut banks = BANK_NAMES.to_vec();
