@@ -227,9 +227,9 @@ async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
         execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
     }
     if result? {
-        println!("{downloaded} invoices retrieved so far. KSeF rate limit reached; retrieval will resume in the background.");
+        println!("  {downloaded} invoices retrieved so far. KSeF rate limit reached, retrieval will resume in background.");
     } else {
-        println!("{downloaded} invoices retrieved.");
+        println!("  {downloaded} invoices retrieved.");
     }
     Ok(())
 }
@@ -240,7 +240,7 @@ fn draw_progress(output: &mut impl Write, progress: f64, downloaded: u64) -> any
     let filled = format!("{}{partial}", "█".repeat(units / 8)).with(Color::Rgb { r: 160, g: 80, b: 220 });
     let empty = " ".repeat(24 - units / 8 - usize::from(!partial.is_empty()));
     execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
-    write!(output, "Retrieving your recent invoices [{filled}{empty}] {:3.0}% ({downloaded})", (progress * 100.0).floor())?;
+    write!(output, "  Retrieving your recent invoices [{filled}{empty}] {:3.0}% ({downloaded})", (progress * 100.0).floor())?;
     output.flush()?;
     Ok(())
 }
