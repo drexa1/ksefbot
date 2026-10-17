@@ -464,7 +464,7 @@ export const getOpenApiSpec = () => ({
                             "application/json": {
                                 schema: {
                                     type: "object",
-                                    required: ["success", "ownerId", "status", "invoicesDownloaded", "createdAt"],
+                                    required: ["success", "ownerId", "status", "invoicesDownloaded", "progress", "createdAt"],
                                     properties: {
                                         success: { type: "boolean" },
                                         ownerId: { type: "string" },
@@ -473,6 +473,7 @@ export const getOpenApiSpec = () => ({
                                             enum: ["queued", "running", "throttled", "completed", "failed"]
                                         },
                                         invoicesDownloaded: { type: "integer" },
+                                        progress: { type: "number", minimum: 0, maximum: 1, description: "Estimate based on sales-sync date coverage; reaches 1 only when the backfill completes." },
                                         error: { type: "string", nullable: true },
                                         createdAt: { type: "string", nullable: true },
                                         updatedAt: { type: "string", nullable: true }

@@ -3,7 +3,7 @@ use crate::api::users::update::{edit_optional, edit_optional_digits, edit_option
 use crate::api::users::{Language, create::create_app_user};
 use crate::login::AuthUser;
 use anyhow::Context;
-use crossterm::{cursor::MoveToColumn, execute, style::Stylize, terminal::{Clear, ClearType}};
+use crossterm::{cursor::MoveToColumn, execute, style::{Color, Stylize}, terminal::{Clear, ClearType}};
 use inquire::{Confirm, Select, Text};
 use std::{io::{Write, stdout}, time::Duration};
 
@@ -177,7 +177,8 @@ async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
     }
     let mut output = stdout();
     let mut animation = tokio::time::interval(Duration::from_millis(80));
-    let mut frame = 0;
+    let mut progress = 0.0_f64;
+    let mut target = 0.0_f64;
     let mut downloaded = 0;
     let result = async {
         loop {
@@ -196,18 +197,22 @@ async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
                 tokio::select! {
                     result = &mut poll => break result?,
                     _ = animation.tick() => {
-                        let position = 16 - (frame % 32_i32 - 16).abs();
-                        let bar = format!("{}{}{}", "─".repeat(position as usize), "━━━━".blue(), "─".repeat((16 - position) as usize));
-                        execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
-                        write!(output, "Retrieving your recent invoices [{bar}] {downloaded}")?;
-                        output.flush()?;
-                        frame = (frame + 1) % 32;
+                        progress = (progress + 0.01).min(target);
+                        draw_progress(&mut output, progress, downloaded)?;
                     }
                 }
             };
             downloaded = body["invoicesDownloaded"].as_u64().context("Missing invoice retrieval count")?;
+            target = target.max(body["progress"].as_f64().context("Missing invoice retrieval progress")?).min(0.99);
             match body["status"].as_str() {
-                Some("completed") => return Ok(false),
+                Some("completed") => {
+                    while progress < 1.0 {
+                        animation.tick().await;
+                        progress = (progress + 0.01).min(1.0);
+                        draw_progress(&mut output, progress, downloaded)?;
+                    }
+                    return Ok(false);
+                },
                 Some("throttled") => return Ok(true),
                 Some("failed") => anyhow::bail!("{}", body["error"].as_str().unwrap_or("Invoice retrieval failed")),
                 Some("queued" | "running") => {},
@@ -215,11 +220,26 @@ async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
             }
         }
     }.await;
-    execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+    if matches!(&result, Ok(false)) {
+        println!();
+    } else {
+        execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+    }
     if result? {
         println!("{downloaded} invoices retrieved so far. KSeF rate limit reached; retrieval will resume in the background.");
     } else {
         println!("{downloaded} invoices retrieved.");
     }
+    Ok(())
+}
+
+fn draw_progress(output: &mut impl Write, progress: f64, downloaded: u64) -> anyhow::Result<()> {
+    let units = (progress * 24.0 * 8.0) as usize;
+    let partial = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"][units % 8];
+    let filled = format!("{}{partial}", "█".repeat(units / 8)).with(Color::Rgb { r: 160, g: 80, b: 220 });
+    let empty = " ".repeat(24 - units / 8 - usize::from(!partial.is_empty()));
+    execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
+    write!(output, "Retrieving your recent invoices [{filled}{empty}] {:3.0}% ({downloaded})", (progress * 100.0).floor())?;
+    output.flush()?;
     Ok(())
 }
