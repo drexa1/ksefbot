@@ -43,11 +43,11 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     println!("{}", "How to get a KSeF token if you don't have one already".bold().underlined());
     token_instructions();
     token_safety_notice();
-    let ksef_api_token = prompt_required("[Required] KSeF token:", "", "Paste the full token for your company's NIP", |value| valid_token(value, &nip))?;
+    let ksef_api_token = prompt_required("[Required] KSeF token:", "", "Paste the full token", |value| valid_token(value, &nip))?;
     println!();
     println!("{}", "Banking".bold());
     let mut banks = BANK_NAMES.to_vec();
-    banks.push("⏭️ Skip");
+    banks.push("⏩ Skip");
     let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
     let bank_name = if bank == "Skip" { None } else { Some(bank) };
     let bank_account_number = edit_optional_digits("[Optional] Bank account number (26 digits):", None, 26)?;
