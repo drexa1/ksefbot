@@ -1,5 +1,5 @@
 use crate::api::customers::create::{ContractorLookup, NewContractor, lookup_customer, preview_customer, save_customer};
-use crate::api::users::update::{edit_optional, edit_optional_digits, edit_optional_hourly_rate, edit_settlement_type};
+use crate::api::users::update::{edit_optional_hourly_rate, edit_settlement_type};
 use crate::api::users::{Language, create::create_app_user};
 use crate::login::AuthUser;
 use anyhow::Context;
@@ -36,7 +36,12 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let language = Select::new("Preferred language:", vec!["English", "Polish"]).prompt()?;
     let language = if language == "Polish" { Language::Pl } else { Language::En };
     println!("Your company's main product or service description will be used as the default when creating new invoices, saving you time.");
-    let default_item_name = edit_optional("[Optional] Description of the company main service/product:", None)?;
+    let default_item_name = prompt_required(
+        "Description of the company main service/product:",
+        "",
+        "Enter a description",
+        |value| !value.trim().is_empty()
+    )?;
     let default_hourly_rate = edit_optional_hourly_rate(None)?;
     let settlement_type = edit_settlement_type(None)?;
     println!();
@@ -48,9 +53,16 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     println!("{}", "Banking".bold());
     let mut banks = BANK_NAMES.to_vec();
     banks.push("⏩Skip");
-    let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
-    let bank_name = if bank == "Skip" { None } else { Some(bank) };
-    let bank_account_number = edit_optional_digits("[Optional] Bank account number (26 digits):", None, 26)?;
+    let bank = Select::new("Bank branch:", BANK_NAMES.to_vec())
+        .with_page_size(8)
+        .prompt()?;
+    let bank_name = Some(bank);
+    let bank_account_number = prompt_required(
+        "Bank account number (26 digits):",
+        "",
+        "Enter exactly 26 digits",
+        |value| value.len() == 26 && value.bytes().all(|b| b.is_ascii_digit())
+    )?;
     create_app_user(&serde_json::json!({
         "id": nip,
         "email": email.trim(),
@@ -241,8 +253,11 @@ fn draw_progress(output: &mut impl Write, progress: f64) -> anyhow::Result<()> {
     let partial = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"][units % 8];
     let filled = format!("{}{partial}", "█".repeat(units / 8)).with(Color::Rgb { r: 160, g: 80, b: 220 });
     let empty = " ".repeat(24 - units / 8 - usize::from(!partial.is_empty()));
-    execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
-    write!(output, "  {filled}{empty} {:3.0}%", (progress * 100.0).floor())?;
+    write!(
+        output,
+        "\r  Retrieving your recent invoices [{filled}{empty}] {:3.0}%",
+        (progress * 100.0).floor()
+    )?;
     output.flush()?;
     Ok(())
 }
