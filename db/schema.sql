@@ -93,7 +93,8 @@ CREATE TABLE invoices_sync_periods (
 
 DROP TABLE IF EXISTS invoices_backfill;
 CREATE TABLE invoices_backfill (
-    ownerId TEXT PRIMARY KEY REFERENCES users(id),
+    id TEXT PRIMARY KEY,
+    ownerId TEXT UNIQUE REFERENCES users(id),
     status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'throttled', 'completed', 'failed')),
     invoicesDownloaded INTEGER NOT NULL DEFAULT 0,
     error TEXT,

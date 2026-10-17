@@ -68,6 +68,7 @@ export type InvoicesSyncPeriod = {
 };
 
 export type InvoicesBackfill = {
+    id: string;
     ownerId: string;
     status: "queued" | "running" | "throttled" | "completed" | "failed";
     invoicesDownloaded: number;

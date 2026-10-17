@@ -69,7 +69,7 @@ export class InvoicesBackfillJob extends WorkflowEntrypoint<Env, { userId: strin
     }
 
     async updateJob(ownerId: string, data: Partial<InvoicesBackfill>) {
-        await getRepo(this.env).update("invoices_backfill", { ...data, updatedAt: new Date().toISOString() }, { ownerId });
+        await getRepo(this.env).update("invoices_backfill", { ...data, updatedAt: new Date().toISOString() }, { id: this.ctx.instanceId, ownerId });
     }
 
     /// KSeF published limits for metadata queries: 8/sec, 16/min, and 20/hour

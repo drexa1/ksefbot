@@ -30,26 +30,48 @@ async function estimateProgress(env: Env, backfill: InvoicesBackfill): Promise<n
 async function refreshJob(env: Env, backfill: InvoicesBackfill): Promise<InvoicesBackfill> {
     if (backfill.status !== "queued" && backfill.status !== "running" && backfill.status !== "throttled")
         return backfill;
-    const workflow = await env.BACKFILL_JOB.get(backfill.ownerId).then(workflow => workflow.status());
+    const workflow = await env.BACKFILL_JOB.get(backfill.id).then(workflow => workflow.status());
     if (workflow.status !== "errored" && workflow.status !== "terminated" && workflow.status !== "complete")
         return backfill;
     const status = workflow.status === "complete" ? "completed" : backfill.status === "throttled" ? "throttled" : "failed";
-    await getRepo(env).update("invoices_backfill", { status, error: workflow.error?.message, updatedAt: new Date().toISOString() }, { ownerId: backfill.ownerId });
+    await getRepo(env).update("invoices_backfill",
+        { status, error: workflow.error?.message, updatedAt: new Date().toISOString() },
+        { id: backfill.id, ownerId: backfill.ownerId }
+    );
     return { ...backfill, status: status, error: workflow.error?.message };
 }
 
 export async function start(req: Request, env: Env): Promise<Response> {
     const appUser = await getAuthUser(req, env);
-    const backfillStatus = await getRepo(env).get<InvoicesBackfill>("invoices_backfill", { ownerId: appUser.id });
-    if (backfillStatus)
+    const existing = await getRepo(env).get<InvoicesBackfill>("invoices_backfill", { ownerId: appUser.id });
+    const backfillStatus = existing ? await refreshJob(env, existing) : null;
+    if (backfillStatus && !["completed", "failed"].includes(backfillStatus.status))
         return Response.json({ success: false, existing: true }, { status: 409 });
-    const createdBackfillStatus = await getRepo(env).save("invoices_backfill", { ownerId: appUser.id, status: "queued" }, true);
-    if (!createdBackfillStatus.changes)
-        return Response.json({ success: false, existing: true }, { status: 409 });
+    const workflowId = `${appUser.id}-${Date.now()}`;
+    if (backfillStatus) {
+        const updated = await getRepo(env).update("invoices_backfill", {
+            id: workflowId,
+            status: "queued",
+            invoicesDownloaded: 0,
+            error: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }, { id: backfillStatus.id, ownerId: appUser.id, status: backfillStatus.status });
+        if (!updated.changes)
+            return Response.json({ success: false, existing: true }, { status: 409 });
+    } else {
+        const createdBackfillStatus = await getRepo(env).save("invoices_backfill", { id: workflowId, ownerId: appUser.id, status: "queued" }, true);
+        if (!createdBackfillStatus.changes)
+            return Response.json({ success: false, existing: true }, { status: 409 });
+    }
     try {
-        await env.BACKFILL_JOB.create({ id: appUser.id, params: { userId: appUser.id } });
+        await env.BACKFILL_JOB.create({ id: workflowId, params: { userId: appUser.id } });
     } catch (error) {
-        await getRepo(env).update("invoices_backfill", { status: "failed", error: String(error), updatedAt: new Date().toISOString()}, { ownerId: appUser.id });
+        await getRepo(env).update(
+            "invoices_backfill",
+            { status: "failed", error: String(error), updatedAt: new Date().toISOString() },
+            { id: workflowId, ownerId: appUser.id }
+        );
         return Response.json({ success: false, error: String(error) }, { status: 502 });
     }
     return Response.json({ success: true, existing: false }, { status: 202 });
