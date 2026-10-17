@@ -69,6 +69,10 @@ pub async fn main_loop(logged_user: &mut AppUser) -> Result<()> {
                 let Some((from, to)) = prompt_invoice_dates(Local::now().date_naive(), None)? else { continue };
                 invoices::list_purchase_invoices(logged_user, from, to).await?;
             }
+            MainMenuAction::ObligationsLoop => {
+                println!("Obligations here...");
+                pause()?;
+            }
             MainMenuAction::CreateCustomer => {
                 customers::create::create_customer(logged_user).await?;
                 pause()?;

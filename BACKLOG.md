@@ -58,6 +58,8 @@
 - [x] Whatsapp worker  
 - [x] Whatsapp worker REST tests  
 - [x] Reinsert contractors on PROD  
+- [x] Whatsapp: get PROD number display name working
+- [x] Whatsapp: unravel double WABA setup  
 - [x] Manual check of the invoice page after refactor  
 - [x] KV for Whatsapp worker  
 - [x] Method to clear all messages in KV  
@@ -105,15 +107,15 @@
 - [x] CLI: NIP prompt should validate company existence  
 - [x] CLI: improve onboarding captions consistency  
 - [x] CLI: successful onboarding should trigger historical backfilling with progress bar  
-- [ ] The progress bar bounces sideways, we want deterministic progress
+- [x] The progress bar bounces sideways, we want deterministic progress  
 - [ ] CLI: is session revoked ever?  
-- [ ] Bruno tests for login with phone  
+- [ ] Encrypt KSeF/Baking keys  
 - [ ] Rethink monthly widget with stats line (ext. library)  
-- [ ] Whatsapp: get PROD number display name working  
-- [ ] Whatsapp: unravel double WABA setup  
-- [ ] Whatsapp: add real phone
+- [ ] Bruno tests for login with phone
 - [ ] Whatsapp bot bruno tests  
+- [ ] Whatsapp: add real phone  
 - [ ] Programmatic JPK  
+- [ ] Programmatic ZUS DRA  
 - [ ] Login frontend (inspiration: https://nosible.world/login)  
 - [ ] First time frontend workflow  
 - [ ] Review security architecture and keys passthrough  
@@ -126,7 +128,6 @@
 - [ ] Create user frontend  
 - [ ] Invoice generator frontend: help hints
 - [ ] Invoice generator frontend: import logic  
-- [ ] Encrypt KSeF/Baking keys  
 - [ ] Bank client PoC  
 - [ ] Scheduling  
 - [ ] Rust client installer  

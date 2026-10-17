@@ -65,7 +65,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     })).await.context("Error configuring first time user")?;
     save_customer(&nip, &contractor).await.context("Failed to save user contractor data")?;
     retrieve_invoices(&nip).await.context("  Retrieving recent invoices failed")?;
-    println!("  🚀 Your user is configured, you should be good to login");
+    println!("  🟢 Your user is configured, you should be good to login");
     Ok(())
 }
 
