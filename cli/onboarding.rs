@@ -252,11 +252,7 @@ fn draw_progress(output: &mut impl Write, progress: f64) -> anyhow::Result<()> {
     let partial = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"][units % 8];
     let filled = format!("{}{partial}", "█".repeat(units / 8)).with(Color::Rgb { r: 160, g: 80, b: 220 });
     let empty = " ".repeat(24 - units / 8 - usize::from(!partial.is_empty()));
-    write!(
-        output,
-        "\r  Retrieving your recent invoices [{filled}{empty}] {:3.0}%",
-        (progress * 100.0).floor()
-    )?;
+    write!(output, "\r  {filled}{empty} {:3.0}%", (progress * 100.0).floor())?;
     output.flush()?;
     Ok(())
 }
