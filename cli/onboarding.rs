@@ -76,7 +76,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     })).await.context("Error configuring first time user")?;
     save_customer(&nip, &contractor).await.context("Failed to save user contractor data")?;
     retrieve_invoices(&nip).await.context("  Retrieving recent invoices failed")?;
-    println!("  🟢 Your user is configured, you should be good to login");
+    println!("  🟢 Your user is now configured, you should be good to login.");
     Ok(())
 }
 
@@ -252,7 +252,7 @@ fn draw_progress(output: &mut impl Write, progress: f64) -> anyhow::Result<()> {
     let partial = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"][units % 8];
     let filled = format!("{}{partial}", "█".repeat(units / 8)).with(Color::Rgb { r: 160, g: 80, b: 220 });
     let empty = " ".repeat(24 - units / 8 - usize::from(!partial.is_empty()));
-    write!(output, "\r  {filled}{empty} {:3.0}%", (progress * 100.0).floor())?;
+    write!(output, "\r  {:3.0}% {filled}{empty}", (progress * 100.0).floor())?;
     output.flush()?;
     Ok(())
 }
