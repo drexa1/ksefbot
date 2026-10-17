@@ -35,7 +35,8 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     })?;
     let language = Select::new("Preferred language:", vec!["English", "Polish"]).prompt()?;
     let language = if language == "Polish" { Language::Pl } else { Language::En };
-    let default_item_name = edit_optional("[Optional] Description of your company main service/product:", None)?;
+    println!("Your company's main product or service description will be used as the default when creating new invoices, saving you time.");
+    let default_item_name = edit_optional("[Optional] Description of the company main service/product:", None)?;
     let default_hourly_rate = edit_optional_hourly_rate(None)?;
     let settlement_type = edit_settlement_type(None)?;
     println!();
@@ -80,7 +81,7 @@ async fn prompt_company() -> anyhow::Result<NewContractor> {
                 let contractor = &mut found.contractor;
                 preview_customer(&contractor.name, &contractor.nip, contractor.regon.as_deref(), &contractor.address_l1, &contractor.country_code);
                 println!();
-                if Confirm::new("Is this your company?").with_default(true).prompt()? {
+                if Confirm::new("Is this your company?:").with_default(true).prompt()? {
                     contractor.notes = Some("seller".to_string());
                     return Ok(found.contractor);
                 }

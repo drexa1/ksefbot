@@ -22,6 +22,7 @@ use strum::IntoEnumIterator;
 pub(crate) mod invoices_tui;
 
 pub async fn login_loop() -> Result<AuthUser> {
+    println!();
     let last_used = crate::login::last_used_method();
     loop {
         let choices: Vec<String> = LoginMethod::iter().map(|method| {
