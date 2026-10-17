@@ -174,7 +174,7 @@ async function getAnnualRevenue(env: Env, appUser: AppUser, before: Date = new D
     const from = new Date(Date.UTC(year, 0, 1));
     const invoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices",
         { ownerId: appUser.id, type: "sales" },
-        { field: "issueDate", start: formatted(from), end: formatted(before)}
+        { field: "issueDate", start: from.toISOString().slice(0, 10), end: before.toISOString().slice(0, 10) }
     );
     const annualRevenue = invoices.reduce((sum, invoice) => {
         const data = JSON.parse(invoice.jsonData);
