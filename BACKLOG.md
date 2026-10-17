@@ -109,8 +109,8 @@
 - [x] CLI: successful onboarding should trigger historical backfilling with progress bar  
 - [x] The progress bar bounces sideways, we want deterministic progress  
 - [x] Encrypt KSeF/Baking keys → Cloudflare handled  
-- [ ] CLI: is session revoked ever?  
 - [ ] Fix backfill idempotency/restart  
+- [ ] CLI: is session revoked ever?  
 - [ ] Review taxes calculation (ZUS on total YTD accumulated)  
 - [ ] Rethink monthly widget with stats line (ext. library)
 - [ ] Bruno tests for login with phone  
