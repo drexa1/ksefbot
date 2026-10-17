@@ -109,8 +109,8 @@
 - [x] CLI: successful onboarding should trigger historical backfilling with progress bar  
 - [x] The progress bar bounces sideways, we want deterministic progress  
 - [x] Encrypt KSeF/Baking keys → Cloudflare handled  
-- [ ] Review taxes calculation (ZUS on total YTD accumulated)  
-- [ ] Amend social security tax calculation API tests  
+- [x] Review taxes calculation (ZUS on total YTD accumulated)  
+- [x] Amend social security tax calculation API tests  
 - [ ] Bug: sales invoices don't seem to inform customerId  
 - [ ] CLI: is session revoked ever?
 - [ ] Rethink monthly widget with stats line (ext. library)  
