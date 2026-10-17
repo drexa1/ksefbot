@@ -133,9 +133,9 @@ async function computeObligations(env: Env, appUser: AppUser, taxRecord: AppTaxR
     // Obligations
     const taxRate = taxRecord.taxRate ?? env.DEFAULT_TAX_RATE;
     const incomeTax = Number((netBeforeObligations * taxRate / 100).toFixed(2));
-    const healthInsuranceBase = taxRecord.healthInsuranceBase ?? env.DEFAULT_HEALTH_INSURANCE_BASE;
-    const healthInsuranceRate = taxRecord.healthInsuranceRate ?? env.DEFAULT_HEALTH_INSURANCE_RATE;
-    const healthContribution = Number((healthInsuranceBase * healthInsuranceRate / 100).toFixed(2));
+    const previousRevenue = await getAnnualRevenue(env, appUser, from);
+    const annualRevenue = previousRevenue + netBeforeObligations;
+    const { healthInsuranceBase, healthInsuranceRate, healthContribution } = calculateHealthContribution(env, annualRevenue);
     // Purchases deductions
     const purchasesInvoices = env.TEST_MODE ? [] : (await getByDatesRange(env, new KsefClient(env), "purchase", appUser, from, to))
         .appInvoices
@@ -159,4 +159,26 @@ async function computeObligations(env: Env, appUser: AppUser, taxRecord: AppTaxR
         purchasesDeductions,
         purchasesSummary
     };
+}
+
+function calculateHealthContribution(env: Env, annualRevenue: number) {
+    const healthInsuranceRate = env.DEFAULT_HEALTH_INSURANCE_RATE;
+    const healthInsuranceBracket = env.HEALTH_INSURANCE_BRACKETS.find(bracket => bracket.MAXREVENUE === -1 || annualRevenue <= bracket.MAXREVENUE);
+    const healthInsuranceBase = healthInsuranceBracket.BASE;
+    const healthContribution = Number((healthInsuranceBase * healthInsuranceRate / 100).toFixed(2));
+    return { healthInsuranceBase, healthInsuranceRate, healthContribution };
+}
+
+async function getAnnualRevenue(env: Env, appUser: AppUser, before: Date = new Date()): Promise<number> {
+    const year = before.getUTCFullYear();
+    const from = new Date(Date.UTC(year, 0, 1));
+    const invoices = await getRepo(env).getAll<AppInvoice & { ownerId: string }>("invoices",
+        { ownerId: appUser.id, type: "sales" },
+        { field: "issueDate", start: formatted(from), end: formatted(before)}
+    );
+    const annualRevenue = invoices.reduce((sum, invoice) => {
+        const data = JSON.parse(invoice.jsonData);
+        return sum + Number(data.InvoiceBody?.TotalNetAmount ?? 0);
+    }, 0);
+    return Number(annualRevenue.toFixed(2));
 }

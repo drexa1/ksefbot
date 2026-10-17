@@ -37,6 +37,7 @@ export interface Env {
     DEFAULT_TAX_RATE: number;
     DEFAULT_HEALTH_INSURANCE_BASE: number;
     DEFAULT_HEALTH_INSURANCE_RATE: number;
+    HEALTH_INSURANCE_BRACKETS: { MAXREVENUE: number, BASE: number }
     // App bindings
     ASSETS: Fetcher;
     WHATSAPP: Fetcher;
