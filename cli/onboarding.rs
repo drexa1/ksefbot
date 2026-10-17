@@ -42,7 +42,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     println!();
     println!("{}", "How to get a KSeF token if you don't have one already".bold().underlined());
     token_instructions();
-    token_safety_notice();
+    safety_notice();
     let ksef_api_token = prompt_required("[Required] KSeF token:", "", "Paste the full token", |value| valid_token(value, &nip))?;
     println!();
     println!("{}", "Banking".bold());
@@ -145,12 +145,13 @@ fn token_instructions() {
     }
 }
 
-fn token_safety_notice() {
+fn safety_notice() {
     println!();
     println!("🔐 {}", "Is this safe?".bold());
     let lines = [
         "A KSeF token lets applications interact with KSeF on your behalf.",
         "You choose its permissions and you can revoke it at any time to prevent its usage.",
+        "Cloudflare automatically encrypts data at rest, and protects data in transit with TLS."
     ];
     let width = lines.iter().map(|line| line.len()).max().unwrap_or(0);
     println!("┌{}┐", "─".repeat(width + 2));
