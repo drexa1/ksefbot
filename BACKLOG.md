@@ -114,6 +114,7 @@
 - [ ] Bruno tests for login with phone
 - [ ] Whatsapp bot bruno tests  
 - [ ] Whatsapp: add real phone  
+- [ ] CLI: obligations menu  
 - [ ] Programmatic JPK  
 - [ ] Programmatic ZUS DRA  
 - [ ] Login frontend (inspiration: https://nosible.world/login)  
