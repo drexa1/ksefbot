@@ -36,7 +36,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let language = Select::new("Preferred language:", vec!["English", "Polish"]).prompt()?;
     let language = if language == "Polish" { Language::Pl } else { Language::En };
     println!();
-    println!("Your company's main product/service description will be used when creating new invoices, saving you time.");
+    println!("{}", "Your company's main product/service description will be used when creating new invoices, saving you time.".bold());
     let default_item_name = prompt_required(
         "Description of the company main service/product:",
         "",
