@@ -30,12 +30,13 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let contractor = prompt_company().await?;
     let nip = contractor.nip.clone();
     let email = prompt_required("Email:", user.email.as_deref().unwrap_or(""), "name@example.com", valid_email)?;
-    let phone = prompt_required("Phone number (+country code, no spaces:", user.phone.as_deref().unwrap_or(""), "+48111222333", |value| {
+    let phone = prompt_required("Phone number (+country code, no spaces):", user.phone.as_deref().unwrap_or(""), "+48111222333", |value| {
         value.starts_with("+48") && value.len() == 12 && value[3..].bytes().all(|byte| byte.is_ascii_digit())
     })?;
     let language = Select::new("Preferred language:", vec!["English", "Polish"]).prompt()?;
     let language = if language == "Polish" { Language::Pl } else { Language::En };
-    println!("  Your company's main product/service description will be used when creating new invoices, saving you time.");
+    println!();
+    println!("Your company's main product/service description will be used when creating new invoices, saving you time.");
     let default_item_name = prompt_required(
         "Description of the company main service/product:",
         "",
@@ -45,7 +46,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let default_hourly_rate = edit_optional_hourly_rate(None)?;
     let settlement_type = edit_settlement_type(None)?;
     println!();
-    println!("{}", "How to get a KSeF token if you don't have one already".bold().underlined());
+    println!("{}", "  How to get a KSeF token if you don't have one already".bold().underlined());
     token_instructions();
     safety_notice();
     let ksef_api_token = prompt_required("[Required] KSeF token:", "", "Paste the full token", |value| valid_token(value, &nip))?;
@@ -53,10 +54,8 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     println!("{}", "Banking".bold());
     let mut banks = BANK_NAMES.to_vec();
     banks.push("⏩Skip");
-    let bank = Select::new("Bank branch:", BANK_NAMES.to_vec())
-        .with_page_size(8)
-        .prompt()?;
-    let bank_name = Some(bank);
+    let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
+    let bank_name = if bank == "Skip" { None } else { Some(bank) };
     let bank_account_number = prompt_required(
         "Bank account number (26 digits):",
         "",
@@ -159,7 +158,7 @@ fn token_instructions() {
 
 fn safety_notice() {
     println!();
-    println!("🔐 {}", "Is this safe?".bold());
+    println!(" 🔐 {}", "Is this safe?".bold());
     let lines = [
         "A KSeF token lets applications interact with KSeF on your behalf.",
         "You choose its permissions and you can revoke it at any time to prevent its usage.",
