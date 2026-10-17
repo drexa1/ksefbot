@@ -114,6 +114,7 @@
 - [x] Review backfill idempotency/restart  
 - [ ] Bug: sales invoices don't seem to inform customerId  
 - [ ] CLI: is session revoked ever?  
+- [ ] On save of new app invoice, create tax record  
 - [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] CLI: obligations menu  
 - [ ] Bruno tests for login with phone  
