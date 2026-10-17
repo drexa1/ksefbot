@@ -108,14 +108,14 @@
 - [x] CLI: improve onboarding captions consistency  
 - [x] CLI: successful onboarding should trigger historical backfilling with progress bar  
 - [x] The progress bar bounces sideways, we want deterministic progress  
-- [x] Encrypt KSeF/Baking keys → Cloudflare handled  
-- [ ] Fix backfill idempotency/restart  
+- [x] Encrypt KSeF/Baking keys → Cloudflare handled
 - [ ] CLI: is session revoked ever?  
 - [ ] Review taxes calculation (ZUS on total YTD accumulated)  
-- [ ] Rethink monthly widget with stats line (ext. library)
-- [ ] Bruno tests for login with phone  
-- [ ] Whatsapp bot bruno tests   
+- [ ] Rethink monthly widget with stats line (ext. library)  
 - [ ] CLI: obligations menu  
+- [ ] Bruno tests for login with phone  
+- [ ] Whatsapp bot bruno tests  
+- [ ] Review backfill idempotency/restart  
 - [ ] Programmatic JPK  
 - [ ] Programmatic ZUS DRA  
 - [ ] Whatsapp: add real phone  
