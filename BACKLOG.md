@@ -110,6 +110,7 @@
 - [x] The progress bar bounces sideways, we want deterministic progress  
 - [x] Encrypt KSeF/Baking keys → Cloudflare handled  
 - [ ] CLI: is session revoked ever?  
+- [ ] Fix backfill idempotency/restart  
 - [ ] Review taxes calculation (ZUS on total YTD accumulated)  
 - [ ] Rethink monthly widget with stats line (ext. library)
 - [ ] Bruno tests for login with phone  
