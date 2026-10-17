@@ -65,7 +65,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     })).await.context("Error configuring first time user")?;
     save_customer(&nip, &contractor).await.context("Failed to save user contractor data")?;
     retrieve_invoices(&nip).await.context("  Retrieving recent invoices failed")?;
-    println!("Your user is configured, you should be good to login");
+    println!("  🚀 Your user is configured, you should be good to login");
     Ok(())
 }
 
@@ -170,6 +170,7 @@ fn backfill_request(user_id: &str, method: reqwest::Method) -> reqwest::RequestB
 }
 
 async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
+    println!("  Retrieving recent invoices...");
     let response = backfill_request(user_id, reqwest::Method::POST).send().await?;
     let status = response.status();
     let body: serde_json::Value = response.json().await?;
@@ -199,7 +200,7 @@ async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
                     result = &mut poll => break result?,
                     _ = animation.tick() => {
                         progress = (progress + 0.01).min(target);
-                        draw_progress(&mut output, progress, downloaded)?;
+                        draw_progress(&mut output, progress)?;
                     }
                 }
             };
@@ -210,7 +211,7 @@ async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
                     while progress < 1.0 {
                         animation.tick().await;
                         progress = (progress + 0.01).min(1.0);
-                        draw_progress(&mut output, progress, downloaded)?;
+                        draw_progress(&mut output, progress)?;
                     }
                     return Ok(false);
                 },
@@ -234,13 +235,13 @@ async fn retrieve_invoices(user_id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn draw_progress(output: &mut impl Write, progress: f64, downloaded: u64) -> anyhow::Result<()> {
+fn draw_progress(output: &mut impl Write, progress: f64) -> anyhow::Result<()> {
     let units = (progress * 24.0 * 8.0) as usize;
     let partial = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"][units % 8];
     let filled = format!("{}{partial}", "█".repeat(units / 8)).with(Color::Rgb { r: 160, g: 80, b: 220 });
     let empty = " ".repeat(24 - units / 8 - usize::from(!partial.is_empty()));
     execute!(output, MoveToColumn(0), Clear(ClearType::CurrentLine))?;
-    write!(output, "  Retrieving your recent invoices [{filled}{empty}] {:3.0}% ({downloaded})", (progress * 100.0).floor())?;
+    write!(output, "  {filled}{empty} {:3.0}%", (progress * 100.0).floor())?;
     output.flush()?;
     Ok(())
 }
