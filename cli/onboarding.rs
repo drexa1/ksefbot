@@ -47,7 +47,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     println!();
     println!("{}", "Banking".bold());
     let mut banks = BANK_NAMES.to_vec();
-    banks.push("⏩ Skip");
+    banks.push("⏩Skip");
     let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
     let bank_name = if bank == "Skip" { None } else { Some(bank) };
     let bank_account_number = edit_optional_digits("[Optional] Bank account number (26 digits):", None, 26)?;
