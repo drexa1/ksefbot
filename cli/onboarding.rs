@@ -57,7 +57,7 @@ pub async fn onboard(user: &AuthUser) -> anyhow::Result<()> {
     let bank = Select::new("[Optional] Bank branch:", banks).with_page_size(8).prompt()?;
     let bank_name = if bank == "Skip" { None } else { Some(bank) };
     let bank_account_number = prompt_required(
-        "Bank account number (26 digits):",
+        "[Required] Bank account number (26 digits):",
         "",
         "Enter exactly 26 digits",
         |value| value.len() == 26 && value.bytes().all(|b| b.is_ascii_digit())
