@@ -71,6 +71,9 @@ pub async fn main_loop(logged_user: &mut AppUser) -> Result<()> {
             }
             MainMenuAction::Obligations => {
                 println!("Obligations here...");
+                // VAT declaration (JPK)
+                // Income tax
+                // Social security (ZUS)
                 pause()?;
             }
             MainMenuAction::CreateCustomer => {

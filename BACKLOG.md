@@ -108,15 +108,16 @@
 - [x] CLI: improve onboarding captions consistency  
 - [x] CLI: successful onboarding should trigger historical backfilling with progress bar  
 - [x] The progress bar bounces sideways, we want deterministic progress  
+- [x] Encrypt KSeF/Baking keys → Cloudflare handled  
 - [ ] CLI: is session revoked ever?  
-- [ ] Encrypt KSeF/Baking keys  
-- [ ] Rethink monthly widget with stats line (ext. library)  
-- [ ] Bruno tests for login with phone
-- [ ] Whatsapp bot bruno tests  
-- [ ] Whatsapp: add real phone  
+- [ ] Review taxes calculation (ZUS on total YTD accumulated)  
+- [ ] Rethink monthly widget with stats line (ext. library)
+- [ ] Bruno tests for login with phone  
+- [ ] Whatsapp bot bruno tests   
 - [ ] CLI: obligations menu  
 - [ ] Programmatic JPK  
 - [ ] Programmatic ZUS DRA  
+- [ ] Whatsapp: add real phone  
 - [ ] Login frontend (inspiration: https://nosible.world/login)  
 - [ ] First time frontend workflow  
 - [ ] Review security architecture and keys passthrough  
