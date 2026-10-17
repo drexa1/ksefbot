@@ -112,7 +112,9 @@ export async function simulate(req: Request, env: Env): Promise<Response> {
     const now = new Date();
     const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-    const brutIncome = Number((appUser.defaultHourlyRate *  hoursWorked).toFixed(2));
+    const netIncome = Number((appUser.defaultHourlyRate * hoursWorked).toFixed(2));
+    const vatPercentage = env.DEFAULT_VAT_PERCENTAGE;
+    const brutIncome = Number((netIncome * (1 + vatPercentage / 100)).toFixed(2));
     const taxRecord = { from: from.toISOString(), to: to.toISOString(), brutIncome } as AppTaxRecord;
     const obligations = await computeObligations(env, appUser, taxRecord, from, to);
     const totalCleanRevenue = Number((obligations.netBeforeObligations - obligations.incomeTax - obligations.healthContribution + obligations.purchasesDeductions).toFixed(2));
